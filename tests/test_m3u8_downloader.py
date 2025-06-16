@@ -154,21 +154,18 @@ https://cdn.example.com/segment002.ts"""
             url,
             headers=headers,
             proxies=None,
-            timeout=self.config.timeout
-        )
+            timeout=self.config.timeout        )
     
     @patch('pavone.core.downloader.m3u8_downloader.os.makedirs')
     @patch('pavone.core.downloader.m3u8_downloader.os.path.exists')
     @patch('pavone.core.downloader.m3u8_downloader.os.remove')
     @patch('pavone.core.downloader.m3u8_downloader.os.rmdir')
     @patch('builtins.open', new_callable=mock_open)
-    @patch('pavone.core.downloader.m3u8_downloader.requests.Session')
-    def test_download_success(self, mock_session_class, mock_file, mock_rmdir, 
+    def test_download_success(self, mock_file, mock_rmdir, 
                             mock_remove, mock_exists, mock_makedirs):
         """测试完整的M3U8下载流程"""
-        # 设置mock
+        # 创建mock session
         mock_session = Mock()
-        mock_session_class.return_value = mock_session
         
         # Mock M3U8播放列表响应
         mock_playlist_response = Mock()
@@ -177,16 +174,41 @@ https://cdn.example.com/segment002.ts"""
 segment001.ts
 #EXTINF:10.0,
 segment002.ts"""
+        mock_playlist_response.raise_for_status = Mock()  # Mock raise_for_status
         
         # Mock视频段响应
         mock_segment_response = Mock()
         mock_segment_response.content = b"fake_segment_data"
+        mock_segment_response.raise_for_status = Mock()  # Mock raise_for_status
         
         mock_session.get.side_effect = [
             mock_playlist_response,  # 播放列表请求
             mock_segment_response,   # 第一个段
             mock_segment_response    # 第二个段
         ]
+        mock_session.close = Mock()  # Mock close method
+        
+        # 替换downloader的session
+        self.downloader._session = mock_session
+          # Mock M3U8播放列表响应
+        mock_playlist_response = Mock()
+        mock_playlist_response.text = """#EXTM3U
+#EXTINF:10.0,
+segment001.ts
+#EXTINF:10.0,
+segment002.ts"""
+        mock_playlist_response.raise_for_status = Mock()  # Mock raise_for_status
+          # Mock视频段响应
+        mock_segment_response = Mock()
+        mock_segment_response.content = b"fake_segment_data"
+        mock_segment_response.raise_for_status = Mock()  # Mock raise_for_status
+        
+        mock_session.get.side_effect = [
+            mock_playlist_response,  # 播放列表请求
+            mock_segment_response,   # 第一个段
+            mock_segment_response    # 第二个段
+        ]
+        mock_session.close = Mock()  # Mock close method
         
         mock_exists.return_value = True
         
