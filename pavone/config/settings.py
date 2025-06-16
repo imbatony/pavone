@@ -107,10 +107,19 @@ class ConfigManager:
                 print(f"加载配置失败: {e}")
                 # 使用默认配置
                 self.config = Config()
+        
+        # 验证并修复配置
+        if not self.validate_and_fix_config():
+            print("配置验证失败，使用默认配置")
+            self.config = Config()
+            self.save_config()
     
     def save_config(self):
         """保存配置"""
         try:
+            # 在保存前同步代理设置
+            self.config._sync_proxy_settings()
+            
             config_dict = {
                 'download': asdict(self.config.download),
                 'organize': asdict(self.config.organize),
@@ -140,6 +149,49 @@ class ConfigManager:
         """重置配置为默认值"""
         self.config = Config()
         self.save_config()
+    
+    def validate_and_fix_config(self):
+        """验证并修复配置"""
+        try:
+            # 验证下载目录
+            output_dir = Path(self.config.download.output_dir)
+            if not output_dir.is_absolute():
+                # 如果是相对路径，转换为基于配置目录的绝对路径
+                self.config.download.output_dir = str(self.config_dir / "downloads")
+            
+            # 验证并发下载数
+            if self.config.download.max_concurrent_downloads <= 0:
+                self.config.download.max_concurrent_downloads = 3
+            
+            # 验证重试次数
+            if self.config.download.retry_times < 0:
+                self.config.download.retry_times = 3
+            
+            # 验证超时时间
+            if self.config.download.timeout <= 0:
+                self.config.download.timeout = 30
+            
+            # 验证搜索结果数
+            if self.config.search.max_results_per_site <= 0:
+                self.config.search.max_results_per_site = 20
+            
+            # 验证启用的网站列表
+            if not self.config.search.enabled_sites:
+                self.config.search.enabled_sites = ["javbus", "javlibrary", "pornhub"]
+            
+            # 验证整理方式
+            valid_organize_by = ["studio", "genre", "actor"]
+            if self.config.organize.organize_by not in valid_organize_by:
+                self.config.organize.organize_by = "studio"
+            
+            # 同步代理设置
+            self.config._sync_proxy_settings()
+            
+            return True
+            
+        except Exception as e:
+            print(f"配置验证失败: {e}")
+            return False
 
 
 # 全局配置管理器实例
