@@ -1,0 +1,216 @@
+[MASTER]
+# Use multiple processes to speed up Pylint
+jobs=0
+
+# Pickle collected data for later comparisons
+persistent=yes
+
+# List of plugins (as comma separated values of python modules names) to load
+load-plugins=
+
+[MESSAGES CONTROL]
+# Only show warnings with the listed confidence levels
+confidence=
+
+# Disable specific warnings
+disable=
+    C0103,  # Invalid name (doesn't conform to naming convention)
+    C0111,  # Missing docstring
+    C0301,  # Line too long (handled by black)
+    R0903,  # Too few public methods
+    R0913,  # Too many arguments
+    W0613,  # Unused argument
+    W0622,  # Redefining built-in
+    R0801,  # Similar lines in files (duplicate code detection)
+
+# Enable specific warnings
+enable=
+    C0326,  # Bad whitespace
+
+[REPORTS]
+# Set the output format
+output-format=text
+
+# Include message's symbol in the output
+include-ids=yes
+
+# Include message's category in the output
+msg-template={path}:{line}:{column}: {msg_id}: {msg} ({symbol})
+
+[REFACTORING]
+# Maximum number of nested blocks for function / method body
+max-nested-blocks=5
+
+[BASIC]
+# Good variable names which should always be accepted
+good-names=i,j,k,ex,Run,_,id,db,pk,f
+
+# Bad variable names which should always be refused
+bad-names=foo,bar,baz,toto,tutu,tata
+
+# Regular expression matching correct function names
+function-rgx=[a-z_][a-z0-9_]{2,30}$
+
+# Regular expression matching correct variable names
+variable-rgx=[a-z_][a-z0-9_]{2,30}$
+
+# Regular expression matching correct constant names
+const-rgx=(([A-Z_][A-Z0-9_]*)|(__.*__))$
+
+# Regular expression matching correct attribute names
+attr-rgx=[a-z_][a-z0-9_]{2,30}$
+
+# Regular expression matching correct argument names
+argument-rgx=[a-z_][a-z0-9_]{2,30}$
+
+# Regular expression matching correct class attribute names
+class-attribute-rgx=([A-Za-z_][A-Za-z0-9_]{2,30}|(__.*__))$
+
+# Regular expression matching correct inline iteration names
+inlinevar-rgx=[A-Za-z_][A-Za-z0-9_]*$
+
+# Regular expression matching correct class names
+class-rgx=[A-Z_][a-zA-Z0-9]+$
+
+# Regular expression matching correct module names
+module-rgx=(([a-z_][a-z0-9_]*)|([A-Z][a-zA-Z0-9]+))$
+
+# Regular expression matching correct method names
+method-rgx=[a-z_][a-z0-9_]{2,30}$
+
+[FORMAT]
+# Maximum number of characters on a single line
+max-line-length=127
+
+# Regexp for a line that is allowed to be longer than the limit
+ignore-long-lines=^\s*(# )?<?https?://\S+>?$
+
+# Allow the body of an if to be on the same line as the test if there is no else
+single-line-if-stmt=no
+
+# Maximum number of lines in a module
+max-module-lines=1000
+
+[LOGGING]
+# Logging modules to check that the string format arguments are in logging function parameter format
+logging-modules=logging
+
+[MISCELLANEOUS]
+# List of note tags to take in consideration, separated by a comma
+notes=FIXME,XXX,TODO
+
+[SIMILARITIES]
+# Minimum lines number of a similarity
+min-similarity-lines=4
+
+# Ignore comments when computing similarities
+ignore-comments=yes
+
+# Ignore docstrings when computing similarities
+ignore-docstrings=yes
+
+# Ignore imports when computing similarities
+ignore-imports=no
+
+[SPELLING]
+# Spelling dictionary name
+spelling-dict=
+
+# List of comma separated words that should not be checked
+spelling-ignore-words=
+
+[TYPECHECK]
+# List of decorators that produce context managers
+contextmanager-decorators=contextlib.contextmanager
+
+# List of members which are set dynamically and missed by pylint inference system
+generated-members=
+
+# Tells whether missing members accessed in mixin class should be ignored
+ignore-mixin-members=yes
+
+# List of module names for which member attributes should not be checked
+ignored-modules=
+
+# List of class names for which member attributes should not be checked
+ignored-classes=optparse.Values,thread._local,_thread._local
+
+[VARIABLES]
+# Tells whether we should check for unused import in __init__ files
+init-import=no
+
+# A regular expression matching the name of dummy variables
+dummy-variables-rgx=(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?$)|dummy|^ignored_|^unused_
+
+# List of additional names supposed to be defined in builtins
+additional-builtins=
+
+# List of strings which can identify a callback function by name
+callbacks=cb_,_cb
+
+[CLASSES]
+# List of method names used to declare (i.e. assign) instance attributes
+defining-attr-methods=__init__,__new__,setUp
+
+# List of valid names for the first argument in a class method
+valid-classmethod-first-arg=cls
+
+# List of valid names for the first argument in a metaclass class method
+valid-metaclass-classmethod-first-arg=mcs
+
+[DESIGN]
+# Maximum number of arguments for function / method
+max-args=7
+
+# Argument names that match this expression will be ignored
+ignored-argument-names=_.*|^ignored_|^unused_
+
+# Maximum number of locals for function / method body
+max-locals=15
+
+# Maximum number of return / yield for function / method body
+max-returns=6
+
+# Maximum number of branch for function / method body
+max-branches=12
+
+# Maximum number of statements in function / method body
+max-statements=50
+
+# Maximum number of parents for a class (see R0901)
+max-parents=7
+
+# Maximum number of attributes for a class (see R0902)
+max-attributes=7
+
+# Minimum number of public methods for a class (see R0903)
+min-public-methods=2
+
+# Maximum number of public methods for a class (see R0904)
+max-public-methods=20
+
+# Maximum number of boolean expressions in a if statement
+max-bool-expr=5
+
+[IMPORTS]
+# Deprecated modules which should not be used
+deprecated-modules=optparse,tkinter.tix
+
+# Create a graph of every (i.e. internal and external) dependencies in the given file
+import-graph=
+
+# Create a graph of external dependencies in the given file
+ext-import-graph=
+
+# Create a graph of internal dependencies in the given file
+int-import-graph=
+
+# Force import order to recognize a module as part of the standard compatibility libraries
+known-standard-library=
+
+# Force import order to recognize a module as part of a third party library
+known-third-party=requests,urllib3
+
+[EXCEPTIONS]
+# Exceptions that will emit a warning when being caught
+overgeneral-exceptions=Exception

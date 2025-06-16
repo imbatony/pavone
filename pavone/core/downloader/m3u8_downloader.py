@@ -1,0 +1,268 @@
+"""
+M3U8视频下载器实现
+"""
+
+import os
+import requests
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Optional, Dict, List, Tuple
+from urllib.parse import urljoin, urlparse
+
+from pavone.config.settings import DownloadConfig
+from .base import BaseDownloader
+from .options import DownloadOpt
+from .progress import ProgressCallback, ProgressInfo
+
+
+class M3U8Downloader(BaseDownloader):
+    """M3U8视频下载器"""
+    
+    def __init__(self, config: DownloadConfig):
+        super().__init__(config)
+        self._session = requests.Session()
+        self._lock = threading.Lock()
+    
+    def _get_proxies(self) -> Optional[Dict[str, str]]:
+        """获取代理配置"""
+        if not self.config.proxy_enabled:
+            return None
+        
+        proxies = {}
+        if self.config.http_proxy:
+            proxies['http'] = self.config.http_proxy
+        if self.config.https_proxy:
+            proxies['https'] = self.config.https_proxy
+        
+        return proxies if proxies else None
+    
+    def _download_m3u8_playlist(self, url: str, headers: Dict[str, str]) -> str:
+        """
+        下载M3U8播放列表文件
+        
+        Args:
+            url: M3U8播放列表URL
+            headers: HTTP头部
+            
+        Returns:
+            str: M3U8文件内容
+            
+        Raises:
+            requests.RequestException: 下载失败时抛出异常
+        """
+        try:
+            proxies = self._get_proxies()
+            response = self._session.get(
+                url,
+                headers=headers,
+                proxies=proxies,
+                timeout=self.config.timeout
+            )
+            response.raise_for_status()
+            return response.text
+        except Exception as e:
+            raise requests.RequestException(f"Failed to download M3U8 playlist: {e}")
+    
+    def _parse_m3u8_playlist(self, content: str, base_url: str) -> List[str]:
+        """
+        解析M3U8播放列表，提取视频段URL列表
+        
+        Args:
+            content: M3U8文件内容
+            base_url: 基础URL，用于处理相对路径
+            
+        Returns:
+            List[str]: 视频段URL列表
+        """
+        segment_urls = []
+        lines = content.strip().split('\n')
+        
+        for line in lines:
+            line = line.strip()
+            # 跳过注释行和空行
+            if line.startswith('#') or not line:
+                continue
+            
+            # 如果是相对URL，转换为绝对URL
+            if line.startswith('http'):
+                segment_urls.append(line)
+            else:
+                segment_urls.append(urljoin(base_url, line))
+        
+        return segment_urls
+    
+    def _download_segment(self, url: str, headers: Dict[str, str], 
+                         segment_index: int) -> Tuple[int, bytes]:
+        """
+        下载单个视频段
+        
+        Args:
+            url: 视频段URL
+            headers: HTTP头部
+            segment_index: 段索引
+            
+        Returns:
+            Tuple[int, bytes]: (段索引, 段数据)
+        """
+        try:
+            proxies = self._get_proxies()
+            response = self._session.get(
+                url,
+                headers=headers,
+                proxies=proxies,
+                timeout=self.config.timeout
+            )
+            response.raise_for_status()
+            return segment_index, response.content
+        except Exception as e:
+            raise Exception(f"Failed to download segment {segment_index}: {e}")
+    
+    def _get_output_filename(self, download_opt: DownloadOpt) -> str:
+        """获取输出文件名"""
+        if download_opt.filename:
+            filename = download_opt.filename
+        else:
+            # 从URL提取文件名
+            parsed_url = urlparse(download_opt.url)
+            filename = os.path.basename(parsed_url.path)
+            if not filename or not filename.endswith('.m3u8'):
+                filename = 'video.mp4'  # 默认为mp4格式
+            else:
+                # 将.m3u8扩展名替换为.mp4
+                filename = filename.replace('.m3u8', '.mp4')
+        
+        # 确保文件名以.mp4结尾
+        if not filename.lower().endswith('.mp4'):
+            filename += '.mp4'
+        
+        return os.path.join(self.config.output_dir, filename)
+    
+    def download(self, download_opt: DownloadOpt,
+                 progress_callback: Optional[ProgressCallback] = None) -> bool:
+        """
+        下载M3U8视频
+        
+        Args:
+            download_opt: 下载选项，包含M3U8播放列表URL
+            progress_callback: 进度回调函数
+            
+        Returns:
+            bool: 下载是否成功
+        """
+        try:
+            # 获取有效的HTTP头部
+            headers = download_opt.get_effective_headers({
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            })
+            
+            # 下载M3U8播放列表
+            m3u8_content = self._download_m3u8_playlist(download_opt.url, headers)
+            
+            # 解析播放列表，获取视频段URL列表
+            base_url = '/'.join(download_opt.url.split('/')[:-1]) + '/'
+            segment_urls = self._parse_m3u8_playlist(m3u8_content, base_url)
+            
+            if not segment_urls:
+                print("No video segments found in M3U8 playlist")
+                return False
+            
+            total_segments = len(segment_urls)
+            print(f"Found {total_segments} video segments")
+            
+            # 获取输出文件路径
+            output_file = self._get_output_filename(download_opt)
+            
+            # 创建临时目录存储视频段
+            temp_dir = output_file + '_segments'
+            os.makedirs(temp_dir, exist_ok=True)
+              # 初始化进度
+            if progress_callback:
+                progress_info = ProgressInfo(
+                    total_size=total_segments,  # 使用段数作为总数
+                    downloaded=0,
+                    speed=0.0
+                )
+                progress_callback(progress_info)
+            
+            # 下载所有视频段
+            downloaded_segments = {}
+            failed_downloads = []
+            
+            def download_with_progress(segment_info):
+                index, url = segment_info
+                try:
+                    segment_index, segment_data = self._download_segment(url, headers, index)
+                    
+                    # 将段数据写入临时文件
+                    segment_file = os.path.join(temp_dir, f'segment_{segment_index:06d}.ts')
+                    with open(segment_file, 'wb') as f:
+                        f.write(segment_data)
+                    
+                    with self._lock:
+                        downloaded_segments[segment_index] = segment_file
+                          # 更新进度
+                        if progress_callback:
+                            progress_info = ProgressInfo(
+                                total_size=total_segments,
+                                downloaded=len(downloaded_segments),
+                                speed=0.0
+                            )
+                            progress_callback(progress_info)
+                    
+                    return True
+                except Exception as e:
+                    print(f"Failed to download segment {index}: {e}")
+                    failed_downloads.append((index, url))
+                    return False
+              # 使用线程池并发下载
+            max_workers = min(self.config.max_concurrent_downloads, total_segments)
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                segment_infos = list(enumerate(segment_urls))
+                futures = [executor.submit(download_with_progress, info) for info in segment_infos]
+                
+                for future in as_completed(futures):
+                    future.result()  # 等待完成
+            
+            # 检查是否有失败的下载
+            if failed_downloads:
+                print(f"Failed to download {len(failed_downloads)} segments")
+                # 可以选择重试失败的段
+                return False
+            
+            # 合并所有视频段
+            print("Merging video segments...")
+            with open(output_file, 'wb') as output:
+                for i in range(total_segments):
+                    segment_file = downloaded_segments.get(i)
+                    if segment_file and os.path.exists(segment_file):
+                        with open(segment_file, 'rb') as f:
+                            output.write(f.read())
+                    else:
+                        print(f"Warning: Missing segment {i}")
+            
+            # 清理临时文件
+            try:
+                for segment_file in downloaded_segments.values():
+                    if os.path.exists(segment_file):
+                        os.remove(segment_file)
+                os.rmdir(temp_dir)
+            except Exception as e:
+                print(f"Warning: Failed to clean up temporary files: {e}")
+            
+            print(f"M3U8 video downloaded successfully: {output_file}")
+              # 最终进度更新
+            if progress_callback:
+                progress_info = ProgressInfo(
+                    total_size=total_segments,
+                    downloaded=total_segments,
+                    speed=0.0
+                )
+                progress_callback(progress_info)
+            
+            return True
+            
+        except Exception as e:
+            print(f"M3U8 download failed: {e}")
+            return False
+        finally:
+            self._session.close()

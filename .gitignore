@@ -192,3 +192,22 @@ cython_debug/
 #  refer to https://docs.cursor.com/context/ignore-files
 .cursorignore
 .cursorindexingignore
+
+# PAVOne specific
+downloads/
+*.mp4
+*.avi
+*.mkv
+*.mov
+*.wmv
+*.flv
+*.webm
+*.m4v
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.gif
+*.webp
+config.json
+.pavone/

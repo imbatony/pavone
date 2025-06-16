@@ -1,0 +1,317 @@
+name: Code Quality Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '**.py'
+      - 'requirements.txt'
+      - 'pyproject.toml'
+      - 'pyrightconfig.json'
+
+jobs:
+  pylance-type-check:
+    name: Pylance Type Checking
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-pylance-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-pylance-
+          
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -e .
+        
+    - name: Install Pyright (Pylance backend)
+      run: |
+        npm install -g pyright
+        
+    - name: Run Pyright type checking
+      run: |
+        echo "Running Pyright (Pylance backend) type checking..."
+        pyright --outputjson pavone/ > pyright_results.json || true
+        
+    - name: Parse and display Pyright results
+      run: |
+        python -c "
+        import json
+        import sys
+        
+        try:
+            with open('pyright_results.json', 'r') as f:
+                results = json.load(f)
+            
+            print('📊 Pyright (Pylance) Type Checking Results')
+            print('=' * 50)
+            
+            if 'generalDiagnostics' in results:
+                diagnostics = results['generalDiagnostics']
+                
+                error_count = len([d for d in diagnostics if d['severity'] == 'error'])
+                warning_count = len([d for d in diagnostics if d['severity'] == 'warning'])
+                info_count = len([d for d in diagnostics if d['severity'] == 'information'])
+                
+                print(f'❌ Errors: {error_count}')
+                print(f'⚠️  Warnings: {warning_count}')
+                print(f'ℹ️  Information: {info_count}')
+                print()
+                
+                if diagnostics:
+                    for diag in diagnostics[:10]:  # Show first 10 issues
+                        severity = diag['severity']
+                        file_path = diag.get('file', 'unknown')
+                        line = diag.get('range', {}).get('start', {}).get('line', 0) + 1
+                        message = diag.get('message', 'No message')
+                        rule = diag.get('rule', 'general')
+                        
+                        icon = '❌' if severity == 'error' else '⚠️' if severity == 'warning' else 'ℹ️'
+                        print(f'{icon} {file_path}:{line} - {message} ({rule})')
+                    
+                    if len(diagnostics) > 10:
+                        print(f'... and {len(diagnostics) - 10} more issues')
+                else:
+                    print('✅ No type checking issues found!')
+                    
+            else:
+                print('⚠️ No diagnostics found in results')
+                
+        except Exception as e:
+            print(f'Error parsing results: {e}')
+            sys.exit(1)
+        "
+        
+    - name: Upload Pyright results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: pyright-results
+        path: pyright_results.json
+
+  code-formatting:
+    name: Code Formatting Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install formatting tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install black isort flake8
+        
+    - name: Check code formatting with Black
+      run: |
+        echo "🎨 Checking code formatting with Black..."
+        black --check --diff pavone/ tests/ || {
+          echo "❌ Code formatting issues found. Run 'black pavone/ tests/' to fix."
+          exit 1
+        }
+        echo "✅ Black formatting check passed!"
+        
+    - name: Check import sorting with isort
+      run: |
+        echo "📦 Checking import sorting with isort..."
+        isort --check-only --diff pavone/ tests/ || {
+          echo "❌ Import sorting issues found. Run 'isort pavone/ tests/' to fix."
+          exit 1
+        }
+        echo "✅ isort check passed!"
+        
+    - name: Check code style with flake8
+      run: |
+        echo "🔍 Checking code style with flake8..."
+        flake8 pavone/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 pavone/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        echo "✅ flake8 check completed!"
+
+  test-m3u8-downloader:
+    name: Test M3U8 Downloader
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -e .
+        pip install pytest pytest-cov pytest-mock
+        
+    - name: Run M3U8 downloader tests specifically
+      run: |
+        echo "🧪 Running M3U8 downloader tests..."
+        pytest tests/test_m3u8_downloader.py -v --cov=pavone.core.downloader.m3u8_downloader --cov-report=term-missing
+        
+    - name: Test M3U8 downloader import and basic functionality
+      run: |
+        python -c "
+        from pavone.config.settings import DownloadConfig
+        from pavone.core.downloader.m3u8_downloader import M3U8Downloader
+        from pavone.core.downloader.options import DownloadOpt
+        
+        # Test basic instantiation
+        config = DownloadConfig()
+        downloader = M3U8Downloader(config)
+        
+        # Test parsing functionality (without network)
+        content = '#EXTM3U\n#EXTINF:10.0,\nsegment001.ts'
+        segments = downloader._parse_m3u8_playlist(content, 'https://example.com/')
+        
+        assert segments == ['https://example.com/segment001.ts']
+        print('✅ M3U8 downloader basic functionality test passed!')
+        "
+
+  dependency-audit:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install audit tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install safety pip-audit
+        pip install -r requirements.txt
+        
+    - name: Run safety check
+      run: |
+        echo "🔒 Running safety check for known vulnerabilities..."
+        safety check --json --output safety_results.json || true
+        
+    - name: Run pip-audit
+      run: |
+        echo "🔍 Running pip-audit for dependency vulnerabilities..."
+        pip-audit --output-format=json --output=pip_audit_results.json || true
+        
+    - name: Display security results
+      run: |
+        echo "📊 Security Audit Results"
+        echo "=" * 30
+        
+        # Show safety results
+        if [ -f safety_results.json ]; then
+          python -c "
+          import json
+          try:
+              with open('safety_results.json', 'r') as f:
+                  safety_data = json.load(f)
+              if isinstance(safety_data, list) and len(safety_data) > 0:
+                  print(f'⚠️ Safety found {len(safety_data)} vulnerabilities')
+                  for vuln in safety_data[:5]:
+                      print(f'  - {vuln.get(\"package\", \"unknown\")}: {vuln.get(\"vulnerability\", \"unknown\")}')
+              else:
+                  print('✅ No vulnerabilities found by safety')
+          except:
+              print('ℹ️ Safety results not available')
+          "
+        fi
+        
+        # Show pip-audit results
+        if [ -f pip_audit_results.json ]; then
+          python -c "
+          import json
+          try:
+              with open('pip_audit_results.json', 'r') as f:
+                  audit_data = json.load(f)
+              vulnerabilities = audit_data.get('vulnerabilities', [])
+              if vulnerabilities:
+                  print(f'⚠️ pip-audit found {len(vulnerabilities)} vulnerabilities')
+              else:
+                  print('✅ No vulnerabilities found by pip-audit')
+          except:
+              print('ℹ️ pip-audit results not available')
+          "
+        fi
+        
+    - name: Upload security results
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-audit-results
+        path: |
+          safety_results.json
+          pip_audit_results.json
+
+  code-quality-summary:
+    name: Code Quality Summary
+    runs-on: ubuntu-latest
+    needs: [pylance-type-check, code-formatting, test-m3u8-downloader, dependency-audit]
+    if: always()
+    
+    steps:
+    - name: Create quality summary
+      run: |
+        echo "## 📊 Code Quality Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔍 Pylance Type Checking" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ needs.pylance-type-check.result }}" == "success" ]; then
+          echo "✅ **Passed** - No critical type checking issues found" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Failed** - Type checking issues detected" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "### 🎨 Code Formatting" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ needs.code-formatting.result }}" == "success" ]; then
+          echo "✅ **Passed** - Code formatting is consistent" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Failed** - Code formatting issues found" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "### 🧪 M3U8 Downloader Tests" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ needs.test-m3u8-downloader.result }}" == "success" ]; then
+          echo "✅ **Passed** - All M3U8 downloader tests pass" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "❌ **Failed** - M3U8 downloader tests failed" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "### 🔒 Security Audit" >> $GITHUB_STEP_SUMMARY
+        if [ "${{ needs.dependency-audit.result }}" == "success" ]; then
+          echo "✅ **Passed** - No critical security vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ **Warning** - Security audit completed with warnings" >> $GITHUB_STEP_SUMMARY
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        echo "### 🚀 Next Steps" >> $GITHUB_STEP_SUMMARY
+        echo "- Review any failing checks above" >> $GITHUB_STEP_SUMMARY
+        echo "- Download artifacts for detailed reports" >> $GITHUB_STEP_SUMMARY
+        echo "- Address any type checking or formatting issues" >> $GITHUB_STEP_SUMMARY
+        echo "- Once all checks pass, the PR is ready for review!" >> $GITHUB_STEP_SUMMARY

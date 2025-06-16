@@ -1,0 +1,81 @@
+{
+    "include": [
+        "pavone",
+        "tests"
+    ],
+    "exclude": [
+        "**/__pycache__",
+        "**/*.pyc",
+        ".pytest_cache",
+        "build",
+        "dist",
+        "*.egg-info"
+    ],
+    "defineConstant": {
+        "DEBUG": false
+    },    "stubPath": "typings",
+    "venvPath": ".",
+    "venv": "venv",
+    "pythonVersion": "3.9",
+    "pythonPlatform": "All",
+    "executionEnvironments": [
+        {
+            "root": ".",
+            "pythonVersion": "3.9",
+            "pythonPlatform": "All",
+            "extraPaths": [
+                "."
+            ]
+        }
+    ],
+    "typeCheckingMode": "standard",
+    "useLibraryCodeForTypes": true,
+    "autoImportCompletions": true,
+    "autoSearchPaths": true,
+    "reportMissingImports": "warning",
+    "reportMissingTypeStubs": "information",
+    "reportImportCycles": "warning",
+    "reportUnusedImport": "information",
+    "reportUnusedClass": "information",
+    "reportUnusedFunction": "information",
+    "reportUnusedVariable": "information",
+    "reportDuplicateImport": "warning",
+    "reportWildcardImportFromLibrary": "warning",
+    "reportOptionalSubscript": "warning",
+    "reportOptionalMemberAccess": "warning",
+    "reportOptionalCall": "warning",
+    "reportOptionalIterable": "warning",
+    "reportOptionalContextManager": "warning",
+    "reportOptionalOperand": "warning",
+    "reportUntypedFunctionDecorator": "information",
+    "reportUntypedClassDecorator": "information",
+    "reportUntypedBaseClass": "information",
+    "reportUntypedNamedTuple": "information",
+    "reportPrivateUsage": "information",
+    "reportPrivateImportUsage": "information",
+    "reportConstantRedefinition": "warning",
+    "reportIncompatibleMethodOverride": "warning",
+    "reportIncompatibleVariableOverride": "warning",
+    "reportInconsistentConstructor": "warning",
+    "reportOverlappingOverloads": "warning",
+    "reportMissingSuperCall": "information",
+    "reportPropertyTypeMismatch": "warning",
+    "reportFunctionMemberAccess": "warning",
+    "reportInvalidStringEscapeSequence": "warning",
+    "reportUnknownParameterType": "information",
+    "reportUnknownArgumentType": "information",
+    "reportUnknownLambdaType": "information",
+    "reportUnknownVariableType": "information",
+    "reportUnknownMemberType": "information",
+    "reportMissingParameterType": "information",
+    "reportMissingTypeArgument": "information",
+    "reportInvalidTypeVarUse": "warning",
+    "reportCallInDefaultInitializer": "information",
+    "reportUnnecessaryIsInstance": "information",
+    "reportUnnecessaryCast": "information",
+    "reportUnnecessaryComparison": "information",
+    "reportAssertAlwaysTrue": "warning",
+    "reportSelfClsParameterName": "warning",
+    "reportImplicitStringConcatenation": "information",
+    "reportTypedDictNotRequiredAccess": "information"
+}
