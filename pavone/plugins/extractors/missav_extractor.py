@@ -98,42 +98,36 @@ class MissAVExtractor(ExtractorPlugin):
                         quality="自适应"
                     )
                     download_options.append(download_opt)
-                
-                # 添加1280p视频链接
+                  # 添加720p视频链接
                 if 'source1280' in video_urls:
                     download_opt = DownloadOpt(
                         url=video_urls['source1280'],
-                        filename=f"{video_title}_1280p.mp4",
+                        filename=f"{video_title}_720p.mp4",
                         custom_headers={
                             "User-Agent": headers['User-Agent'],
                             "Referer": url,
                             "Accept": "application/vnd.apple.mpegurl,application/x-mpegurl,video/*;q=0.9,*/*;q=0.8"
                         },
                         link_type=LinkType.STREAM,
-                        display_name=f"1280p M3U8 - {video_title}",
-                        quality="1280p"
+                        display_name=f"720p M3U8 - {video_title}",
+                        quality="720p"
                     )
                     download_options.append(download_opt)
-                
-                # 添加842p视频链接
+                  # 添加480p视频链接
                 if 'source842' in video_urls:
                     download_opt = DownloadOpt(
                         url=video_urls['source842'],
-                        filename=f"{video_title}_842p.mp4",
+                        filename=f"{video_title}_480p.mp4",
                         custom_headers={
                             "User-Agent": headers['User-Agent'],
                             "Referer": url,
                             "Accept": "application/vnd.apple.mpegurl,application/x-mpegurl,video/*;q=0.9,*/*;q=0.8"
                         },
                         link_type=LinkType.STREAM,
-                        display_name=f"842p M3U8 - {video_title}",
-                        quality="842p"
+                        display_name=f"480p M3U8 - {video_title}",
+                        quality="480p"
                     )
                     download_options.append(download_opt)
-            
-            # 备用方法：传统的正则表达式搜索（用于兼容性）
-            if not download_options:
-                download_options.extend(self._extract_traditional_urls(html_content, video_title, url, headers))
             
             return download_options
             
@@ -152,14 +146,12 @@ class MissAVExtractor(ExtractorPlugin):
             html_content: HTML页面内容
             
         Returns:
-            包含video URLs的字典
-        """
-        try:
-            # 查找JavaScript混淆代码
-            # 模式：eval(function(p,a,c,k,e,d){...}('encoded_string', base, count, 'keywords'.split('|'), 0, {}))
-            obfuscated_pattern = r"eval\(function\s*\([^}]+\}\s*\(\s*'([^']+)',\s*(\d+),\s*(\d+),\s*'([^']+)'\.split\('\|'\)"
-            match = re.search(obfuscated_pattern, html_content)
+            包含video URLs的字典        """
+        try:            # 查找JavaScript混淆代码
+            # 直接匹配参数部分
+            eval_pattern = r"'([^']*f=.*?)',\s*(\d+),\s*(\d+),\s*'([^']+)'\.split\('\|'\)"
             
+            match = re.search(eval_pattern, html_content)
             if not match:
                 return {}
             
@@ -176,15 +168,13 @@ class MissAVExtractor(ExtractorPlugin):
             
             # 查找各种source变量的定义
             patterns = {
-                'source': r"source\s*=\s*'([^']+)'",
-                'source842': r"source842\s*=\s*'([^']+)'",
-                'source1280': r"source1280\s*=\s*'([^']+)'"
+                'source': r"([a-z]+)\s*=\s*'([^']+)'",
             }
             
-            for var_name, pattern in patterns.items():
-                match = re.search(pattern, decoded_js)
-                if match:
-                    video_urls[var_name] = match.group(1)
+            # 提取所有变量
+            var_matches = re.findall(r"([a-z]+)\s*=\s*'([^']+)'", decoded_js)
+            for var_name, url in var_matches:
+                video_urls[var_name] = url
             
             # 如果没有找到完整的URL，尝试手动构建
             if not video_urls:
@@ -209,16 +199,28 @@ class MissAVExtractor(ExtractorPlugin):
         """
         result = encoded_string
         
-        # 替换数字 0-9
+        # 基于JavaScript的36进制解码算法
+        # 0-9 对应 keywords[0]-keywords[9]
+        # a-z 对应 keywords[10]-keywords[35]
+        
+        # 先创建映射字典避免重复替换问题
+        mapping = {}
+        
+        # 数字 0-9
         for i in range(min(10, len(keywords))):
             if keywords[i]:
-                result = result.replace(str(i), keywords[i])
+                mapping[str(i)] = keywords[i]
         
-        # 替换字母 a-f (对应10-15)
-        for i, letter in enumerate(['a', 'b', 'c', 'd', 'e', 'f']):
+        # 字母 a-z (对应10-35)
+        for i in range(26):  # a-z
             idx = 10 + i
             if idx < len(keywords) and keywords[idx]:
-                result = result.replace(letter, keywords[idx])
+                letter = chr(ord('a') + i)
+                mapping[letter] = keywords[idx]
+        
+        # 按长度排序，先替换长的，避免子字符串问题
+        for char in sorted(mapping.keys(), key=len, reverse=True):
+            result = result.replace(char, mapping[char])
         
         return result
     
@@ -245,12 +247,11 @@ class MissAVExtractor(ExtractorPlugin):
             if len(uuid_parts) >= 5:
                 # 典型格式：b8e4c00d-0a85-4dc5-badd-024a7765d391
                 uuid = f"{uuid_parts[0]}-{uuid_parts[1]}-{uuid_parts[2]}-{uuid_parts[3]}-{uuid_parts[4]}"
-                
-                # 查找域名
+                  # 查找域名
                 domain = None
                 for keyword in keywords:
                     if 'surrit' in keyword.lower():
-                        domain = keyword
+                        domain = keyword + '.com'  # 添加.com后缀
                         break
                 
                 if not domain:
@@ -262,85 +263,13 @@ class MissAVExtractor(ExtractorPlugin):
                 return {
                     'source': f"{base_url}/playlist.m3u8",
                     'source842': f"{base_url}/842x480/video.m3u8",
-                    'source1280': f"{base_url}/1280x720/video.m3u8"
-                }
+                    'source1280': f"{base_url}/1280x720/video.m3u8"                }
             
             return {}
             
         except Exception as e:
             print(f"手动解码URL时出错: {e}")
             return {}
-    
-    def _extract_traditional_urls(self, html_content: str, video_title: str, url: str, headers: dict) -> List[DownloadOpt]:
-        """
-        使用传统方法提取视频链接（备用方法）
-        
-        Args:
-            html_content: HTML内容
-            video_title: 视频标题
-            url: 页面URL
-            headers: 请求头
-            
-        Returns:
-            DownloadOpt对象列表
-        """
-        download_options = []
-        
-        # 方法1: 查找 M3U8 播放列表链接
-        m3u8_patterns = [
-            r'"(https?://[^"]*\.m3u8[^"]*)"',
-            r"'(https?://[^']*\.m3u8[^']*)'",
-            r'src="([^"]*\.m3u8[^"]*)"',
-            r"src='([^']*\.m3u8[^']*)'",
-            r'url["\']?\s*:\s*["\']([^"\']*\.m3u8[^"\']*)',
-        ]
-        
-        for pattern in m3u8_patterns:
-            matches = re.findall(pattern, html_content, re.IGNORECASE)
-            for match in matches:
-                if match and any(domain in match.lower() for domain in ['surrit', 'missav', 'cdn']):
-                    download_opt = DownloadOpt(
-                        url=match,
-                        filename=f"{video_title}.mp4",
-                        custom_headers={
-                            "User-Agent": headers['User-Agent'],
-                            "Referer": url,
-                            "Accept": "application/vnd.apple.mpegurl,application/x-mpegurl,video/*;q=0.9,*/*;q=0.8"
-                        },
-                        link_type=LinkType.STREAM,
-                        display_name=f"M3U8流媒体 - {video_title}",
-                        quality="流媒体"
-                    )
-                    download_options.append(download_opt)
-        
-        # 方法2: 查找 MP4 直接链接
-        mp4_patterns = [
-            r'"(https?://[^"]*\.mp4[^"]*)"',
-            r"'(https?://[^']*\.mp4[^']*)'",
-            r'src="([^"]*\.mp4[^"]*)"',
-            r"src='([^']*\.mp4[^']*)'",
-            r'url["\']?\s*:\s*["\']([^"\']*\.mp4[^"\']*)',
-        ]
-        
-        for pattern in mp4_patterns:
-            matches = re.findall(pattern, html_content, re.IGNORECASE)
-            for match in matches:
-                if match and any(domain in match.lower() for domain in ['surrit', 'missav', 'cdn']):
-                    download_opt = DownloadOpt(
-                        url=match,
-                        filename=f"{video_title}.mp4",
-                        custom_headers={
-                            "User-Agent": headers['User-Agent'],
-                            "Referer": url,
-                            "Accept": "video/mp4,video/*;q=0.9,*/*;q=0.8"
-                        },
-                        link_type=LinkType.VIDEO,
-                        display_name=f"MP4视频 - {video_title}",
-                        quality="标清"
-                    )
-                    download_options.append(download_opt)
-        
-        return download_options
     
     def _sanitize_filename(self, filename: str) -> str:
         """

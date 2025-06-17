@@ -60,39 +60,39 @@ class TestMissAVExtractor(unittest.TestCase):
         
         self.assertGreater(len(options), 0)
         if len(options) > 0:
-            # 真实页面主要提取到VIDEO类型的链接
-            self.assertEqual(options[0].link_type, LinkType.VIDEO)
+            # MissAV提取器现在只提取M3U8流媒体链接
+            self.assertEqual(options[0].link_type, LinkType.STREAM)
             self.assertIsNotNone(options[0].filename)
             if options[0].filename:
+                # 文件名应该以.mp4结尾（即使是M3U8流也会转换为MP4）
                 self.assertTrue(options[0].filename.endswith('.mp4'))
                 # 检查文件名是否包含真实页面的标题内容
                 self.assertIn('SDAB-183', options[0].filename)
     
     @patch('requests.get')
-    def test_extract_mp4_video(self, mock_get):
-        """测试提取 MP4 视频链接"""
+    def test_extract_m3u8_video2(self, mock_get):
+        """测试提取 M3U8 视频链接"""
         # 读取真实的MissAV页面内容
-        with open('tests/sites/missav.html', 'r', encoding='utf-8') as f:
+        with open('tests/sites/missav2.html', 'r', encoding='utf-8') as f:
             real_html_content = f.read()
-        
-        # 模拟HTML响应
+          # 模拟HTML响应
         mock_response = MagicMock()
         mock_response.text = real_html_content
         mock_response.raise_for_status = MagicMock()
         mock_get.return_value = mock_response
         
-        url = 'https://missav.ai/dm18/ja/sdab-183'
+        url = 'https://missav.ai/dm18/ja/mds-884'
         options = self.extractor.extract(url)
-        
         self.assertGreater(len(options), 0)
         if len(options) > 0:
-            # 真实页面主要提取到VIDEO类型的链接
-            self.assertEqual(options[0].link_type, LinkType.VIDEO)
+            # MissAV提取器现在只提取M3U8流媒体链接
+            self.assertEqual(options[0].link_type, LinkType.STREAM)
             self.assertIsNotNone(options[0].filename)
             if options[0].filename:
+                # 文件名应该以.mp4结尾（即使是M3U8流也会转换为MP4）
                 self.assertTrue(options[0].filename.endswith('.mp4'))
-                # 检查文件名是否包含真实页面的标题内容
-                self.assertIn('SDAB-183', options[0].filename)
+                # 检查文件名是否包含真实页面的标题内容，对于第二个测试使用MDS-884
+                self.assertIn('MDS-884', options[0].filename)
     
     def test_sanitize_filename(self):
         """测试文件名清理功能"""
