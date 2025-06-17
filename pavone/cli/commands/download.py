@@ -21,7 +21,7 @@ from ..utils import echo_success, echo_error, echo_info, read_urls_from_file, re
 @click.option('--retry', '-r', type=click.IntRange(0, 10), help='失败重试次数 (0-10)')
 @click.option('--timeout', type=click.IntRange(5, 300), help='连接超时时间(秒)')
 def download(url: str, auto_select: bool, silent: bool, filename: Optional[str], 
-             output_dir: Optional[str], header: tuple, proxy: Optional[str], 
+             output_dir: Optional[str], header: tuple[str,str], proxy: Optional[str], 
              organize: bool, threads: Optional[int], retry: Optional[int], 
              timeout: Optional[int]):
     """下载指定URL的视频"""

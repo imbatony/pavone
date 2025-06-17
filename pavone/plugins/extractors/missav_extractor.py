@@ -50,23 +50,12 @@ class MissAVExtractor(ExtractorPlugin):
     def extract(self, url: str) -> List[DownloadOpt]:
         """从 MissAV 页面提取视频下载选项"""
         try:
-            import requests
-            
-            # 设置请求头，模拟浏览器访问
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-                'Accept-Language': 'zh-CN,zh;q=0.8,en-US;q=0.5,en;q=0.3',
-                'Accept-Encoding': 'gzip, deflate',
-                'Connection': 'keep-alive',
-                'Upgrade-Insecure-Requests': '1',
-                'Referer': 'https://missav.ai/'
-            }
-            
-            # 获取页面内容
-            response = requests.get(url, headers=headers, timeout=30)
-            response.raise_for_status()
+            # 使用基类的统一网页获取方法，自动处理代理和SSL
+            response = self.fetch_webpage(url, timeout=30, verify_ssl=False)
             html_content = response.text
+            
+            # 定义默认的User-Agent，用于后续的下载请求
+            default_user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             
             download_options = []
             
@@ -82,14 +71,13 @@ class MissAVExtractor(ExtractorPlugin):
             # 主要方法：解析JavaScript混淆代码中的视频链接
             video_urls = self._extract_obfuscated_urls(html_content)
             
-            if video_urls:
-                # 添加M3U8播放列表链接（最高优先级）
+            if video_urls:                # 添加M3U8播放列表链接（最高优先级）
                 if 'source' in video_urls:
                     download_opt = DownloadOpt(
                         url=video_urls['source'],
                         filename=f"{video_title}.mp4",
                         custom_headers={
-                            "User-Agent": headers['User-Agent'],
+                            "User-Agent": default_user_agent,
                             "Referer": url,
                             "Accept": "application/vnd.apple.mpegurl,application/x-mpegurl,video/*;q=0.9,*/*;q=0.8"
                         },
@@ -98,13 +86,13 @@ class MissAVExtractor(ExtractorPlugin):
                         quality="自适应"
                     )
                     download_options.append(download_opt)
-                  # 添加720p视频链接
+                # 添加720p视频链接
                 if 'source1280' in video_urls:
                     download_opt = DownloadOpt(
                         url=video_urls['source1280'],
                         filename=f"{video_title}_720p.mp4",
                         custom_headers={
-                            "User-Agent": headers['User-Agent'],
+                            "User-Agent": default_user_agent,
                             "Referer": url,
                             "Accept": "application/vnd.apple.mpegurl,application/x-mpegurl,video/*;q=0.9,*/*;q=0.8"
                         },
@@ -112,14 +100,13 @@ class MissAVExtractor(ExtractorPlugin):
                         display_name=f"720p M3U8 - {video_title}",
                         quality="720p"
                     )
-                    download_options.append(download_opt)
-                  # 添加480p视频链接
+                    download_options.append(download_opt)                # 添加480p视频链接
                 if 'source842' in video_urls:
                     download_opt = DownloadOpt(
                         url=video_urls['source842'],
                         filename=f"{video_title}_480p.mp4",
                         custom_headers={
-                            "User-Agent": headers['User-Agent'],
+                            "User-Agent": default_user_agent,
                             "Referer": url,
                             "Accept": "application/vnd.apple.mpegurl,application/x-mpegurl,video/*;q=0.9,*/*;q=0.8"
                         },

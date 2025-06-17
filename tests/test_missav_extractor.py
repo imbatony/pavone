@@ -58,7 +58,7 @@ class TestMissAVExtractor(unittest.TestCase):
         url = 'https://missav.ai/dm18/ja/sdab-183'
         options = self.extractor.extract(url)
         
-        self.assertGreater(len(options), 0)
+        self.assertEquals(len(options), 3)
         if len(options) > 0:
             # MissAV提取器现在只提取M3U8流媒体链接
             self.assertEqual(options[0].link_type, LinkType.STREAM)
@@ -83,7 +83,7 @@ class TestMissAVExtractor(unittest.TestCase):
         
         url = 'https://missav.ai/dm18/ja/mds-884'
         options = self.extractor.extract(url)
-        self.assertGreater(len(options), 0)
+        self.assertEquals(len(options), 3)
         if len(options) > 0:
             # MissAV提取器现在只提取M3U8流媒体链接
             self.assertEqual(options[0].link_type, LinkType.STREAM)
