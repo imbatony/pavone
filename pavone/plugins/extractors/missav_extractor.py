@@ -2,16 +2,30 @@
 MissAV视频提取器插件
 
 支持从 missav.ai 和 missav.com 网站提取视频下载链接。
-该提取器能够解析JavaScript混淆代码来获取真实的视频URL。
+该提取器只依赖dukpy来执行JavaScript混淆代码，获取真实的视频URL。
+如果dukpy执行失败，直接返回空结果。
 """
 
-import re
 import json
+import re
 from typing import List, Dict, Any
 from urllib.parse import urlparse
 
 from ...core.downloader.options import DownloadOpt, LinkType
 from .base import ExtractorPlugin
+
+# 使用日志
+from ...config.logging_config import get_logger
+logger = get_logger("pavone.extractor.missav_extractor")
+
+# dukpy引用
+try:
+    import dukpy
+    _dukpy_available = True
+except ImportError:
+    logger.error("dukpy库未安装，无法执行JavaScript代码。请安装dukpy库以支持MissAV提取器。")
+    dukpy = None
+    _dukpy_available = False
 
 
 class MissAVExtractor(ExtractorPlugin):
@@ -53,12 +67,15 @@ class MissAVExtractor(ExtractorPlugin):
             # 使用基类的统一网页获取方法，自动处理代理和SSL
             response = self.fetch_webpage(url, timeout=30, verify_ssl=False)
             html_content = response.text
-            
-            # 定义默认的User-Agent，用于后续的下载请求
-            default_user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            
-            download_options = []
-            
+            if not html_content:
+                logger.error(f"获取页面内容失败: {url}")
+                return []
+                
+            # 提取混淆的JavaScript代码
+            video_urls = self._extract_obfuscated_urls(html_content)
+            if not video_urls:
+                logger.error(f"未能从页面提取视频链接: {url}")
+                return []
             # 提取视频标题
             title_match = re.search(r'<title[^>]*>([^<]+)</title>', html_content, re.IGNORECASE)
             video_title = "Unknown"
@@ -68,195 +85,123 @@ class MissAVExtractor(ExtractorPlugin):
                 video_title = re.sub(r'\s*-\s*MissAV.*$', '', video_title)
                 video_title = self._sanitize_filename(video_title)
             
-            # 主要方法：解析JavaScript混淆代码中的视频链接
-            video_urls = self._extract_obfuscated_urls(html_content)
-            
-            if video_urls:                # 添加M3U8播放列表链接（最高优先级）
-                if 'source' in video_urls:
-                    download_opt = DownloadOpt(
-                        url=video_urls['source'],
-                        filename=f"{video_title}.mp4",
-                        custom_headers={
-                            "User-Agent": default_user_agent,
-                            "Referer": url,
-                            "Accept": "application/vnd.apple.mpegurl,application/x-mpegurl,video/*;q=0.9,*/*;q=0.8"
-                        },
-                        link_type=LinkType.STREAM,
-                        display_name=f"M3U8播放列表 - {video_title}",
-                        quality="自适应"
-                    )
-                    download_options.append(download_opt)
-                # 添加720p视频链接
-                if 'source1280' in video_urls:
-                    download_opt = DownloadOpt(
-                        url=video_urls['source1280'],
-                        filename=f"{video_title}_720p.mp4",
-                        custom_headers={
-                            "User-Agent": default_user_agent,
-                            "Referer": url,
-                            "Accept": "application/vnd.apple.mpegurl,application/x-mpegurl,video/*;q=0.9,*/*;q=0.8"
-                        },
-                        link_type=LinkType.STREAM,
-                        display_name=f"720p M3U8 - {video_title}",
-                        quality="720p"
-                    )
-                    download_options.append(download_opt)                # 添加480p视频链接
-                if 'source842' in video_urls:
-                    download_opt = DownloadOpt(
-                        url=video_urls['source842'],
-                        filename=f"{video_title}_480p.mp4",
-                        custom_headers={
-                            "User-Agent": default_user_agent,
-                            "Referer": url,
-                            "Accept": "application/vnd.apple.mpegurl,application/x-mpegurl,video/*;q=0.9,*/*;q=0.8"
-                        },
-                        link_type=LinkType.STREAM,
-                        display_name=f"480p M3U8 - {video_title}",
-                        quality="480p"
-                    )
-                    download_options.append(download_opt)
+            # 生成下载选项
+            download_options: List[DownloadOpt] = []
+            for _, video_url in video_urls.items():
+                if not video_url:
+                    continue
+                    
+                # 清理文件名
+                filename = self._sanitize_filename(video_title)
+                quality = "未知"
+                
+                # 如果有质量信息，可以从video_url中提取
+                if '720p' in video_url.lower():
+                    quality = '720p'
+                elif '1080p' in video_url.lower():
+                    quality = '1080p'
+                elif '4k' in video_url.lower():
+                    quality = '4K'
+                elif '480p' in video_url.lower():
+                    quality = '480p'
+                
+                
+                # filename应该以视频名称为基础,同事包括视频质量，并且应该处理一下
+                filename = f"{filename} - {quality}" if quality != "未知" else filename
+                # 以mp4结尾
+                if not filename.endswith('.mp4'):
+                    filename += '.mp4'
+
+                download_options.append(DownloadOpt(
+                    url=video_url,
+                    filename=filename + '.mp4',
+                    link_type=LinkType.STREAM,
+                    custom_headers={"Referrer": url},
+                    display_name=f"{filename} - {quality}",
+                    quality=quality
+                ))
             
             return download_options
-            
-        except ImportError:
-            print("MissAV提取器需要 requests 库支持")
-            return []
+  
         except Exception as e:
-            print(f"提取视频链接时出错: {e}")
+            logger.error(f"获取页面失败: {e}")
             return []
     
     def _extract_obfuscated_urls(self, html_content: str) -> Dict[str, str]:
         """
-        从JavaScript混淆代码中提取视频URL
+        从JavaScript混淆代码中提取视频URL - 只依赖dukpy执行JavaScript
+        如果dukpy执行失败，直接返回空结果
         
         Args:
             html_content: HTML页面内容
             
         Returns:
-            包含video URLs的字典        """
-        try:            # 查找JavaScript混淆代码
-            # 直接匹配参数部分
-            eval_pattern = r"'([^']*f=.*?)',\s*(\d+),\s*(\d+),\s*'([^']+)'\.split\('\|'\)"
-            
-            match = re.search(eval_pattern, html_content)
-            if not match:
-                return {}
-            
-            encoded_string = match.group(1)
-            base = int(match.group(2))
-            count = int(match.group(3))
-            keywords = match.group(4).split('|')
-            
-            # 解码混淆字符串
-            decoded_js = self._decode_obfuscated_string(encoded_string, keywords)
-            
-            # 提取视频URL变量
-            video_urls = {}
-            
-            # 查找各种source变量的定义
-            patterns = {
-                'source': r"([a-z]+)\s*=\s*'([^']+)'",
-            }
-            
-            # 提取所有变量
-            var_matches = re.findall(r"([a-z]+)\s*=\s*'([^']+)'", decoded_js)
-            for var_name, url in var_matches:
-                video_urls[var_name] = url
-            
-            # 如果没有找到完整的URL，尝试手动构建
-            if not video_urls:
-                video_urls = self._manual_decode_urls(encoded_string, keywords)
-            
-            return video_urls
-            
-        except Exception as e:
-            print(f"解析混淆JavaScript时出错: {e}")
+            包含video URLs的字典，失败时返回空字典        
+        """        # 检查dukpy是否可用
+        if not _dukpy_available or dukpy is None:
+            logger.error("dukpy库不可用，无法执行JavaScript代码")
             return {}
-    
-    def _decode_obfuscated_string(self, encoded_string: str, keywords: list) -> str:
-        """
-        解码JavaScript混淆字符串
         
-        Args:
-            encoded_string: 编码后的字符串
-            keywords: 关键词列表
-            
-        Returns:
-            解码后的字符串
-        """
-        result = encoded_string
-        
-        # 基于JavaScript的36进制解码算法
-        # 0-9 对应 keywords[0]-keywords[9]
-        # a-z 对应 keywords[10]-keywords[35]
-        
-        # 先创建映射字典避免重复替换问题
-        mapping = {}
-        
-        # 数字 0-9
-        for i in range(min(10, len(keywords))):
-            if keywords[i]:
-                mapping[str(i)] = keywords[i]
-        
-        # 字母 a-z (对应10-35)
-        for i in range(26):  # a-z
-            idx = 10 + i
-            if idx < len(keywords) and keywords[idx]:
-                letter = chr(ord('a') + i)
-                mapping[letter] = keywords[idx]
-        
-        # 按长度排序，先替换长的，避免子字符串问题
-        for char in sorted(mapping.keys(), key=len, reverse=True):
-            result = result.replace(char, mapping[char])
-        
-        return result
-    
-    def _manual_decode_urls(self, encoded_string: str, keywords: list) -> Dict[str, str]:
-        """
-        手动解码视频URL（当自动解码失败时）
-        
-        Args:
-            encoded_string: 编码后的字符串
-            keywords: 关键词列表
-            
-        Returns:
-            包含video URLs的字典
-        """
         try:
-            # 基于已知的MissAV URL结构手动构建
-            # 从关键词中查找UUID和域名
-            uuid_parts = []
-            for keyword in keywords:
-                if re.match(r'^[0-9a-f]+$', keyword) and len(keyword) >= 4:
-                    uuid_parts.append(keyword)
+            # 使用Python直接查找包含eval的行
+            lines = html_content.splitlines()
+            eval_code = ''
             
-            # 构建UUID
-            if len(uuid_parts) >= 5:
-                # 典型格式：b8e4c00d-0a85-4dc5-badd-024a7765d391
-                uuid = f"{uuid_parts[0]}-{uuid_parts[1]}-{uuid_parts[2]}-{uuid_parts[3]}-{uuid_parts[4]}"
-                  # 查找域名
-                domain = None
-                for keyword in keywords:
-                    if 'surrit' in keyword.lower():
-                        domain = keyword + '.com'  # 添加.com后缀
-                        break
-                
-                if not domain:
-                    domain = 'surrit.com'  # 默认域名
-                
-                # 构建视频URL
-                base_url = f"https://{domain}/{uuid}"
-                
-                return {
-                    'source': f"{base_url}/playlist.m3u8",
-                    'source842': f"{base_url}/842x480/video.m3u8",
-                    'source1280': f"{base_url}/1280x720/video.m3u8"                }
+            # 从最后一行开始查找包含eval的行
+            for line in reversed(lines):
+                if 'eval(' in line and 'm3u8' in line:
+                    eval_code = line
+                    break
+            # 如果没有找到eval代码，返回空字典
+            if not eval_code:
+                logger.warning("提取的eval代码为空")
+                return {}
+            #不需要提取eval括号内的内容，直接使用整行代码
+            eval_code = eval_code.strip()
             
-            return {}
+            logger.debug("使用Python成功提取eval代码")
+            logger.debug(f"找到eval代码: {eval_code[:100]}...")
+
+            # 尝试执行JavaScript代码并提取视频URL
+            js_execution_code = """
+            var source, source842, source1280;
+            """ + eval_code + """;
+            var result = {
+                'source': source,
+                'source842': source842,
+                'source1280': source1280
+            };
+            // 返回一个对象，包含所有提取到的视频URL
+            result;
+            """
             
+            logger.debug("使用dukpy执行混淆代码并提取视频URL")
+            result = dukpy.evaljs(js_execution_code)
+            logger.debug("dukpy执行结果: " + str(result))
+            
+            if result and isinstance(result, dict) and len(result) > 0:
+                logger.info(f"成功提取到 {len(result)} 个视频URL")
+                video_urls = {}
+                for key, url in result.items():
+                    if url and isinstance(url, str):
+                        # 确保URL是完整的
+                        if url.startswith('//'):
+                            url = 'https:' + url
+                        elif url.startswith('/'):
+                            url = 'https://missav.ai' + url
+                        video_urls[key] = url
+                        logger.debug(f"提取到视频URL: {key} = {url}")
+                return video_urls
+            else:
+                logger.warning("dukpy执行后未获取到有效的视频URL")
+                return {}
+                
         except Exception as e:
-            print(f"手动解码URL时出错: {e}")
+            logger.error(f"使用dukpy执行JavaScript时出错: {e}")
             return {}
+        
+        # 如果到达这里，说明所有尝试都失败了
+        return {}
     
     def _sanitize_filename(self, filename: str) -> str:
         """

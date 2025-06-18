@@ -11,11 +11,22 @@ from .settings import (
     ConfigManager
 )
 
+from .logging_config import (
+    LoggingConfig,
+    LogManager,
+    get_log_manager,
+    get_logger
+)
+
 __all__ = [
     'DownloadConfig',
     'OrganizeConfig',
     'SearchConfig', 
     'ProxyConfig',
     'Config',
-    'ConfigManager'
+    'ConfigManager',
+    'LoggingConfig',
+    'LogManager',
+    'get_log_manager',
+    'get_logger'
 ]

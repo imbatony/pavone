@@ -211,3 +211,7 @@ downloads/
 *.webp
 config.json
 .pavone/
+
+# Temp directory
+temp/
+temp/*
