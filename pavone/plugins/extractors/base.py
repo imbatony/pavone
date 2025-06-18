@@ -85,7 +85,7 @@ class ExtractorPlugin(BasePlugin):
                 url,
                 headers=headers,
                 proxies=proxies,
-                timeout=timeout,
+                timeout=timeout,                
                 verify=verify_ssl  # SSL验证设置
             )
             response.raise_for_status()
@@ -114,8 +114,8 @@ class ExtractorPlugin(BasePlugin):
         except Exception:
             # 如果获取配置失败，返回None（不使用代理）
             return None
-    
-    def _sanitize_filename(self, filename: str) -> str:
+
+    def sanitize_filename(self, filename: str) -> str:
         """
         清理文件名，移除非法字符
         

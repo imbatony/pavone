@@ -63,7 +63,7 @@ class TestExtractorBase(unittest.TestCase):
         
         for input_name, expected in test_cases:
             with self.subTest(input_name=input_name):
-                result = self.extractor._sanitize_filename(input_name)
+                result = self.extractor.sanitize_filename(input_name)
                 self.assertEqual(result, expected)
     
     def test_sanitize_filename_all_illegal_chars(self):
@@ -72,7 +72,7 @@ class TestExtractorBase(unittest.TestCase):
         input_filename = 'Test' + ''.join(illegal_chars) + 'Video'
         expected = 'Test' + '_' * len(illegal_chars) + 'Video'
         
-        result = self.extractor._sanitize_filename(input_filename)
+        result = self.extractor.sanitize_filename(input_filename)
         self.assertEqual(result, expected)
     
     def test_priority_management(self):

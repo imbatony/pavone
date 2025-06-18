@@ -83,7 +83,7 @@ class MissAVExtractor(ExtractorPlugin):
                 video_title = title_match.group(1).strip()
                 # 清理标题，移除网站名称
                 video_title = re.sub(r'\s*-\s*MissAV.*$', '', video_title)
-                video_title = self._sanitize_filename(video_title)
+                video_title = self.sanitize_filename(video_title)
             
             # 生成下载选项
             download_options: List[DownloadOpt] = []
@@ -92,7 +92,7 @@ class MissAVExtractor(ExtractorPlugin):
                     continue
                     
                 # 清理文件名
-                filename = self._sanitize_filename(video_title)
+                filename = self.sanitize_filename(video_title)
                 quality = "未知"
                 
                 # 如果有质量信息，可以从video_url中提取

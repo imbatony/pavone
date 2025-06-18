@@ -106,7 +106,7 @@ class TestMissAVExtractor(unittest.TestCase):
         
         for input_name, expected in test_cases:
             with self.subTest(input_name=input_name):
-                result = self.extractor._sanitize_filename(input_name)
+                result = self.extractor.sanitize_filename(input_name)
                 self.assertEqual(result, expected)
     
     @patch('requests.get')
