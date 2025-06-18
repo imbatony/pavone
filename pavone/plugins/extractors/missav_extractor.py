@@ -44,12 +44,11 @@ class MissAVExtractor(ExtractorPlugin):
             'missav.ai',
             'www.missav.ai', 
             'missav.com',
-            'www.missav.com'
-        ]
+            'www.missav.com'        ]
     
     def initialize(self):
         """初始化插件"""
-        print(f"[{self.name}] 初始化 MissAV 视频提取器")
+        logger.info(f"[{self.name}] 初始化 MissAV 视频提取器")
         return True
     
     def can_handle(self, url: str) -> bool:
@@ -200,12 +199,11 @@ class MissAVExtractor(ExtractorPlugin):
             logger.error(f"使用dukpy执行JavaScript时出错: {e}")
             return {}
         
-        # 如果到达这里，说明所有尝试都失败了
-        return {}
+        # 如果到达这里，说明所有尝试都失败了        return {}
     
     def cleanup(self):
         """清理插件资源"""
-        print(f"[{self.name}] 清理 MissAV 视频提取器")
+        logger.info(f"[{self.name}] 清理 MissAV 视频提取器")
     
     def execute(self, *args, **kwargs) -> Any:
         """执行插件功能（为了兼容基类接口）"""

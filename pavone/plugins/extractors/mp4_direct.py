@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from pathlib import Path
 from .base import ExtractorPlugin
 from ...core.downloader.options import DownloadOpt, LinkType
+from ...config.logging_config import get_logger
 
 
 class MP4DirectExtractor(ExtractorPlugin):
@@ -60,11 +61,11 @@ class MP4DirectExtractor(ExtractorPlugin):
                 },
                 link_type=LinkType.VIDEO,
                 display_name=f"MP4视频 - {Path(filename).stem}",
-                quality="原画质"
-            )
+                quality="原画质"            )
             
             return [download_opt]
             
         except Exception as e:
-            print(f"MP4提取器错误: {e}")
+            logger = get_logger(__name__)
+            logger.error(f"MP4提取器错误: {e}")
             return []

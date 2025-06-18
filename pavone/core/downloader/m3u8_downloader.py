@@ -10,6 +10,7 @@ from typing import Optional, Dict, List, Tuple
 from urllib.parse import urljoin, urlparse
 
 from pavone.config.settings import DownloadConfig
+from pavone.config.logging_config import get_logger
 from .base import BaseDownloader
 from .options import DownloadOpt
 from .progress import ProgressCallback, ProgressInfo
@@ -149,8 +150,7 @@ class M3U8Downloader(BaseDownloader):
         Returns:
             bool: 下载是否成功
         """
-        try:
-            # 获取有效的HTTP头部
+        try:            # 获取有效的HTTP头部
             headers = download_opt.get_effective_headers({
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             })
@@ -163,11 +163,13 @@ class M3U8Downloader(BaseDownloader):
             segment_urls = self._parse_m3u8_playlist(m3u8_content, base_url)
             
             if not segment_urls:
-                print("No video segments found in M3U8 playlist")
+                logger = get_logger(__name__)
+                logger.warning("No video segments found in M3U8 playlist")
                 return False
             
             total_segments = len(segment_urls)
-            print(f"Found {total_segments} video segments")
+            logger = get_logger(__name__)
+            logger.info(f"Found {total_segments} video segments")
             
             # 获取输出文件路径
             output_file = self._get_output_filename(download_opt)
@@ -175,7 +177,6 @@ class M3U8Downloader(BaseDownloader):
             # 创建临时目录存储视频段
             temp_dir = output_file + '_segments'
             os.makedirs(temp_dir, exist_ok=True)
-              # 初始化进度
             if progress_callback:
                 progress_info = ProgressInfo(
                     total_size=total_segments,  # 使用段数作为总数
@@ -207,11 +208,11 @@ class M3U8Downloader(BaseDownloader):
                                 downloaded=len(downloaded_segments),
                                 speed=0.0
                             )
-                            progress_callback(progress_info)
-                    
+                            progress_callback(progress_info)                    
                     return True
                 except Exception as e:
-                    print(f"Failed to download segment {index}: {e}")
+                    logger = get_logger(__name__)
+                    logger.error(f"Failed to download segment {index}: {e}")
                     failed_downloads.append((index, url))
                     return False
               # 使用线程池并发下载
@@ -222,23 +223,22 @@ class M3U8Downloader(BaseDownloader):
                 
                 for future in as_completed(futures):
                     future.result()  # 等待完成
-            
-            # 检查是否有失败的下载
+              # 检查是否有失败的下载
             if failed_downloads:
-                print(f"Failed to download {len(failed_downloads)} segments")
+                logger = get_logger(__name__)
+                logger.warning(f"Failed to download {len(failed_downloads)} segments")
                 # 可以选择重试失败的段
                 return False
-            
-            # 合并所有视频段
-            print("Merging video segments...")
+              # 合并所有视频段
+            logger = get_logger(__name__)
+            logger.info("Merging video segments...")
             with open(output_file, 'wb') as output:
                 for i in range(total_segments):
                     segment_file = downloaded_segments.get(i)
                     if segment_file and os.path.exists(segment_file):
                         with open(segment_file, 'rb') as f:
                             output.write(f.read())
-                    else:
-                        print(f"Warning: Missing segment {i}")
+                    else:                        logger.warning(f"Missing segment {i}")
             
             # 清理临时文件
             try:
@@ -247,10 +247,11 @@ class M3U8Downloader(BaseDownloader):
                         os.remove(segment_file)
                 os.rmdir(temp_dir)
             except Exception as e:
-                print(f"Warning: Failed to clean up temporary files: {e}")
+                logger = get_logger(__name__)
+                logger.warning(f"Failed to clean up temporary files: {e}")
             
-            print(f"M3U8 video downloaded successfully: {output_file}")
-              # 最终进度更新
+            logger = get_logger(__name__)
+            logger.info(f"M3U8 video downloaded successfully: {output_file}")            # 最终进度更新
             if progress_callback:
                 progress_info = ProgressInfo(
                     total_size=total_segments,
@@ -262,7 +263,8 @@ class M3U8Downloader(BaseDownloader):
             return True
             
         except Exception as e:
-            print(f"M3U8 download failed: {e}")
+            logger = get_logger(__name__)
+            logger.error(f"M3U8 download failed: {e}")
             return False
         finally:
             self._session.close()

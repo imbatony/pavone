@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Optional, List
 from dataclasses import dataclass, asdict, field
-from .logging_config import LoggingConfig, get_log_manager, init_log_manager
+from .logging_config import LoggingConfig, get_log_manager, init_log_manager, get_logger
 
 
 @dataclass
@@ -54,6 +54,23 @@ class ProxyConfig:
 
 
 @dataclass
+class PluginConfig:
+    """插件配置"""
+    # 插件目录
+    plugin_dir: str = "./pavone/plugins"
+    # 插件配置目录  
+    plugin_config_dir: str = "./plugins_config"
+    # 禁用的插件名称列表
+    disabled_plugins: List[str] = field(default_factory=list)
+    # 插件优先级设置（插件名 -> 优先级数值）
+    plugin_priorities: dict = field(default_factory=dict)
+    # 是否启用插件自动发现
+    auto_discovery: bool = True
+    # 插件加载超时时间（秒）
+    load_timeout: int = 30
+
+
+@dataclass
 class Config:
     """主配置类"""
     download: DownloadConfig = field(default_factory=DownloadConfig)
@@ -61,6 +78,8 @@ class Config:
     search: SearchConfig = field(default_factory=SearchConfig)
     proxy: ProxyConfig = field(default_factory=ProxyConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
+    plugin: PluginConfig = field(default_factory=PluginConfig)
+    plugin: PluginConfig = field(default_factory=PluginConfig)
     
     def __post_init__(self):
         # 同步代理设置到下载配置
@@ -100,7 +119,8 @@ class ConfigManager:
             try:
                 with open(self.config_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
-                  # 更新配置
+                
+                # 更新配置
                 if 'download' in data:
                     self.config.download = DownloadConfig(**data['download'])
                 if 'organize' in data:
@@ -111,14 +131,18 @@ class ConfigManager:
                     self.config.proxy = ProxyConfig(**data['proxy'])
                 if 'logging' in data:
                     self.config.logging = LoggingConfig(**data['logging'])
-                    
+                if 'plugin' in data:
+                    self.config.plugin = PluginConfig(**data['plugin'])                    
             except Exception as e:
-                print(f"加载配置失败: {e}")
+                logger = get_logger(__name__)
+                logger.error(f"加载配置失败: {e}")
                 # 使用默认配置
                 self.config = Config()
-          # 验证并修复配置
+        
+        # 验证并修复配置
         if not self.validate_and_fix_config():
-            print("配置验证失败，使用默认配置")
+            logger = get_logger(__name__)
+            logger.warning("配置验证失败，使用默认配置")
             self.config = Config()
             self.save_config()
     
@@ -134,13 +158,15 @@ class ConfigManager:
                 'search': asdict(self.config.search),
                 'proxy': asdict(self.config.proxy),
                 'logging': asdict(self.config.logging),
+                'plugin': asdict(self.config.plugin),
             }
             
-            with open(self.config_file, 'w', encoding='utf-8') as f:
+            with open(self.config_file, 'w', encoding='utf-8') as f:               
                 json.dump(config_dict, f, indent=2, ensure_ascii=False)
                 
         except Exception as e:
-            print(f"保存配置失败: {e}")
+            logger = get_logger(__name__)
+            logger.error(f"保存配置失败: {e}")
     
     def get_config(self) -> Config:
         """获取配置"""
@@ -204,11 +230,32 @@ class ConfigManager:
             # 验证备份文件数
             if self.config.logging.backup_count < 0:
                 self.config.logging.backup_count = 5
-            
-            # 验证日志文件路径
+              # 验证日志文件路径
             log_path = Path(self.config.logging.file_path)
             if not log_path.is_absolute():
                 self.config.logging.file_path = str(self.config_dir / "logs" / "pavone.log")
+            
+            # 验证插件配置
+            # 验证插件目录
+            plugin_dir = Path(self.config.plugin.plugin_dir)
+            if not plugin_dir.is_absolute():
+                self.config.plugin.plugin_dir = str(self.config_dir.parent / "pavone" / "plugins")
+            
+            # 验证插件配置目录
+            plugin_config_dir = Path(self.config.plugin.plugin_config_dir)
+            if not plugin_config_dir.is_absolute():
+                self.config.plugin.plugin_config_dir = str(self.config_dir / "plugins_config")
+            
+            # 确保禁用插件列表是列表类型
+            if not isinstance(self.config.plugin.disabled_plugins, list):
+                self.config.plugin.disabled_plugins = []
+            
+            # 验证插件加载超时时间
+            if self.config.plugin.load_timeout <= 0:
+                self.config.plugin.load_timeout = 30            
+            # 确保插件优先级设置是字典类型
+            if not isinstance(self.config.plugin.plugin_priorities, dict):
+                self.config.plugin.plugin_priorities = {}
             
             # 同步代理设置
             self.config._sync_proxy_settings()
@@ -216,7 +263,8 @@ class ConfigManager:
             return True
             
         except Exception as e:
-            print(f"配置验证失败: {e}")
+            logger = get_logger(__name__)
+            logger.error(f"配置验证失败: {e}")
             return False
     
     def get_logger(self, name: str):
@@ -261,6 +309,55 @@ class ConfigManager:
         """禁用文件日志"""
         self.config.logging.file_enabled = False
         get_log_manager().disable_file_logging()
+        self.save_config()
+
+    # 插件配置管理方法
+    def disable_plugin(self, plugin_name: str):
+        """禁用指定插件"""
+        if plugin_name not in self.config.plugin.disabled_plugins:
+            self.config.plugin.disabled_plugins.append(plugin_name)
+            self.save_config()
+
+    def enable_plugin(self, plugin_name: str):
+        """启用指定插件"""
+        if plugin_name in self.config.plugin.disabled_plugins:
+            self.config.plugin.disabled_plugins.remove(plugin_name)
+            self.save_config()
+
+    def is_plugin_disabled(self, plugin_name: str) -> bool:
+        """检查插件是否被禁用"""
+        return plugin_name in self.config.plugin.disabled_plugins
+
+    def set_plugin_priority(self, plugin_name: str, priority: int):
+        """设置插件优先级"""
+        self.config.plugin.plugin_priorities[plugin_name] = priority
+        self.save_config()
+
+    def get_plugin_priority(self, plugin_name: str, default: int = 50) -> int:
+        """获取插件优先级"""
+        return self.config.plugin.plugin_priorities.get(plugin_name, default)
+
+    def get_plugin_dir(self) -> Path:
+        """获取插件目录路径"""
+        return Path(self.config.plugin.plugin_dir)
+
+    def get_plugin_config_dir(self) -> Path:
+        """获取插件配置目录路径"""
+        return Path(self.config.plugin.plugin_config_dir)
+
+    def ensure_plugin_dirs(self):
+        """确保插件相关目录存在"""
+        plugin_dir = self.get_plugin_dir()
+        plugin_config_dir = self.get_plugin_config_dir()
+        
+        plugin_dir.mkdir(parents=True, exist_ok=True)
+        plugin_config_dir.mkdir(parents=True, exist_ok=True)
+
+    def update_plugin_config(self, **kwargs):
+        """更新插件配置"""
+        for key, value in kwargs.items():
+            if hasattr(self.config.plugin, key):
+                setattr(self.config.plugin, key, value)
         self.save_config()
 
 

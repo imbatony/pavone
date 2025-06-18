@@ -11,6 +11,7 @@ from typing import Optional, Dict, Any, Tuple
 from urllib.parse import urlparse
 
 from pavone.config.settings import DownloadConfig
+from pavone.config.logging_config import get_logger
 from .base import BaseDownloader
 from .options import DownloadOpt
 from .progress import ProgressCallback, ProgressInfo
@@ -88,8 +89,7 @@ class HTTPDownloader(BaseDownloader):
                 proxies=proxies
             )
             response.raise_for_status()
-            
-            # 写入临时文件
+              # 写入临时文件
             temp_filepath = f"{filepath}.part{chunk_index}"
             downloaded = 0
             
@@ -102,7 +102,8 @@ class HTTPDownloader(BaseDownloader):
             return True, downloaded
             
         except Exception as e:
-            print(f"下载块 {chunk_index} 失败: {e}")
+            logger = get_logger(__name__)
+            logger.error(f"下载块 {chunk_index} 失败: {e}")
             return False, 0
     
     def _merge_chunks(self, filepath: str, num_chunks: int) -> bool:
@@ -117,11 +118,12 @@ class HTTPDownloader(BaseDownloader):
                         with open(chunk_filepath, 'rb') as chunk_file:
                             output_file.write(chunk_file.read())
                         os.remove(chunk_filepath)
-                    else:
-                        return False
+                    else:                        return False
+            
             return True
         except Exception as e:
-            print(f"合并文件块失败: {e}")
+            logger = get_logger(__name__)
+            logger.error(f"合并文件块失败: {e}")
             return False
     
     def _should_use_multithreading(self, supports_range: bool, file_size: int) -> bool:
@@ -167,11 +169,11 @@ class HTTPDownloader(BaseDownloader):
                 return self._download_multithreaded(download_opt.url, headers, filepath, 
                                                   file_size, progress_callback)
             else:
-                return self._download_single_threaded(download_opt.url, headers, filepath, 
-                                                    progress_callback)
+                return self._download_single_threaded(download_opt.url, headers, filepath,                                                    progress_callback)
                 
         except Exception as e:
-            print(f"下载失败: {e}")
+            logger = get_logger(__name__)
+            logger.error(f"下载失败: {e}")
             return False
     
     def _download_single_threaded(self, url: str, headers: Dict[str, str], 
@@ -208,11 +210,11 @@ class HTTPDownloader(BaseDownloader):
                             elapsed_time = time.time() - start_time
                             speed = downloaded / elapsed_time if elapsed_time > 0 else 0.0
                             progress_info = ProgressInfo(total_size, downloaded, speed)
-                            progress_callback(progress_info)
-            
+                            progress_callback(progress_info)            
             return True
         except Exception as e:
-            print(f"单线程下载失败: {e}")
+            logger = get_logger(__name__)
+            logger.error(f"单线程下载失败: {e}")
             return False
     
     def _download_multithreaded(self, url: str, headers: Dict[str, str], 
@@ -253,8 +255,7 @@ class HTTPDownloader(BaseDownloader):
                     future = executor.submit(self._download_chunk, url, headers, 
                                            start, end, filepath, index)
                     future_to_index[future] = index
-                
-                # 等待所有任务完成
+                  # 等待所有任务完成
                 for future in as_completed(future_to_index):
                     index = future_to_index[future]
                     try:
@@ -263,10 +264,12 @@ class HTTPDownloader(BaseDownloader):
                             downloaded_chunks[index] = chunk_downloaded
                             update_progress()
                         else:
-                            print(f"下载块 {index} 失败")
+                            logger = get_logger(__name__)
+                            logger.error(f"下载块 {index} 失败")
                             return False
                     except Exception as e:
-                        print(f"线程 {index} 异常: {e}")
+                        logger = get_logger(__name__)
+                        logger.error(f"线程 {index} 异常: {e}")
                         return False
             
             # 合并文件块
@@ -276,11 +279,11 @@ class HTTPDownloader(BaseDownloader):
                     progress_info = ProgressInfo(file_size, file_size, 0.0)
                     progress_callback(progress_info)
                 return True
-            else:
-                return False
+            else:                return False
                 
         except Exception as e:
-            print(f"多线程下载失败: {e}")
+            logger = get_logger(__name__)
+            logger.error(f"多线程下载失败: {e}")
             return False
     
     def get_video_info(self, url: str) -> Dict[str, Any]:
@@ -312,10 +315,10 @@ class HTTPDownloader(BaseDownloader):
                 "title": os.path.basename(urlparse(url).path) or "unknown",
                 "size": int(content_length) if content_length else 0,
                 "content_type": content_type,
-                "url": url
-            }
+                "url": url            }
         except Exception as e:
-            print(f"获取视频信息失败: {e}")
+            logger = get_logger(__name__)
+            logger.error(f"获取视频信息失败: {e}")
             return {
                 "title": "",
                 "size": 0,

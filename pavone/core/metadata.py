@@ -6,6 +6,7 @@
 from typing import Dict, Any, List, Optional
 import requests
 from bs4 import BeautifulSoup
+from ..config.logging_config import get_logger
 
 
 class BaseMetadataExtractor:
@@ -62,11 +63,11 @@ class BaseMetadataExtractor:
                 "studio": "",
                 "genre": [],
                 "release_date": "",
-                "rating": 0.0,
-                "cover_url": ""
+                "rating": 0.0,                "cover_url": ""
             }
         except Exception as e:
-            print(f"获取视频信息失败: {e}")
+            logger = get_logger(__name__)
+            logger.error(f"获取视频信息失败: {e}")
             return None
     
     def search_metadata(self, query: str) -> List[Dict[str, Any]]:

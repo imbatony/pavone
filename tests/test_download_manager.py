@@ -130,15 +130,12 @@ class TestDownloadManager(unittest.TestCase):
     
     def test_select_download_option_single(self):
         """测试单个选项的选择"""
-        manager = DownloadManager(self.config, self.mock_plugin_manager)
-        
+        manager = DownloadManager(self.config, self.mock_plugin_manager)        
         options = [DownloadOpt("https://example.com/video.mp4", display_name="测试视频")]
         
-        with patch('builtins.print') as mock_print:
-            selected = manager.select_download_option(options)
-            
-            self.assertEqual(selected, options[0])
-            mock_print.assert_called()
+        # 由于已经替换为logger，我们只需要验证功能正常工作
+        selected = manager.select_download_option(options)
+        self.assertEqual(selected, options[0])
     
     @patch('builtins.input')
     def test_select_download_option_multiple(self, mock_input):

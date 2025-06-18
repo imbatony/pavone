@@ -4,6 +4,7 @@
 
 from typing import Optional
 from pavone.config.settings import DownloadConfig
+from pavone.config.logging_config import get_logger
 from .http_downloader import HTTPDownloader
 from .m3u8_downloader import M3U8Downloader
 from .options import DownloadOpt
@@ -33,14 +34,14 @@ def example_usage():
     
     # 创建进度回调
     progress_callback = create_console_progress_callback()
-    
-    # 执行下载
+      # 执行下载
     success = downloader.download(download_opt, progress_callback)
     
+    logger = get_logger(__name__)
     if success:
-        print("下载成功!")
+        logger.info("下载成功!")
     else:
-        print("下载失败!")
+        logger.error("下载失败!")
 
 
 def example_usage_with_proxy():
@@ -70,14 +71,14 @@ def example_usage_with_proxy():
     
     # 创建进度回调
     progress_callback = create_console_progress_callback()
-    
-    # 执行下载（会使用代理）
+      # 执行下载（会使用代理）
     success = downloader.download(download_opt, progress_callback)
     
+    logger = get_logger(__name__)
     if success:
-        print("下载成功!")
+        logger.info("下载成功!")
     else:
-        print("下载失败!")
+        logger.error("下载失败!")
 
 
 def example_multithreaded_download():
@@ -97,19 +98,19 @@ def example_multithreaded_download():
     # 创建下载选项
     download_opt = DownloadOpt(
         url="https://example.com/large_video.mp4",  # 大文件
-        filename="large_video.mp4"
-    )
+        filename="large_video.mp4"    )
     
     # 创建进度回调
     progress_callback = create_console_progress_callback()
     
-    print("开始下载（将自动检测是否使用多线程）...")
+    logger = get_logger(__name__)
+    logger.info("开始下载（将自动检测是否使用多线程）...")
     success = downloader.download(download_opt, progress_callback)
     
     if success:
-        print("\\n下载完成!")
+        logger.info("\\n下载完成!")
     else:
-        print("\\n下载失败!")
+        logger.error("\\n下载失败!")
 
 
 def create_high_performance_config() -> DownloadConfig:
@@ -198,14 +199,14 @@ def example_m3u8_download():
     
     # 创建进度回调
     progress_callback = create_console_progress_callback()
-    
-    # 执行下载
+      # 执行下载
     success = downloader.download(download_opt, progress_callback)
     
+    logger = get_logger(__name__)
     if success:
-        print("M3U8视频下载成功!")
+        logger.info("M3U8视频下载成功!")
     else:
-        print("M3U8视频下载失败!")
+        logger.error("M3U8视频下载失败!")
 
 
 def example_m3u8_download_with_auth():
@@ -232,11 +233,11 @@ def example_m3u8_download_with_auth():
             "User-Agent": "AuthorizedClient/2.0"
         }
     )
-    
-    # 执行下载
+      # 执行下载
     success = downloader.download(download_opt)
     
+    logger = get_logger(__name__)
     if success:
-        print("认证M3U8视频下载成功!")
+        logger.info("认证M3U8视频下载成功!")
     else:
-        print("认证M3U8视频下载失败!")
+        logger.error("认证M3U8视频下载失败!")

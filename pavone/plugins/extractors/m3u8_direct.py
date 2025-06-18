@@ -8,6 +8,7 @@ from urllib.parse import urlparse
 from pathlib import Path
 from .base import ExtractorPlugin
 from ...core.downloader.options import DownloadOpt, LinkType
+from ...config.logging_config import get_logger
 
 
 class M3U8DirectExtractor(ExtractorPlugin):
@@ -60,12 +61,12 @@ class M3U8DirectExtractor(ExtractorPlugin):
                     "Accept": "application/vnd.apple.mpegurl,application/x-mpegurl,video/*;q=0.9,*/*;q=0.8"
                 },
                 link_type=LinkType.STREAM,
-                display_name=f"M3U8流媒体 - {path_name}",
-                quality="流媒体"
+                display_name=f"M3U8流媒体 - {path_name}",                quality="流媒体"
             )
             
             return [download_opt]
             
         except Exception as e:
-            print(f"M3U8提取器错误: {e}")
+            logger = get_logger(__name__)
+            logger.error(f"M3U8提取器错误: {e}")
             return []
