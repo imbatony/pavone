@@ -77,10 +77,10 @@ class ExtractorPlugin(BasePlugin):
                     'Connection': 'keep-alive',
                     'Upgrade-Insecure-Requests': '1'
                 }
-            
-            # 获取代理配置
+              # 获取代理配置
             proxies = self._get_proxies()
-              # 发起请求
+            
+            # 发起请求
             response = requests.get(
                 url,
                 headers=headers,
