@@ -203,31 +203,6 @@ class MissAVExtractor(ExtractorPlugin):
         # 如果到达这里，说明所有尝试都失败了
         return {}
     
-    def _sanitize_filename(self, filename: str) -> str:
-        """
-        清理文件名，移除非法字符
-        
-        Args:
-            filename: 原始文件名
-            
-        Returns:
-            清理后的文件名
-        """
-        if not filename or not filename.strip():
-            return "video"
-        
-        # 移除或替换非法字符
-        illegal_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
-        sanitized = filename
-        for char in illegal_chars:
-            sanitized = sanitized.replace(char, '_')
-        
-        # 限制文件名长度
-        if len(sanitized) > 200:
-            sanitized = sanitized[:200]
-        
-        return sanitized.strip()
-    
     def cleanup(self):
         """清理插件资源"""
         print(f"[{self.name}] 清理 MissAV 视频提取器")

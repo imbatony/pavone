@@ -80,8 +80,7 @@ class ExtractorPlugin(BasePlugin):
             
             # 获取代理配置
             proxies = self._get_proxies()
-            
-            # 发起请求
+              # 发起请求
             response = requests.get(
                 url,
                 headers=headers,
@@ -91,10 +90,9 @@ class ExtractorPlugin(BasePlugin):
             )
             response.raise_for_status()
             return response
-            
         except requests.RequestException as e:
             raise requests.RequestException(f"获取网页失败 {url}: {e}")
-    
+
     def _get_proxies(self) -> Optional[Dict[str, str]]:
         """获取当前的代理配置
         
@@ -116,6 +114,31 @@ class ExtractorPlugin(BasePlugin):
         except Exception:
             # 如果获取配置失败，返回None（不使用代理）
             return None
+    
+    def _sanitize_filename(self, filename: str) -> str:
+        """
+        清理文件名，移除非法字符
+        
+        Args:
+            filename: 原始文件名
+            
+        Returns:
+            清理后的文件名
+        """
+        if not filename or not filename.strip():
+            return "video"
+        
+        # 移除或替换非法字符
+        illegal_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
+        sanitized = filename
+        for char in illegal_chars:
+            sanitized = sanitized.replace(char, '_')
+        
+        # 限制文件名长度
+        if len(sanitized) > 200:
+            sanitized = sanitized[:200]
+        
+        return sanitized.strip()
     
     @abstractmethod
     def can_handle(self, url: str) -> bool:
