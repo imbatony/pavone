@@ -20,8 +20,6 @@ from .utils import (
     create_config_with_proxy
 )
 
-# 导入下载管理器
-from .download_manager import DownloadManager, create_download_manager
 
 # 向后兼容的导入 - 保持原有的 downloader.py 中的导入路径可用
 from .http_downloader import HTTPDownloader as BaseDownloader  # 向后兼容

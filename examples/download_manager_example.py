@@ -5,7 +5,7 @@ DownloadManager使用示例
 """
 
 from pavone.config.settings import DownloadConfig
-from pavone.core.downloader.download_manager import DownloadManager, create_download_manager
+from pavone.cli.commands.download import create_download_manager
 from pavone.core.downloader.progress import ProgressInfo
 
 

@@ -14,7 +14,7 @@ class TestConfigManager(unittest.TestCase):
     
     def setUp(self):
         """设置测试环境"""
-        self.temp_dir = tempfile.mkdtemp()
+        self.temp_dir = tempfile.mkdtemp("config_test")
         self.config_manager = ConfigManager(self.temp_dir)
     
     def tearDown(self):

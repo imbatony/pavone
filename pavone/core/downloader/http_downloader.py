@@ -173,7 +173,7 @@ class HTTPDownloader(BaseDownloader):
                 
         except Exception as e:
             logger = get_logger(__name__)
-            logger.error(f"下载失败: {e}")
+            logger.warning(f"下载失败: {e}")
             return False
     
     def _download_single_threaded(self, url: str, headers: Dict[str, str], 
@@ -214,7 +214,7 @@ class HTTPDownloader(BaseDownloader):
             return True
         except Exception as e:
             logger = get_logger(__name__)
-            logger.error(f"单线程下载失败: {e}")
+            logger.warning(f"单线程下载失败: {e}")
             return False
     
     def _download_multithreaded(self, url: str, headers: Dict[str, str], 
@@ -265,11 +265,11 @@ class HTTPDownloader(BaseDownloader):
                             update_progress()
                         else:
                             logger = get_logger(__name__)
-                            logger.error(f"下载块 {index} 失败")
+                            logger.info(f"下载块 {index} 失败")
                             return False
                     except Exception as e:
                         logger = get_logger(__name__)
-                        logger.error(f"线程 {index} 异常: {e}")
+                        logger.info(f"线程 {index} 异常: {e}")
                         return False
             
             # 合并文件块
@@ -283,7 +283,7 @@ class HTTPDownloader(BaseDownloader):
                 
         except Exception as e:
             logger = get_logger(__name__)
-            logger.error(f"多线程下载失败: {e}")
+            logger.warning(f"多线程下载失败: {e}")
             return False
     
     def get_video_info(self, url: str) -> Dict[str, Any]:

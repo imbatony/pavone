@@ -203,7 +203,7 @@ class DownloadApp:
             self.show_result(success)
             
         except Exception as e:
-            self.show_error(f"下载失败: {e}")
+            print(f"下载失败: {e}")
     
     def update_progress(self, progress):
         # 更新GUI进度条

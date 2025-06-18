@@ -113,12 +113,13 @@ class MissAVExtractor(ExtractorPlugin):
 
                 download_options.append(DownloadOpt(
                     url=video_url,
-                    filename=filename + '.mp4',
+                    filename=filename,
                     link_type=LinkType.STREAM,
                     custom_headers={"Referrer": url},
-                    display_name=f"{filename} - {quality}",
+                    display_name=f"{filename}",
                     quality=quality
                 ))
+            
             
             return download_options
   
@@ -179,7 +180,7 @@ class MissAVExtractor(ExtractorPlugin):
             logger.debug("dukpy执行结果: " + str(result))
             
             if result and isinstance(result, dict) and len(result) > 0:
-                logger.info(f"成功提取到 {len(result)} 个视频URL")
+                logger.debug(f"成功提取到 {len(result)} 个视频URL")
                 video_urls = {}
                 for key, url in result.items():
                     if url and isinstance(url, str):
@@ -190,7 +191,18 @@ class MissAVExtractor(ExtractorPlugin):
                             url = 'https://missav.ai' + url
                         video_urls[key] = url
                         logger.debug(f"提取到视频URL: {key} = {url}")
-                return video_urls
+                # 需要对video_urls进行清理，移除空值
+                # 只保留非空的URL,同时需要去处相同的URL
+                video_urls = {k: v for k, v in video_urls.items() if v and isinstance(v, str)}
+                # 移除重复的URL
+                finial_video_urls = {}
+                for key, url in video_urls.items():
+                    if url not in finial_video_urls.values():
+                        # TODO: 这里需要进一步处理URL，确保是有效的，并且有些情况m3u8链接可能是大师链接,内嵌多个子链接，需要进一步处理
+                        finial_video_urls[key] = url
+                logger.debug(f"最终提取到 {len(finial_video_urls)} 个有效视频URL")
+
+                return finial_video_urls
             else:
                 logger.warning("dukpy执行后未获取到有效的视频URL")
                 return {}

@@ -6,7 +6,7 @@ import unittest
 import tempfile
 import os
 from pathlib import Path
-from pavone.config.logging_config import LoggingConfig, LogManager, get_logger
+from pavone.config.logging_config import LoggingConfig, LogManager
 from pavone.config.settings import ConfigManager
 
 
@@ -15,9 +15,10 @@ class TestLoggingConfig(unittest.TestCase):
     
     def setUp(self):
         """测试准备"""
-        self.temp_dir = tempfile.mkdtemp()
+        self.temp_dir = tempfile.mkdtemp("logging_test")
         self.config = LoggingConfig(
             level="DEBUG",
+            file_enabled=True,
             file_path=os.path.join(self.temp_dir, "test.log")
         )
         self.log_manager = LogManager(self.config)
@@ -37,6 +38,8 @@ class TestLoggingConfig(unittest.TestCase):
     def test_log_manager_configuration(self):
         """测试日志管理器配置"""
         self.log_manager.configure_logging()
+        #将文件选项打开
+
         logger = self.log_manager.get_logger("test")
         
         # 测试日志记录
@@ -48,7 +51,7 @@ class TestLoggingConfig(unittest.TestCase):
     
     def test_config_manager_logging(self):
         """测试配置管理器的日志功能"""
-        with tempfile.TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory("test_config_manager_logging",dir=self.temp_dir) as temp_dir:
             config_manager = ConfigManager(temp_dir)
             
             # 测试获取日志器
@@ -69,7 +72,7 @@ class TestLoggingConfig(unittest.TestCase):
     
     def test_logging_config_validation(self):
         """测试日志配置验证"""
-        with tempfile.TemporaryDirectory() as temp_dir:
+        with tempfile.TemporaryDirectory("test_logging_config_validation",dir=self.temp_dir) as temp_dir:
             config_manager = ConfigManager(temp_dir)
             
             # 测试无效的日志级别

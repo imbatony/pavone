@@ -3,6 +3,7 @@ M3U8视频下载器实现
 """
 
 import os
+import time
 import requests
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -23,6 +24,7 @@ class M3U8Downloader(BaseDownloader):
         super().__init__(config)
         self._session = requests.Session()
         self._lock = threading.Lock()
+        self.logger = get_logger(__name__)
     
     def _get_proxies(self) -> Optional[Dict[str, str]]:
         """获取代理配置"""
@@ -157,19 +159,16 @@ class M3U8Downloader(BaseDownloader):
             
             # 下载M3U8播放列表
             m3u8_content = self._download_m3u8_playlist(download_opt.url, headers)
-            
-            # 解析播放列表，获取视频段URL列表
+              # 解析播放列表，获取视频段URL列表
             base_url = '/'.join(download_opt.url.split('/')[:-1]) + '/'
             segment_urls = self._parse_m3u8_playlist(m3u8_content, base_url)
             
             if not segment_urls:
-                logger = get_logger(__name__)
-                logger.warning("No video segments found in M3U8 playlist")
+                self.logger.warning("No video segments found in M3U8 playlist")
                 return False
             
             total_segments = len(segment_urls)
-            logger = get_logger(__name__)
-            logger.info(f"Found {total_segments} video segments")
+            self.logger.info(f"Found {total_segments} video segments")
             
             # 获取输出文件路径
             output_file = self._get_output_filename(download_opt)
@@ -184,38 +183,75 @@ class M3U8Downloader(BaseDownloader):
                     speed=0.0
                 )
                 progress_callback(progress_info)
-            
-            # 下载所有视频段
+              # 下载所有视频段
             downloaded_segments = {}
             failed_downloads = []
-            
+            total_downloaded_bytes = 0
+            bytes_per_segment = 0
+            # 开始时间
+            download_start_time = time.time()
+
             def download_with_progress(segment_info):
                 index, url = segment_info
-                try:
-                    segment_index, segment_data = self._download_segment(url, headers, index)
-                    
-                    # 将段数据写入临时文件
-                    segment_file = os.path.join(temp_dir, f'segment_{segment_index:06d}.ts')
-                    with open(segment_file, 'wb') as f:
-                        f.write(segment_data)
-                    
-                    with self._lock:
-                        downloaded_segments[segment_index] = segment_file
-                          # 更新进度
-                        if progress_callback:
-                            progress_info = ProgressInfo(
-                                total_size=total_segments,
-                                downloaded=len(downloaded_segments),
-                                speed=0.0
-                            )
-                            progress_callback(progress_info)                    
-                    return True
-                except Exception as e:
-                    logger = get_logger(__name__)
-                    logger.error(f"Failed to download segment {index}: {e}")
-                    failed_downloads.append((index, url))
-                    return False
-              # 使用线程池并发下载
+                last_error = None
+                
+                # 使用配置的重试次数进行重试
+                for attempt in range(self.config.retry_times + 1):
+                    try:
+                        segment_index, segment_data = self._download_segment(url, headers, index)
+                        # 更新总字节数
+                        with self._lock:
+                            nonlocal bytes_per_segment
+                            nonlocal total_downloaded_bytes
+                            # 如果是第一次下载，初始化bytes_per_segment
+                            if bytes_per_segment == 0:
+                                bytes_per_segment = len(segment_data)
+                            total_downloaded_bytes += len(segment_data)
+                        # 将段数据写入临时文件
+                        segment_file = os.path.join(temp_dir, f'segment_{segment_index:06d}.ts')
+                        with open(segment_file, 'wb') as f:
+                            f.write(segment_data)
+                        
+                        with self._lock:
+                            #计算下载速度
+                            elapsed_time = time.time() - download_start_time
+                            speed = total_downloaded_bytes / elapsed_time if elapsed_time > 0 else 0.0
+                            downloaded_segments[segment_index] = segment_file
+                            # 更新进度
+                            if progress_callback:
+                                # 总大小为段数乘以每段大小,为估算值，可能不准, 所以需要取最大值
+                                # 如果总下载字节数大于段数乘以每段大小
+                                guess_size = total_segments * bytes_per_segment
+                                # 如果总下载字节数小于估算值，则使用估算值
+                                # 否则使用总下载字节数+1
+                                if total_downloaded_bytes < guess_size:
+                                    total_size = guess_size
+                                else:
+                                    total_size = total_downloaded_bytes + 1
+                                progress_info = ProgressInfo(
+                                    total_size=total_size,  
+                                    downloaded=total_downloaded_bytes,
+                                    speed=speed
+                                )
+                                progress_callback(progress_info)
+                        
+                        return True
+                    except Exception as e:
+                        last_error = e
+                        if attempt < self.config.retry_times:
+                            # 如果不是最后一次尝试，等待重试间隔
+                            retry_delay = self.config.retry_interval / 1000.0  # 转换为秒
+                            self.logger.info(f"Segment {index} download failed (attempt {attempt + 1}/{self.config.retry_times + 1}): {e}, retrying in {retry_delay}s...")
+                            time.sleep(retry_delay)
+                        else:
+                            # 最后一次尝试失败
+                            self.logger.error(f"Failed to download segment {index} after {self.config.retry_times + 1} attempts: {e}")
+                
+                # 所有重试都失败了
+                failed_downloads.append((index, url))
+                return False
+                              
+            # 使用线程池并发下载
             max_workers = min(self.config.max_concurrent_downloads, total_segments)
             with ThreadPoolExecutor(max_workers=max_workers) as executor:
                 segment_infos = list(enumerate(segment_urls))
@@ -223,23 +259,23 @@ class M3U8Downloader(BaseDownloader):
                 
                 for future in as_completed(futures):
                     future.result()  # 等待完成
-              # 检查是否有失败的下载
+            
+            # 检查是否有失败的下载
             if failed_downloads:
-                logger = get_logger(__name__)
-                logger.warning(f"Failed to download {len(failed_downloads)} segments")
+                self.logger.warning(f"Failed to download {len(failed_downloads)} segments")
                 # 可以选择重试失败的段
                 return False
-              # 合并所有视频段
-            logger = get_logger(__name__)
-            logger.info("Merging video segments...")
+            
+            # 合并所有视频段
+            self.logger.info("Merging video segments...")
             with open(output_file, 'wb') as output:
                 for i in range(total_segments):
                     segment_file = downloaded_segments.get(i)
                     if segment_file and os.path.exists(segment_file):
                         with open(segment_file, 'rb') as f:
                             output.write(f.read())
-                    else:                        logger.warning(f"Missing segment {i}")
-            
+                    else:
+                        self.logger.warning(f"Missing segment {i}")
             # 清理临时文件
             try:
                 for segment_file in downloaded_segments.values():
@@ -247,11 +283,11 @@ class M3U8Downloader(BaseDownloader):
                         os.remove(segment_file)
                 os.rmdir(temp_dir)
             except Exception as e:
-                logger = get_logger(__name__)
-                logger.warning(f"Failed to clean up temporary files: {e}")
+                self.logger.warning(f"Failed to clean up temporary files: {e}")
             
-            logger = get_logger(__name__)
-            logger.info(f"M3U8 video downloaded successfully: {output_file}")            # 最终进度更新
+            self.logger.info(f"M3U8 video downloaded successfully: {output_file}")
+            
+            # 最终进度更新
             if progress_callback:
                 progress_info = ProgressInfo(
                     total_size=total_segments,
@@ -263,8 +299,7 @@ class M3U8Downloader(BaseDownloader):
             return True
             
         except Exception as e:
-            logger = get_logger(__name__)
-            logger.error(f"M3U8 download failed: {e}")
+            self.logger.error(f"M3U8 download failed: {e}")
             return False
         finally:
             self._session.close()

@@ -7,15 +7,14 @@ import logging.handlers
 from pathlib import Path
 from typing import Optional, Dict, Any
 from dataclasses import dataclass, asdict
-import json
 
 
 @dataclass
 class LoggingConfig:
     """日志配置"""
-    level: str = "INFO"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+    level: str = "WARNING"  # DEBUG, INFO, WARNING, ERROR, CRITICAL
     console_enabled: bool = True
-    file_enabled: bool = True
+    file_enabled: bool = False
     file_path: str = "./logs/pavone.log"
     max_file_size: int = 10 * 1024 * 1024  # 10MB
     backup_count: int = 5
