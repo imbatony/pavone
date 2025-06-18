@@ -109,8 +109,11 @@ python_functions = ["test_*"]
 addopts = [
     "-v",
     "--strict-markers",
-    "--disable-warnings",
     "--tb=short",
+    "-W", "ignore::urllib3.exceptions.InsecureRequestWarning",
+    "-W", "ignore::requests.packages.urllib3.exceptions.InsecureRequestWarning", 
+    "-W", "ignore::DeprecationWarning:requests_oauthlib",
+    "-W", "ignore::PendingDeprecationWarning",
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",

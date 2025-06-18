@@ -9,7 +9,7 @@ from pavone.plugins.extractors.base import ExtractorPlugin
 from pavone.core.downloader.options import DownloadOpt
 
 
-class TestExtractorPlugin(ExtractorPlugin):
+class MockExtractorPlugin(ExtractorPlugin):
     """测试用的提取器插件实现"""
     
     def __init__(self):
@@ -44,7 +44,7 @@ class TestExtractorBase(unittest.TestCase):
     
     def setUp(self):
         """设置测试环境"""
-        self.extractor = TestExtractorPlugin()
+        self.extractor = MockExtractorPlugin()
     
     def test_sanitize_filename(self):
         """测试文件名清理功能"""
