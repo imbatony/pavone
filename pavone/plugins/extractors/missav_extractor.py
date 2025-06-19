@@ -6,7 +6,6 @@ MissAV视频提取器插件
 如果dukpy执行失败，直接返回空结果。
 """
 
-import json
 import re
 from typing import List, Dict, Any
 from urllib.parse import urlparse
@@ -97,6 +96,8 @@ class MissAVExtractor(ExtractorPlugin):
                 # 如果有质量信息，可以从video_url中提取
                 if '720p' in video_url.lower():
                     quality = '720p'
+                elif '360p' in video_url.lower():
+                    quality = '360p'
                 elif '1080p' in video_url.lower():
                     quality = '1080p'
                 elif '4k' in video_url.lower():
