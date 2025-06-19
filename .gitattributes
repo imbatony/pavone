@@ -1,0 +1,11 @@
+# Exclude test data files from language detection
+tests/sites/*.html linguist-detectable=false
+tests/sites/*.htm linguist-detectable=false
+
+# Mark test data files as documentation/test data
+tests/sites/*.html linguist-documentation
+tests/sites/*.htm linguist-documentation
+
+# You can also mark other test data files if needed
+# tests/**/*.json linguist-detectable=false
+# tests/**/*.xml linguist-detectable=false
