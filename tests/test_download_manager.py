@@ -166,17 +166,16 @@ class TestDownloadManager(unittest.TestCase):
         ]
         
         # 模拟用户选择取消
-        mock_input.return_value = "0"
-        
+        mock_input.return_value = "0"        
         with patch('builtins.print'):
             with self.assertRaises(ValueError) as context:
                 manager.select_download_option(options)
             
             self.assertIn("用户取消了下载", str(context.exception))
     
-    @patch('pavone.core.downloader.download_manager.DownloadManager.extract_download_options')
-    @patch('pavone.core.downloader.download_manager.DownloadManager.select_download_option')
-    @patch('pavone.core.downloader.download_manager.DownloadManager.get_downloader_for_option')
+    @patch('pavone.cli.commands.download.DownloadManager.extract_download_options')
+    @patch('pavone.cli.commands.download.DownloadManager.select_download_option')
+    @patch('pavone.cli.commands.download.DownloadManager.get_downloader_for_option')
     def test_download_from_url_success(self, mock_get_downloader, mock_select, mock_extract):
         """测试完整下载流程成功"""
         manager = DownloadManager(self.config, self.mock_plugin_manager)
@@ -192,15 +191,14 @@ class TestDownloadManager(unittest.TestCase):
         
         # 执行下载
         with patch('builtins.print'):
-            result = manager.download_from_url("https://example.com/test")
-        
+            result = manager.download_from_url("https://example.com/test")        
         self.assertTrue(result)
         mock_extract.assert_called_once()
         mock_select.assert_called_once()
         mock_get_downloader.assert_called_once()
         mock_downloader.download.assert_called_once()
     
-    @patch('pavone.core.downloader.download_manager.DownloadManager.get_downloader_for_option')
+    @patch('pavone.cli.commands.download.DownloadManager.get_downloader_for_option')
     def test_download_option_success(self, mock_get_downloader):
         """测试直接下载选项成功"""
         manager = DownloadManager(self.config, self.mock_plugin_manager)
