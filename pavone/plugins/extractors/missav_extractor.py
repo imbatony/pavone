@@ -191,16 +191,8 @@ class MissAVExtractor(ExtractorPlugin):
                             url = 'https://missav.ai' + url
                         video_urls[key] = url
                         logger.debug(f"提取到视频URL: {key} = {url}")
-                # 需要对video_urls进行清理，移除空值
-                # 只保留非空的URL,同时需要去处相同的URL
-                video_urls = {k: v for k, v in video_urls.items() if v and isinstance(v, str)}
-                # 移除重复的URL
-                finial_video_urls = {}
-                for key, url in video_urls.items():
-                    if url not in finial_video_urls.values():
-                        # TODO: 这里需要进一步处理URL，确保是有效的，并且有些情况m3u8链接可能是大师链接,内嵌多个子链接，需要进一步处理
-                        finial_video_urls[key] = url
-                logger.debug(f"最终提取到 {len(finial_video_urls)} 个有效视频URL")
+                # 获取最终的视频URL列表
+                finial_video_urls = self._get_final_urls(video_urls)
 
                 return finial_video_urls
             else:
@@ -222,3 +214,88 @@ class MissAVExtractor(ExtractorPlugin):
         if args and isinstance(args[0], str):
             return self.extract(args[0])
         return []
+
+    def _get_final_urls(self, video_urls: Dict[str,str]) -> Dict[str, str]:
+        """
+        获取最终的视频URL列表
+        主要用于在下载前获取所有可用的URL
+        """
+        finial_video_urls = {}
+        # 尝试找到大师链接,这个链接一般是以playlist.m3u8结尾
+        master_urls = {k: v for k, v in video_urls.items() if v.endswith('playlist.m3u8')}
+        #如果找到大师链接，则进行继续处理，否则，将所有url进行去重处理
+        if not master_urls or len(master_urls) == 0:
+            logger.debug("未找到大师链接，使用所有视频URL")
+            # 需要对video_urls进行清理，移除空值
+            # 只保留非空的URL,同时需要去处相同的URL
+            video_urls = {k: v for k, v in video_urls.items() if v and isinstance(v, str)}
+            # 移除重复的URL
+            for key, url in video_urls.items():
+                if url not in finial_video_urls.values():
+                    # TODO: 这里需要进一步处理URL，确保是有效的，并且有些情况m3u8链接可能是大师链接,内嵌多个子链接，需要进一步处理
+                    finial_video_urls[key] = url
+            logger.debug(f"最终提取到 {len(finial_video_urls)} 个有效视频URL")
+        else:
+            mater_url = list(master_urls.values())[0]
+            logger.debug(f"找到大师链接: {mater_url}")
+            finial_video_urls = self._extract_master_playlist(mater_url)
+        return finial_video_urls
+
+    def _extract_master_playlist(self, master_url: str) -> Dict[str, str]:
+
+        """
+        从大师链接中提取所有子链接
+        主要用于处理.m3u8链接，获取所有可用的子链接
+        """
+        try:
+            # 获取大师链接内容
+            response = self.fetch_webpage(master_url, timeout=30, verify_ssl=False)
+            if response.status_code != 200:
+                logger.info(f"获取大师链接失败: {master_url} - 状态码: {response.status_code}")
+                return {}
+            # 基准为去除playlist.m3u8的一部分
+            base_url = master_url.rsplit('/', 1)[0] + '/'
+            # 解析.m3u8内容，提取所有子链接
+            lines = response.text.splitlines()
+            sub_urls = {}
+            for line in lines:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    #找到以m3u8结尾的链接
+                    if line.endswith('.m3u8'):
+                        if line.startswith('http'):
+                            key = self._get_key_for_url(line)
+                            if key:
+                                sub_urls[key] = line
+                        else:
+                            # 如果是相对链接，拼接基准URL
+                            full_url = base_url + line
+                            key = self._get_key_for_url(full_url)
+                            if key:
+                                sub_urls[key] = full_url
+            
+            logger.debug(f"从大师链接提取到 {len(sub_urls)} 个子链接")
+            return sub_urls
+        
+        except Exception as e:
+            logger.error(f"处理大师链接时出错: {e}")
+            return {}
+    
+    def _get_key_for_url(self, url: str) -> str:
+        """
+        获取视频URL的唯一键
+        用于在下载选项中标识不同的视频链接
+        """
+        # 如果包含360p或720p等质量信息，使用这些信息作为键
+        if '360p' in url:
+            return '360p'
+        elif '480p' in url:
+            return '480p'
+        elif '720p' in url:
+            return '720p'
+        elif '1080p' in url:
+            return '1080p'
+        elif '4k' in url:
+            return '4k'
+        else:
+            return ''
