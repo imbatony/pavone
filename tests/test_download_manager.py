@@ -5,7 +5,7 @@
 import unittest
 from unittest.mock import Mock, patch, MagicMock
 from pavone.config.settings import DownloadConfig
-from pavone.core.downloader.download_manager import DownloadManager, create_download_manager
+from pavone.cli.commands.download import DownloadManager, create_download_manager
 from pavone.core.downloader.options import DownloadOpt, LinkType
 from pavone.plugins.manager import PluginManager
 

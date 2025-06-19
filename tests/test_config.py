@@ -4,9 +4,8 @@
 
 import unittest
 import tempfile
-import json
 from pathlib import Path
-from pavone.config.settings import ConfigManager, Config, DownloadConfig, OrganizeConfig, SearchConfig, ProxyConfig
+from pavone.config.settings import ConfigManager, Config, DownloadConfig
 
 
 class TestConfigManager(unittest.TestCase):
