@@ -85,7 +85,7 @@ class TestMissAVExtractor(unittest.TestCase):
         # 读取真实的MissAV页面内容
         with open('tests/sites/missav2.html', 'r', encoding='utf-8') as f:
             real_html_content = f.read()        # 读取真实的M3U8链接内容
-        with open('tests/sites/missav.m3u8', 'r', encoding='utf-8') as f:
+        with open('tests/sites/missav2.m3u8', 'r', encoding='utf-8') as f:
             real_m3u8_content = f.read()    
         # 模拟HTML响应
         mock_response1 = MagicMock()
@@ -96,14 +96,13 @@ class TestMissAVExtractor(unittest.TestCase):
         mock_response2 = MagicMock()
         mock_response2.text = real_m3u8_content
         mock_response2.status_code = 200
-        mock_response2.raise_for_status = MagicMock()
-        # 设置模拟请求返回
+        mock_response2.raise_for_status = MagicMock()        # 设置模拟请求返回
         # 依次返回HTML和M3U8内容
         mock_get.side_effect = [mock_response1, mock_response2]
         
         url = 'https://missav.ai/dm18/ja/mds-884'
         options = self.extractor.extract(url)
-        self.assertEqual(len(options), 4)
+        self.assertEqual(len(options), 3)  # missav2.m3u8只有3个分辨率
         if len(options) > 0:
             # MissAV提取器现在只提取M3U8流媒体链接
             self.assertEqual(options[0].link_type, LinkType.STREAM)

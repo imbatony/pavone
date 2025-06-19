@@ -94,15 +94,15 @@ class MissAVExtractor(ExtractorPlugin):
                 quality = "未知"
                 
                 # 如果有质量信息，可以从video_url中提取
-                if '720p' in video_url.lower():
+                if '720p' in video_url.lower() or '1280x720' in video_url.lower():
                     quality = '720p'
-                elif '360p' in video_url.lower():
+                elif '360p' in video_url.lower() or '640x360' in video_url.lower():
                     quality = '360p'
-                elif '1080p' in video_url.lower():
+                elif '1080p' in video_url.lower() or '1920x1080' in video_url.lower():
                     quality = '1080p'
-                elif '4k' in video_url.lower():
+                elif '4k' in video_url.lower() or '2160p' in video_url.lower():
                     quality = '4K'
-                elif '480p' in video_url.lower():
+                elif '480p' in video_url.lower() or '842x480' in video_url.lower():
                     quality = '480p'
                 
                 
@@ -257,19 +257,20 @@ class MissAVExtractor(ExtractorPlugin):
             # 基准为去除playlist.m3u8的一部分
             base_url = master_url.rsplit('/', 1)[0] + '/'
             # 解析.m3u8内容，提取所有子链接
-            lines = response.text.splitlines()
+            m3u8_content = response.text
+            logger.debug(f"处理大师链接内容: {m3u8_content}...")  # 仅打印前100个字符
+            lines = m3u8_content.splitlines()
             sub_urls = {}
             for line in lines:
                 line = line.strip()
                 if line and not line.startswith('#'):
                     #找到以m3u8结尾的链接
-                    if line.endswith('.m3u8'):
+                    if line.endswith('m3u8'):
                         if line.startswith('http'):
                             key = self._get_key_for_url(line)
                             if key:
                                 sub_urls[key] = line
-                        else:
-                            # 如果是相对链接，拼接基准URL
+                        else:                            # 如果是相对链接，拼接基准URL
                             full_url = base_url + line
                             key = self._get_key_for_url(full_url)
                             if key:
@@ -288,15 +289,21 @@ class MissAVExtractor(ExtractorPlugin):
         用于在下载选项中标识不同的视频链接
         """
         # 如果包含360p或720p等质量信息，使用这些信息作为键
-        if '360p' in url:
+        if '360p' in url or '640x360' in url:
             return '360p'
-        elif '480p' in url:
+        elif '480p' in url or '842x480' in url:
             return '480p'
-        elif '720p' in url:
+        elif '720p' in url or '1280x720' in url:
             return '720p'
-        elif '1080p' in url:
+        elif '1080p' in url or '1920x1080' in url:
             return '1080p'
         elif '4k' in url:
             return '4k'
         else:
+            # 如果没有找到已知的质量标识，尝试从URL中提取分辨率
+            import re
+            resolution_match = re.search(r'(\d+)x(\d+)', url)
+            if resolution_match:
+                width, height = resolution_match.groups()
+                return f"{width}x{height}"
             return ''
