@@ -327,3 +327,7 @@ class PluginManager:
 
 # 全局插件管理器实例
 plugin_manager = PluginManager()
+
+def get_plugin_manager() -> PluginManager:
+    """获取全局插件管理器实例"""
+    return plugin_manager

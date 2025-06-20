@@ -5,7 +5,7 @@
 import unittest
 from unittest.mock import Mock, patch, MagicMock
 from pavone.config.settings import DownloadConfig
-from pavone.cli.commands.download import DownloadManager, create_download_manager
+from pavone.manager.download import DownloadManager, create_download_manager
 from pavone.core.downloader.options import DownloadOpt, LinkType
 from pavone.plugins.manager import PluginManager
 
@@ -169,13 +169,12 @@ class TestDownloadManager(unittest.TestCase):
         mock_input.return_value = "0"        
         with patch('builtins.print'):
             with self.assertRaises(ValueError) as context:
-                manager.select_download_option(options)
-            
+                manager.select_download_option(options)            
             self.assertIn("用户取消了下载", str(context.exception))
     
-    @patch('pavone.cli.commands.download.DownloadManager.extract_download_options')
-    @patch('pavone.cli.commands.download.DownloadManager.select_download_option')
-    @patch('pavone.cli.commands.download.DownloadManager.get_downloader_for_option')
+    @patch('pavone.manager.download.DownloadManager.extract_download_options')
+    @patch('pavone.manager.download.DownloadManager.select_download_option')
+    @patch('pavone.manager.download.DownloadManager.get_downloader_for_option')
     def test_download_from_url_success(self, mock_get_downloader, mock_select, mock_extract):
         """测试完整下载流程成功"""
         manager = DownloadManager(self.config, self.mock_plugin_manager)
@@ -198,7 +197,7 @@ class TestDownloadManager(unittest.TestCase):
         mock_get_downloader.assert_called_once()
         mock_downloader.download.assert_called_once()
     
-    @patch('pavone.cli.commands.download.DownloadManager.get_downloader_for_option')
+    @patch('pavone.manager.download.DownloadManager.get_downloader_for_option')
     def test_download_option_success(self, mock_get_downloader):
         """测试直接下载选项成功"""
         manager = DownloadManager(self.config, self.mock_plugin_manager)
