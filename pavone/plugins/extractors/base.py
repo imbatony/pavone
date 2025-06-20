@@ -4,6 +4,8 @@ from typing import List, Optional, Dict
 from ..base import BasePlugin
 from ...core.downloader.options import DownloadOpt
 from ...config.settings import config_manager, get_download_config
+import time
+from ...config.logging_config import get_logger
 
 class ExtractorPlugin(BasePlugin):
     """提取器插件基类
@@ -15,6 +17,7 @@ class ExtractorPlugin(BasePlugin):
     def __init__(self):
         super().__init__()
         self.priority = 50  # 默认优先级，数值越小优先级越高
+        self.logger = get_logger(__name__)
     
     @property
     def priority_level(self) -> int:
@@ -50,18 +53,12 @@ class ExtractorPlugin(BasePlugin):
         Raises:
             requests.RequestException: 网络请求失败时抛出
         """
-        # 导入必要模块
-        import time
-        from ...config.logging_config import get_logger
         
         # 获取配置
         download_config = get_download_config()
         if max_retry is None:
             max_retry = download_config.retry_times
         retry_interval_ms = download_config.retry_interval
-        
-        # 获取日志记录器
-        logger = get_logger(__name__)
         
         # 禁用SSL警告（如果需要的话）
         if not verify_ssl:
@@ -98,7 +95,7 @@ class ExtractorPlugin(BasePlugin):
                 
                 # 请求成功，记录日志（仅在重试后成功时）
                 if attempt > 0:
-                    logger.info(f"网页获取成功 {url} (第{attempt + 1}次尝试)")
+                    self.logger.info(f"网页获取成功 {url} (第{attempt + 1}次尝试)")
                 
                 return response
                 
@@ -108,11 +105,11 @@ class ExtractorPlugin(BasePlugin):
                 if attempt < max_retry:
                     # 不是最后一次尝试，记录警告并等待重试
                     retry_delay = retry_interval_ms / 1000.0  # 转换为秒
-                    logger.warning(f"网页获取失败 {url} (第{attempt + 1}次尝试): {e}，{retry_delay}秒后重试...")
+                    self.logger.warning(f"网页获取失败 {url} (第{attempt + 1}次尝试): {e}，{retry_delay}秒后重试...")
                     time.sleep(retry_delay)
                 else:
                     # 最后一次尝试失败，记录错误
-                    logger.error(f"网页获取最终失败 {url} (共{max_retry + 1}次尝试): {e}")
+                    self.logger.error(f"网页获取最终失败 {url} (共{max_retry + 1}次尝试): {e}")
         
         # 所有重试都失败了，抛出最后一个异常
         raise requests.RequestException(f"获取网页失败 {url}: {last_exception}")

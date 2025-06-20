@@ -3,13 +3,13 @@ Config command - 配置显示命令
 """
 
 import click
-from ...config.settings import ConfigManager
+from ...config.settings import get_config_manager
 
 
 @click.command()
 def config():
     """显示当前配置"""
-    config_manager = ConfigManager()
+    config_manager = get_config_manager()
     config = config_manager.config
     
     click.echo("=== PAVOne 当前配置 ===")

@@ -4,7 +4,7 @@ Download commands - 下载相关命令
 
 import click
 from typing import Optional
-from ...config.settings import ConfigManager
+from ...config.settings import get_config_manager
 from .utils import echo_success, echo_error, echo_info, read_urls_from_file, read_urls_from_input, echo_warning
 # 导入必要的模块
 from ...core.downloader.progress import create_console_progress_callback, create_silent_progress_callback
@@ -29,7 +29,7 @@ def download(url: str, auto_select: bool, silent: bool, filename: Optional[str],
     """下载指定URL的视频"""
     try:
         # 获取配置
-        config_manager = ConfigManager()
+        config_manager = get_config_manager()
         download_config = config_manager.config.download
         
         # 应用命令行选项覆盖配置
@@ -111,7 +111,7 @@ def batch_download(file: Optional[str], auto_select: bool, silent: bool,
     """批量下载多个URL"""
     try:
         # 获取配置
-        config_manager = ConfigManager()
+        config_manager = get_config_manager()
         download_config = config_manager.config.download
         
         # 应用命令行选项覆盖配置

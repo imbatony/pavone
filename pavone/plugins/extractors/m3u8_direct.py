@@ -8,7 +8,6 @@ from urllib.parse import urlparse
 from pathlib import Path
 from .base import ExtractorPlugin
 from ...core.downloader.options import DownloadOpt, LinkType
-from ...config.logging_config import get_logger
 
 
 class M3U8DirectExtractor(ExtractorPlugin):
@@ -67,6 +66,5 @@ class M3U8DirectExtractor(ExtractorPlugin):
             return [download_opt]
             
         except Exception as e:
-            logger = get_logger(__name__)
-            logger.error(f"M3U8提取器错误: {e}")
+            self.logger.error(f"M3U8提取器错误: {e}")
             return []

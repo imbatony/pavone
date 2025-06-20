@@ -11,7 +11,6 @@ from typing import Optional, Dict, Any, Tuple
 from urllib.parse import urlparse
 
 from pavone.config.settings import DownloadConfig
-from pavone.config.logging_config import get_logger
 from .base import BaseDownloader
 from .options import DownloadOpt
 from .progress import ProgressCallback, ProgressInfo
@@ -102,8 +101,7 @@ class HTTPDownloader(BaseDownloader):
             return True, downloaded
             
         except Exception as e:
-            logger = get_logger(__name__)
-            logger.error(f"下载块 {chunk_index} 失败: {e}")
+            self.logger.error(f"下载块 {chunk_index} 失败: {e}")
             return False, 0
     
     def _merge_chunks(self, filepath: str, num_chunks: int) -> bool:
@@ -122,8 +120,7 @@ class HTTPDownloader(BaseDownloader):
             
             return True
         except Exception as e:
-            logger = get_logger(__name__)
-            logger.error(f"合并文件块失败: {e}")
+            self.logger.error(f"合并文件块失败: {e}")
             return False
     
     def _should_use_multithreading(self, supports_range: bool, file_size: int) -> bool:
@@ -172,8 +169,7 @@ class HTTPDownloader(BaseDownloader):
                 return self._download_single_threaded(download_opt.url, headers, filepath,                                                    progress_callback)
                 
         except Exception as e:
-            logger = get_logger(__name__)
-            logger.warning(f"下载失败: {e}")
+            self.logger.warning(f"下载失败: {e}")
             return False
     
     def _download_single_threaded(self, url: str, headers: Dict[str, str], 
@@ -213,8 +209,7 @@ class HTTPDownloader(BaseDownloader):
                             progress_callback(progress_info)            
             return True
         except Exception as e:
-            logger = get_logger(__name__)
-            logger.warning(f"单线程下载失败: {e}")
+            self.logger.warning(f"单线程下载失败: {e}")
             return False
     
     def _download_multithreaded(self, url: str, headers: Dict[str, str], 
@@ -264,12 +259,10 @@ class HTTPDownloader(BaseDownloader):
                             downloaded_chunks[index] = chunk_downloaded
                             update_progress()
                         else:
-                            logger = get_logger(__name__)
-                            logger.info(f"下载块 {index} 失败")
+                            self.logger.info(f"下载块 {index} 失败")
                             return False
                     except Exception as e:
-                        logger = get_logger(__name__)
-                        logger.info(f"线程 {index} 异常: {e}")
+                        self.logger.info(f"线程 {index} 异常: {e}")
                         return False
             
             # 合并文件块
@@ -282,8 +275,7 @@ class HTTPDownloader(BaseDownloader):
             else:                return False
                 
         except Exception as e:
-            logger = get_logger(__name__)
-            logger.warning(f"多线程下载失败: {e}")
+            self.logger.warning(f"多线程下载失败: {e}")
             return False
     
     def get_video_info(self, url: str) -> Dict[str, Any]:
@@ -317,8 +309,7 @@ class HTTPDownloader(BaseDownloader):
                 "content_type": content_type,
                 "url": url            }
         except Exception as e:
-            logger = get_logger(__name__)
-            logger.error(f"获取视频信息失败: {e}")
+            self.logger.error(f"获取视频信息失败: {e}")
             return {
                 "title": "",
                 "size": 0,

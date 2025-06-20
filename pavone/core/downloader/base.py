@@ -8,7 +8,7 @@ from typing import Optional
 from pavone.config.settings import DownloadConfig
 from .options import DownloadOpt
 from .progress import ProgressCallback
-
+from pavone.config.logging_config import get_logger
 
 class BaseDownloader(ABC):
     """基础下载器类"""
@@ -16,6 +16,8 @@ class BaseDownloader(ABC):
     def __init__(self, config: DownloadConfig):
         self.config = config
         os.makedirs(config.output_dir, exist_ok=True)
+        self.logger = get_logger(__name__)
+
     
     @abstractmethod
     def download(self, download_opt: DownloadOpt, 

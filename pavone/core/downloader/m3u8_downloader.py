@@ -11,7 +11,6 @@ from typing import Optional, Dict, List, Tuple
 from urllib.parse import urljoin, urlparse
 
 from pavone.config.settings import DownloadConfig
-from pavone.config.logging_config import get_logger
 from .base import BaseDownloader
 from .options import DownloadOpt
 from .progress import ProgressCallback, ProgressInfo
@@ -24,7 +23,6 @@ class M3U8Downloader(BaseDownloader):
         super().__init__(config)
         self._session = requests.Session()
         self._lock = threading.Lock()
-        self.logger = get_logger(__name__)
     
     def _get_proxies(self) -> Optional[Dict[str, str]]:
         """获取代理配置"""

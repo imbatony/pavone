@@ -13,16 +13,11 @@ from urllib.parse import urlparse
 from ...core.downloader.options import DownloadOpt, LinkType
 from .base import ExtractorPlugin
 
-# 使用日志
-from ...config.logging_config import get_logger
-logger = get_logger("pavone.extractor.missav_extractor")
-
 # dukpy引用
 try:
     import dukpy
     _dukpy_available = True
 except ImportError:
-    logger.error("dukpy库未安装，无法执行JavaScript代码。请安装dukpy库以支持MissAV提取器。")
     dukpy = None
     _dukpy_available = False
 
@@ -47,7 +42,7 @@ class MissAVExtractor(ExtractorPlugin):
     
     def initialize(self):
         """初始化插件"""
-        logger.info(f"[{self.name}] 初始化 MissAV 视频提取器")
+        self.logger.info(f"[{self.name}] 初始化 MissAV 视频提取器")
         return True
     
     def can_handle(self, url: str) -> bool:
@@ -66,13 +61,13 @@ class MissAVExtractor(ExtractorPlugin):
             response = self.fetch_webpage(url, timeout=30, verify_ssl=False)
             html_content = response.text
             if not html_content:
-                logger.error(f"获取页面内容失败: {url}")
+                self.logger.error(f"获取页面内容失败: {url}")
                 return []
                 
             # 提取混淆的JavaScript代码
             video_urls = self._extract_obfuscated_urls(html_content)
             if not video_urls:
-                logger.error(f"未能从页面提取视频链接: {url}")
+                self.logger.error(f"未能从页面提取视频链接: {url}")
                 return []
             # 提取视频标题
             title_match = re.search(r'<title[^>]*>([^<]+)</title>', html_content, re.IGNORECASE)
@@ -125,7 +120,7 @@ class MissAVExtractor(ExtractorPlugin):
             return download_options
   
         except Exception as e:
-            logger.error(f"获取页面失败: {e}")
+            self.logger.error(f"获取页面失败: {e}")
             return []
     
     def _extract_obfuscated_urls(self, html_content: str) -> Dict[str, str]:
@@ -140,7 +135,7 @@ class MissAVExtractor(ExtractorPlugin):
             包含video URLs的字典，失败时返回空字典        
         """        # 检查dukpy是否可用
         if not _dukpy_available or dukpy is None:
-            logger.error("dukpy库不可用，无法执行JavaScript代码")
+            self.logger.error("dukpy库不可用，无法执行JavaScript代码")
             return {}
         
         try:
@@ -155,13 +150,13 @@ class MissAVExtractor(ExtractorPlugin):
                     break
             # 如果没有找到eval代码，返回空字典
             if not eval_code:
-                logger.warning("提取的eval代码为空")
+                self.logger.warning("提取的eval代码为空")
                 return {}
             #不需要提取eval括号内的内容，直接使用整行代码
             eval_code = eval_code.strip()
             
-            logger.debug("使用Python成功提取eval代码")
-            logger.debug(f"找到eval代码: {eval_code[:100]}...")
+            self.logger.debug("使用Python成功提取eval代码")
+            self.logger.debug(f"找到eval代码: {eval_code[:100]}...")
 
             # 尝试执行JavaScript代码并提取视频URL
             js_execution_code = """
@@ -176,12 +171,12 @@ class MissAVExtractor(ExtractorPlugin):
             result;
             """
             
-            logger.debug("使用dukpy执行混淆代码并提取视频URL")
+            self.logger.debug("使用dukpy执行混淆代码并提取视频URL")
             result = dukpy.evaljs(js_execution_code)
-            logger.debug("dukpy执行结果: " + str(result))
+            self.logger.debug("dukpy执行结果: " + str(result))
             
             if result and isinstance(result, dict) and len(result) > 0:
-                logger.debug(f"成功提取到 {len(result)} 个视频URL")
+                self.logger.debug(f"成功提取到 {len(result)} 个视频URL")
                 video_urls = {}
                 for key, url in result.items():
                     if url and isinstance(url, str):
@@ -191,24 +186,24 @@ class MissAVExtractor(ExtractorPlugin):
                         elif url.startswith('/'):
                             url = 'https://missav.ai' + url
                         video_urls[key] = url
-                        logger.debug(f"提取到视频URL: {key} = {url}")
+                        self.logger.debug(f"提取到视频URL: {key} = {url}")
                 # 获取最终的视频URL列表
                 finial_video_urls = self._get_final_urls(video_urls)
 
                 return finial_video_urls
             else:
-                logger.warning("dukpy执行后未获取到有效的视频URL")
+                self.logger.warning("dukpy执行后未获取到有效的视频URL")
                 return {}
                 
         except Exception as e:
-            logger.error(f"使用dukpy执行JavaScript时出错: {e}")
+            self.logger.error(f"使用dukpy执行JavaScript时出错: {e}")
             return {}
         
         # 如果到达这里，说明所有尝试都失败了        return {}
     
     def cleanup(self):
         """清理插件资源"""
-        logger.info(f"[{self.name}] 清理 MissAV 视频提取器")
+        self.logger.info(f"[{self.name}] 清理 MissAV 视频提取器")
     
     def execute(self, *args, **kwargs) -> Any:
         """执行插件功能（为了兼容基类接口）"""
@@ -226,7 +221,7 @@ class MissAVExtractor(ExtractorPlugin):
         master_urls = {k: v for k, v in video_urls.items() if v.endswith('playlist.m3u8')}
         #如果找到大师链接，则进行继续处理，否则，将所有url进行去重处理
         if not master_urls or len(master_urls) == 0:
-            logger.debug("未找到大师链接，使用所有视频URL")
+            self.logger.debug("未找到大师链接，使用所有视频URL")
             # 需要对video_urls进行清理，移除空值
             # 只保留非空的URL,同时需要去处相同的URL
             video_urls = {k: v for k, v in video_urls.items() if v and isinstance(v, str)}
@@ -235,10 +230,10 @@ class MissAVExtractor(ExtractorPlugin):
                 if url not in finial_video_urls.values():
                     # TODO: 这里需要进一步处理URL，确保是有效的，并且有些情况m3u8链接可能是大师链接,内嵌多个子链接，需要进一步处理
                     finial_video_urls[key] = url
-            logger.debug(f"最终提取到 {len(finial_video_urls)} 个有效视频URL")
+            self.logger.debug(f"最终提取到 {len(finial_video_urls)} 个有效视频URL")
         else:
             mater_url = list(master_urls.values())[0]
-            logger.debug(f"找到大师链接: {mater_url}")
+            self.logger.debug(f"找到大师链接: {mater_url}")
             finial_video_urls = self._extract_master_playlist(mater_url)
         return finial_video_urls
 
@@ -252,13 +247,13 @@ class MissAVExtractor(ExtractorPlugin):
             # 获取大师链接内容
             response = self.fetch_webpage(master_url, timeout=30, verify_ssl=False)
             if response.status_code != 200:
-                logger.info(f"获取大师链接失败: {master_url} - 状态码: {response.status_code}")
+                self.logger.info(f"获取大师链接失败: {master_url} - 状态码: {response.status_code}")
                 return {}
             # 基准为去除playlist.m3u8的一部分
             base_url = master_url.rsplit('/', 1)[0] + '/'
             # 解析.m3u8内容，提取所有子链接
             m3u8_content = response.text
-            logger.debug(f"处理大师链接内容: {m3u8_content}...")  # 仅打印前100个字符
+            self.logger.debug(f"处理大师链接内容: {m3u8_content}...")  # 仅打印前100个字符
             lines = m3u8_content.splitlines()
             sub_urls = {}
             for line in lines:
@@ -276,11 +271,11 @@ class MissAVExtractor(ExtractorPlugin):
                             if key:
                                 sub_urls[key] = full_url
             
-            logger.debug(f"从大师链接提取到 {len(sub_urls)} 个子链接")
+            self.logger.debug(f"从大师链接提取到 {len(sub_urls)} 个子链接")
             return sub_urls
         
         except Exception as e:
-            logger.error(f"处理大师链接时出错: {e}")
+            self.logger.error(f"处理大师链接时出错: {e}")
             return {}
     
     def _get_key_for_url(self, url: str) -> str:

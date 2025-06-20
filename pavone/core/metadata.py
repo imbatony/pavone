@@ -17,6 +17,7 @@ class BaseMetadataExtractor:
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         })
+        self.logger = get_logger(__name__)
     
     def extract(self, identifier: str) -> Dict[str, Any]:
         """
@@ -66,8 +67,7 @@ class BaseMetadataExtractor:
                 "rating": 0.0,                "cover_url": ""
             }
         except Exception as e:
-            logger = get_logger(__name__)
-            logger.error(f"获取视频信息失败: {e}")
+            self.logger.error(f"获取视频信息失败: {e}")
             return None
     
     def search_metadata(self, query: str) -> List[Dict[str, Any]]:

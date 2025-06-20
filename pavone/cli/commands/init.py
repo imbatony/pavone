@@ -3,7 +3,7 @@ Init command - 初始化PAVOne配置
 """
 
 import click
-from ...config.settings import ConfigManager
+from ...config.settings import get_config_manager,ConfigManager
 from .utils import confirm_action, prompt_choice, prompt_int_range
 
 
@@ -15,7 +15,7 @@ def init(force, interactive):
     click.echo("欢迎使用PAVOne！")
     
     # 创建配置管理器
-    config_manager = ConfigManager()
+    config_manager = get_config_manager()
       # 检查是否已存在配置
     if config_manager.config_file.exists() and not force:
         if confirm_action("配置文件已存在，是否重新配置？"):

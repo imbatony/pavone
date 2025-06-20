@@ -3,7 +3,6 @@
 """
 
 from pathlib import Path
-from .logging_config import get_logger
 from .configs import Config
 
 
@@ -12,7 +11,6 @@ class ConfigValidator:
     
     def __init__(self, config_dir: Path):
         self.config_dir = config_dir
-        self.logger = get_logger(__name__)
     
     def validate_and_fix_config(self, config: Config) -> bool:
         """验证并修复配置"""
@@ -29,7 +27,7 @@ class ConfigValidator:
             return True
             
         except Exception as e:
-            self.logger.error(f"配置验证失败: {e}")
+            print(f"配置验证失败: {e}")
             return False
     
     def _validate_download_config(self, config: Config):
