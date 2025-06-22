@@ -4,12 +4,10 @@ Download commands - 下载相关命令
 
 import click
 from typing import Optional
-from ...config.settings import get_config_manager
+from ...config.settings import get_config
 from .utils import echo_success, echo_error, echo_info, read_urls_from_file, read_urls_from_input
-# 导入必要的模块
-from ...core.downloader.progress import create_console_progress_callback, create_silent_progress_callback
 from ...plugins.manager import get_plugin_manager
-from ...manager.download import create_download_manager
+from ...manager.execution import create_exe_manager
 
 @click.command()
 @click.argument('url')
@@ -30,8 +28,10 @@ def download(url: str, auto_select: bool, silent: bool, filename: Optional[str],
     """下载指定URL的视频"""
     try:
         # 获取配置
-        config_manager = get_config_manager()
-        download_config = config_manager.config.download
+        config = get_config()
+        download_config = config.download
+        organize_config = config.organize
+        proxy_config = config.proxy
         
         # 应用命令行选项覆盖配置
         if output_dir:
@@ -42,10 +42,34 @@ def download(url: str, auto_select: bool, silent: bool, filename: Optional[str],
             download_config.retry_times = retry
         if timeout:
             download_config.timeout = timeout
-        
+        if organize:
+            organize_config.auto_organize = True      
+
+        # 检测文件名,指定文件名不能过长，并且不能包含非法字符
+        if filename:
+            if len(filename) > 255:
+                echo_error("文件名不能超过255个字符")
+                return 1
+            if any(c in filename for c in r'<>:"/\|?*'):
+                echo_error("文件名包含非法字符: <>:\"/\\|?*")
+                return 1
+            
         # 处理代理设置
         if proxy:
+            # 检查代理格式
+            if not proxy.startswith('http://') and not proxy.startswith('https://'):
+                echo_error("代理地址格式错误，应为 http://proxy:port 或 https://proxy:port")
+                return 1
             echo_info(f"使用代理: {proxy}")
+            # 设置下载配置中的代理
+            proxy_config.enabled = True
+            if proxy.startswith('http://'):
+                proxy_config.http_proxy = proxy
+            elif proxy.startswith('https://'):
+                proxy_config.https_proxy = proxy
+            else:
+                echo_error("不支持的代理协议，请使用 http:// 或 https://")
+                return 1
         
         # 处理自定义HTTP头部
         custom_headers = {}
@@ -59,11 +83,10 @@ def download(url: str, auto_select: bool, silent: bool, filename: Optional[str],
         
         # 创建插件管理器和下载管理器
         plugin_manager = get_plugin_manager()
-        download_manager = create_download_manager(download_config, plugin_manager)
-        
-        # 创建进度回调
-        progress_callback = create_silent_progress_callback() if silent else create_console_progress_callback()
-        
+        exe_manager = create_exe_manager(
+            config=config,
+            plugin_manager=plugin_manager
+        )        
         click.echo(f"正在下载: {url}")
         if filename:
             echo_info(f"输出文件名: {filename}")
@@ -73,18 +96,15 @@ def download(url: str, auto_select: bool, silent: bool, filename: Optional[str],
             echo_info(f"自定义头部: {len(custom_headers)} 个")
         
         # 执行下载
-        success = download_manager.download_from_url(
+        success = exe_manager.download_from_url(
             url=url,
-            progress_callback=progress_callback,
-            auto_select=auto_select
+            silent = silent,
+            auto_select=auto_select,
+            file_name= filename or None
         )
         
         if success:
             echo_success("下载完成！")
-            if organize:
-                echo_info("开始自动整理文件...")
-                # TODO: 调用整理功能
-                echo_success("文件整理完成！")
         else:
             echo_error("下载失败！")
             return 1
@@ -112,8 +132,10 @@ def batch_download(file: Optional[str], auto_select: bool, silent: bool,
     """批量下载多个URL"""
     try:
         # 获取配置
-        config_manager = get_config_manager()
-        download_config = config_manager.config.download
+        config = get_config()
+        download_config = config.download
+        organize_config = config.organize
+        proxy_config = config.proxy
         
         # 应用命令行选项覆盖配置
         if output_dir:
@@ -124,7 +146,7 @@ def batch_download(file: Optional[str], auto_select: bool, silent: bool,
             download_config.retry_times = retry
         if timeout:
             download_config.timeout = timeout
-        
+
         # 处理代理设置
         if proxy:
             echo_info(f"使用代理: {proxy}")
@@ -152,11 +174,11 @@ def batch_download(file: Optional[str], auto_select: bool, silent: bool,
         
         # 创建插件管理器和下载管理器
         plugin_manager = get_plugin_manager()
-        download_manager = create_download_manager(download_config, plugin_manager)
-        
-        # 创建进度回调
-        progress_callback = create_silent_progress_callback() if silent else create_console_progress_callback()
-        
+        exe_manager = create_exe_manager(
+            config=config,
+            plugin_manager=plugin_manager
+        )
+
         click.echo(f"开始批量下载 {len(urls)} 个URL...")
         if output_dir:
             echo_info(f"输出目录: {output_dir}")
@@ -164,11 +186,7 @@ def batch_download(file: Optional[str], auto_select: bool, silent: bool,
             echo_info(f"自定义头部: {len(custom_headers)} 个")
         
         # 执行批量下载
-        results = download_manager.batch_download(
-            urls=urls,
-            progress_callback=progress_callback,
-            auto_select=auto_select
-        )
+        results = exe_manager.batch_download(urls, silent)
         
         # 显示结果摘要
         successful = sum(1 for _, success in results if success)
@@ -178,11 +196,6 @@ def batch_download(file: Optional[str], auto_select: bool, silent: bool,
         echo_success(f"成功: {successful}")
         if failed > 0:
             echo_error(f"失败: {failed}")
-        
-        if organize and successful > 0:
-            echo_info("开始自动整理文件...")
-            # TODO: 调用整理功能
-            echo_success("文件整理完成！")
         
         if failed > 0:
             click.echo("\n失败的URL:")

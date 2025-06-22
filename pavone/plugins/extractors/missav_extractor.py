@@ -2,43 +2,49 @@
 MissAV视频提取器插件
 
 支持从 missav.ai 和 missav.com 网站提取视频下载链接。
-该提取器只依赖dukpy来执行JavaScript混淆代码，获取真实的视频URL。
-如果dukpy执行失败，直接返回空结果。
 """
 
 import re
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Tuple
 from urllib.parse import urlparse
-
-from ...core.downloader.options import DownloadOpt, LinkType
+from ...models import OpertionItem, Quality, create_stream_item, create_cover_item, create_metadata_item
+from ...models import MovieMetadata
 from .base import ExtractorPlugin
+from ...utils.stringutils import StringUtils
 
-# dukpy引用
-try:
-    import dukpy
-    _dukpy_available = True
-except ImportError:
-    dukpy = None
-    _dukpy_available = False
+# 定义插件名称和版本
+PLUGIN_NAME = "MissAVExtractor"
+PLUGIN_VERSION = "1.0.0"
+PLUGIN_DESCRIPTION = "提取 missav.ai 和 missav.com 的视频下载链接"
+PLUGIN_AUTHOR = "PAVOne"
 
+# 定义插件优先级
+PLUGIN_PRIORITY = 30
+
+# 定义支持的域名
+SUPPORTED_DOMAINS = [
+    'missav.ai',
+    'www.missav.ai',
+    'missav.com',
+    'www.missav.com'
+]
+
+SITE_NAME = "MissAV"
 
 class MissAVExtractor(ExtractorPlugin):
-    """MissAV视频提取器"""
-    
+    """
+    MissAV提取器
+    继承自ExtractorPlugin，提供从 missav.ai 和 missav.com 提取视频下载链接的功能。
+    """
     def __init__(self):
         """初始化MissAV提取器"""
         super().__init__()
-        self.name = "MissAVExtractor"
-        self.version = "1.0.0"
-        self.description = "提取 missav.ai 和 missav.com 的视频下载链接"
-        self.priority = 30
-        
-        # 支持的域名
-        self.supported_domains = [
-            'missav.ai',
-            'www.missav.ai', 
-            'missav.com',
-            'www.missav.com'        ]
+        self.name = PLUGIN_NAME
+        self.version = PLUGIN_VERSION
+        self.description = PLUGIN_DESCRIPTION
+        self.priority = PLUGIN_PRIORITY
+        self.supported_domains = SUPPORTED_DOMAINS
+        self.author = PLUGIN_AUTHOR
     
     def initialize(self):
         """初始化插件"""
@@ -49,12 +55,16 @@ class MissAVExtractor(ExtractorPlugin):
         """检查是否能处理给定的URL"""
         try:
             parsed_url = urlparse(url)
+            # 检查协议是否为HTTP或HTTPS
+            if parsed_url.scheme.lower() not in ('http', 'https'):
+                return False
+            # 检查域名是否在支持列表中
             return any(parsed_url.netloc.lower() == domain.lower() 
                       for domain in self.supported_domains)
         except Exception:
             return False
     
-    def extract(self, url: str) -> List[DownloadOpt]:
+    def extract(self, url: str) -> List[OpertionItem]:
         """从 MissAV 页面提取视频下载选项"""
         try:
             # 使用基类的统一网页获取方法，自动处理代理和SSL
@@ -69,55 +79,88 @@ class MissAVExtractor(ExtractorPlugin):
             if not video_urls:
                 self.logger.error(f"未能从页面提取视频链接: {url}")
                 return []
-            # 提取视频标题
-            title_match = re.search(r'<title[^>]*>([^<]+)</title>', html_content, re.IGNORECASE)
-            video_title = "Unknown"
-            if title_match:
-                video_title = title_match.group(1).strip()
-                # 清理标题，移除网站名称
-                video_title = re.sub(r'\s*-\s*MissAV.*$', '', video_title)
-                video_title = self.sanitize_filename(video_title)
-            
+            # 提取视频标题和代码
+            video_title, video_code = self._extract_title_and_code(html_content)
+            actors = self._extract_actors(html_content)
+            director = self._extract_director(html_content)
+            duration = self._extract_duration(html_content)
+            release_date = self._extract_release_date(html_content)
+            genres = self._extract_genres(html_content)
+            tags = self._extract_tags(html_content)
+            studio = self._extract_studio(html_content)
+            series = self._extract_series(html_content)
+            cover_image = self._extract_cover_image(html_content)
+            description = self._extract_description(html_content)
+            tagline = self._extract_tagline(html_content)
+            cover_item: Optional[OpertionItem] = None
+            # 如果有封面图片，创建封面图片项
+            if cover_image:
+                cover_item = create_cover_item(
+                    url=cover_image,
+                    title=video_title
+                )
+            identifier = StringUtils.create_identifier(
+                site=SITE_NAME,
+                code=video_code,
+                url=url
+            )
+            matadata = MovieMetadata(
+                title=video_title,
+                identifier=identifier,
+                site=SITE_NAME,
+                url=url,
+                code=video_code,
+                actors=actors,
+                director=director,
+                duration=duration,
+                release_date=release_date,
+                genres=genres,
+                tags=tags,
+                studio=studio,
+                series=series,
+                cover=cover_image,
+                description=description,
+                tagline=tagline
+            )
+            # 创建元数据项
+            metadata_item = create_metadata_item(
+                title= video_title,
+                meta_data= matadata,
+            )
             # 生成下载选项
-            download_options: List[DownloadOpt] = []
+            download_items: List[OpertionItem] = []
             for _, video_url in video_urls.items():
                 if not video_url:
                     continue
-                    
-                # 清理文件名
-                filename = self.sanitize_filename(video_title)
-                quality = "未知"
-                
-                # 如果有质量信息，可以从video_url中提取
-                if '720p' in video_url.lower() or '1280x720' in video_url.lower():
-                    quality = '720p'
-                elif '360p' in video_url.lower() or '640x360' in video_url.lower():
-                    quality = '360p'
-                elif '1080p' in video_url.lower() or '1920x1080' in video_url.lower():
-                    quality = '1080p'
-                elif '4k' in video_url.lower() or '2160p' in video_url.lower():
-                    quality = '4K'
-                elif '480p' in video_url.lower() or '842x480' in video_url.lower():
-                    quality = '480p'
-                
-                
-                # filename应该以视频名称为基础,同事包括视频质量，并且应该处理一下
-                filename = f"{filename} - {quality}" if quality != "未知" else filename
-                # 以mp4结尾
-                if not filename.endswith('.mp4'):
-                    filename += '.mp4'
 
-                download_options.append(DownloadOpt(
+                quality = Quality.guess(video_url)
+                download_item = create_stream_item(
+                    site=SITE_NAME,
                     url=video_url,
-                    filename=filename,
-                    link_type=LinkType.STREAM,
-                    custom_headers={"Referrer": url},
-                    display_name=f"{filename}",
-                    quality=quality
-                ))
+                    title=video_title,
+                    code=video_code,
+                    quality=quality,
+                    actors=actors,
+                    director=director,
+                    duration=duration,
+                    release_date=release_date,
+                    genres=genres,
+                    tags=tags,
+                    studio=studio,
+                    series=series,
+                    cover_image=cover_image,
+                    description=description,
+                    tagline=tagline
+                )
+                # 如果有封面图片，添加到为子项
+                if cover_item:
+                    download_item.append_child(cover_item)
+                # 添加元数据项
+                download_item.append_child(metadata_item)
+                # 添加到下载选项列表
+                download_items.append(download_item)
             
-            
-            return download_options
+            return download_items
   
         except Exception as e:
             self.logger.error(f"获取页面失败: {e}")
@@ -126,81 +169,25 @@ class MissAVExtractor(ExtractorPlugin):
     def _extract_obfuscated_urls(self, html_content: str) -> Dict[str, str]:
         """
         从JavaScript混淆代码中提取视频URL - 只依赖dukpy执行JavaScript
-        如果dukpy执行失败，直接返回空结果
-        
+        如果dukpy执行失败，直接返回空结果  
         Args:
             html_content: HTML页面内容
             
         Returns:
             包含video URLs的字典，失败时返回空字典        
-        """        # 检查dukpy是否可用
-        if not _dukpy_available or dukpy is None:
-            self.logger.error("dukpy库不可用，无法执行JavaScript代码")
+        """
+        # 首先尝试从HTML中提取UUID
+        # 这个UUID通常用于构建主播放列表链接
+        uuid = self._extract_uuid(html_content)
+        if uuid:
+            master_url = f"https://surrit.com/{uuid}/playlist.m3u8"
+            self.logger.debug(f"提取到UUID: {uuid}, 构建的主播放列表链接: {master_url}")
+            return self._extract_master_playlist(master_url)    
+        # 如果没有UUID，直接返回空字典
+        else:
+            self.logger.error("未能从页面中提取UUID，无法获取视频链接")
             return {}
-        
-        try:
-            # 使用Python直接查找包含eval的行
-            lines = html_content.splitlines()
-            eval_code = ''
-            
-            # 从最后一行开始查找包含eval的行
-            for line in reversed(lines):
-                if 'eval(' in line and 'm3u8' in line:
-                    eval_code = line
-                    break
-            # 如果没有找到eval代码，返回空字典
-            if not eval_code:
-                self.logger.warning("提取的eval代码为空")
-                return {}
-            #不需要提取eval括号内的内容，直接使用整行代码
-            eval_code = eval_code.strip()
-            
-            self.logger.debug("使用Python成功提取eval代码")
-            self.logger.debug(f"找到eval代码: {eval_code[:100]}...")
 
-            # 尝试执行JavaScript代码并提取视频URL
-            js_execution_code = """
-            var source, source842, source1280;
-            """ + eval_code + """;
-            var result = {
-                'source': source,
-                'source842': source842,
-                'source1280': source1280
-            };
-            // 返回一个对象，包含所有提取到的视频URL
-            result;
-            """
-            
-            self.logger.debug("使用dukpy执行混淆代码并提取视频URL")
-            result = dukpy.evaljs(js_execution_code)
-            self.logger.debug("dukpy执行结果: " + str(result))
-            
-            if result and isinstance(result, dict) and len(result) > 0:
-                self.logger.debug(f"成功提取到 {len(result)} 个视频URL")
-                video_urls = {}
-                for key, url in result.items():
-                    if url and isinstance(url, str):
-                        # 确保URL是完整的
-                        if url.startswith('//'):
-                            url = 'https:' + url
-                        elif url.startswith('/'):
-                            url = 'https://missav.ai' + url
-                        video_urls[key] = url
-                        self.logger.debug(f"提取到视频URL: {key} = {url}")
-                # 获取最终的视频URL列表
-                finial_video_urls = self._get_final_urls(video_urls)
-
-                return finial_video_urls
-            else:
-                self.logger.warning("dukpy执行后未获取到有效的视频URL")
-                return {}
-                
-        except Exception as e:
-            self.logger.error(f"使用dukpy执行JavaScript时出错: {e}")
-            return {}
-        
-        # 如果到达这里，说明所有尝试都失败了        return {}
-    
     def cleanup(self):
         """清理插件资源"""
         self.logger.info(f"[{self.name}] 清理 MissAV 视频提取器")
@@ -210,32 +197,6 @@ class MissAVExtractor(ExtractorPlugin):
         if args and isinstance(args[0], str):
             return self.extract(args[0])
         return []
-
-    def _get_final_urls(self, video_urls: Dict[str,str]) -> Dict[str, str]:
-        """
-        获取最终的视频URL列表
-        主要用于在下载前获取所有可用的URL
-        """
-        finial_video_urls = {}
-        # 尝试找到大师链接,这个链接一般是以playlist.m3u8结尾
-        master_urls = {k: v for k, v in video_urls.items() if v.endswith('playlist.m3u8')}
-        #如果找到大师链接，则进行继续处理，否则，将所有url进行去重处理
-        if not master_urls or len(master_urls) == 0:
-            self.logger.debug("未找到大师链接，使用所有视频URL")
-            # 需要对video_urls进行清理，移除空值
-            # 只保留非空的URL,同时需要去处相同的URL
-            video_urls = {k: v for k, v in video_urls.items() if v and isinstance(v, str)}
-            # 移除重复的URL
-            for key, url in video_urls.items():
-                if url not in finial_video_urls.values():
-                    # TODO: 这里需要进一步处理URL，确保是有效的，并且有些情况m3u8链接可能是大师链接,内嵌多个子链接，需要进一步处理
-                    finial_video_urls[key] = url
-            self.logger.debug(f"最终提取到 {len(finial_video_urls)} 个有效视频URL")
-        else:
-            mater_url = list(master_urls.values())[0]
-            self.logger.debug(f"找到大师链接: {mater_url}")
-            finial_video_urls = self._extract_master_playlist(mater_url)
-        return finial_video_urls
 
     def _extract_master_playlist(self, master_url: str) -> Dict[str, str]:
 
@@ -261,11 +222,14 @@ class MissAVExtractor(ExtractorPlugin):
                 if line and not line.startswith('#'):
                     #找到以m3u8结尾的链接
                     if line.endswith('m3u8'):
+                        # 如果是绝对链接，直接使用
                         if line.startswith('http'):
                             key = self._get_key_for_url(line)
                             if key:
                                 sub_urls[key] = line
-                        else:                            # 如果是相对链接，拼接基准URL
+                                
+                        # 如果是相对链接，拼接基准URL
+                        else:                            
                             full_url = base_url + line
                             key = self._get_key_for_url(full_url)
                             if key:
@@ -281,24 +245,320 @@ class MissAVExtractor(ExtractorPlugin):
     def _get_key_for_url(self, url: str) -> str:
         """
         获取视频URL的唯一键
-        用于在下载选项中标识不同的视频链接
+        通过视频质量生成一个键
+        Args:
+            url: 视频URL
         """
-        # 如果包含360p或720p等质量信息，使用这些信息作为键
-        if '360p' in url or '640x360' in url:
-            return '360p'
-        elif '480p' in url or '842x480' in url:
-            return '480p'
-        elif '720p' in url or '1280x720' in url:
-            return '720p'
-        elif '1080p' in url or '1920x1080' in url:
-            return '1080p'
-        elif '4k' in url:
-            return '4k'
-        else:
-            # 如果没有找到已知的质量标识，尝试从URL中提取分辨率
-            import re
-            resolution_match = re.search(r'(\d+)x(\d+)', url)
-            if resolution_match:
-                width, height = resolution_match.groups()
-                return f"{width}x{height}"
-            return ''
+        return Quality.guess(url)
+
+
+    def _extract_uuid(self, html: str) -> Optional[str]:
+        try:
+            if match := re.search(r"m3u8\|([a-f0-9\|]+)\|com\|surrit\|https\|video", html):
+                return "-".join(match.group(1).split("|")[::-1])
+            return None
+        except Exception as e:
+            self.logger.error(f"UUID提取异常: {str(e)}")
+            return None
+
+    def _extract_title_and_code(self, html: str) -> Tuple[str, str]:
+        """
+        从HTML中提取视频标题和代码
+        Args:
+            html: HTML页面内容
+        Returns:
+            (video_title, video_code)
+        """
+        # 从<meta property="og:title" content="{code} {title}" />
+        default_title = "MissAV Video"
+        default_code = self._extract_uuid(html) or "Unknown"
+        try:
+
+            title_match = re.search(r'<meta property="og:title" content="([^"]+)"', html)
+            if title_match: 
+                matched = title_match.group(1).strip()
+                # 分离代码和标题
+                parts = matched.split(' ', maxsplit=1)
+                video_code = parts[0] if len(parts) > 0 else default_code
+                video_title = parts[1] if len(parts) > 1 else default_title
+            else:
+                video_title = default_title
+                video_code = default_code
+            self.logger.debug(f"提取到视频标题: {video_title}, 代码: {video_code}")
+            return (video_title, video_code)
+        except Exception as e:
+            self.logger.error(f"提取标题和代码异常: {str(e)}")
+            return (default_title, default_code)
+
+    def _extract_actors(self, html: str) -> List[str]:
+        """
+        从HTML中提取演员列表
+        Args:
+            html: HTML页面内容
+        Returns:
+            演员名称列表
+        """
+        try:
+            # 演员信息在 <meta property="og:video:actor" content="演员名" />
+            return re.findall(r'<meta property="og:video:actor" content="([^"]+)"', html)
+        except Exception as e:
+            self.logger.info(f"提取演员异常: {str(e)}")
+            return []
+
+    def _extract_director(self, html: str) -> Optional[str]:
+        """
+        从HTML中提取导演列表, 有多个只取第一个
+        Args:
+            html: HTML页面内容
+        Returns:
+            导演名称列表
+        """
+        try:
+            # 导演信息在 <meta property="og:video:director" content="导演名" />
+            directors = re.findall(r'<meta property="og:video:director" content="([^"]+)"', html)
+            return directors[0] if directors and directors[0] else None
+        except Exception as e:
+            self.logger.info(f"提取导演异常: {str(e)}")
+            return None
+
+    def _extract_duration(self, html: str) -> Optional[int]:
+        """
+        从HTML中提取视频时长
+        Args:
+            html: HTML页面内容
+        Returns:
+            视频时长（秒）
+        """
+        try:
+            # 时长信息在 <meta property="og:video:duration" content="时长（秒）" />
+            duration_match = re.search(r'<meta property="og:video:duration" content="(\d+)"', html)
+            if duration_match:
+                return int(duration_match.group(1))
+            return None
+        except Exception as e:
+            self.logger.info(f"提取时长异常: {str(e)}")
+            return None
+
+    def _extract_release_date(self, html: str) -> Optional[str]:
+        """
+        从HTML中提取发布日期
+        Args:
+            html: HTML页面内容
+        Returns:
+            发布日期（格式为YYYY-MM-DD）
+        """
+        try:
+            # 发布日期信息在 <meta property="og:video:release_date" content="YYYY-MM-DD" />
+            date_match = re.search(r'<meta property="og:video:release_date" content="([^"]+)"', html)
+            return date_match.group(1) if date_match else None
+        except Exception as e:
+            self.logger.info(f"提取发布日期异常: {str(e)}")
+            return None
+
+    def _extract_genres(self, html: str) -> List[str]:
+        """
+        从HTML中提取视频类型
+        支持多语言的类型标签匹配
+        Args:
+            html: HTML页面内容
+        Returns:
+            视频类型列表，如果没有匹配到返回空列表
+        """
+        try:
+            # 定义多语言的类型标签模式
+            genre_labels = [
+                r'ジャンル:',      # 日语
+                r'类型:',          # 中文简体
+                r'類型:',          # 中文繁体  
+                r'分类:',          # 中文简体
+                r'分類:',          # 中文繁体
+                r'种类:',          # 中文简体
+                r'種類:',          # 中文繁体
+                r'Genre:',         # 英语
+                r'Category:',      # 英语
+                r'장르:',          # 韩语
+                r'Thể loại:',      # 越南语
+                r'Kategori:',      # 印尼语
+                r'หมวดหมู่:',       # 泰语
+            ]
+            
+            # 尝试使用任何一个语言标签找到genres部分
+            for label_pattern in genre_labels:
+                pattern = label_pattern + r'.*?</div>'
+                match = re.search(pattern, html, re.DOTALL)
+                if match:
+                    self.logger.debug(f"找到类型部分，使用标签: {label_pattern}")
+                    # 在genres部分寻找所有类型链接
+                    genre_names = re.findall(r'class="text-nord13 font-medium">([^<]+)</a>', match.group(0))
+                    return genre_names
+            
+            # 如果没有找到任何语言标签的genres部分，返回空列表
+            return []
+            
+        except Exception as e:
+            self.logger.info(f"提取类型异常: {str(e)}")
+            return []
+
+    def _extract_tags(self, html: str) -> List[str]:
+        """
+        从HTML中提取视频标签
+        支持多语言的标签匹配
+        Args:
+            html: HTML页面内容
+        Returns:
+            视频标签列表，如果没有匹配到返回空列表
+        """
+        try:
+            # 定义多语言的标签模式
+            tag_labels = [
+                r'タグ:',          # 日语
+                r'标签:',          # 中文简体
+                r'標籤:',          # 中文繁体
+                r'Tags:',          # 英语
+                r'Label:',          # 英语
+                r'Tag:',           # 英语
+            ]
+            
+            # 尝试使用任何一个语言标签找到tags部分
+            for label_pattern in tag_labels:
+                pattern = label_pattern + r'.*?</div>'
+                match = re.search(pattern, html, re.DOTALL)
+                if match:
+                    self.logger.debug(f"找到标签部分，使用标签: {label_pattern}")
+                    # 在tags部分寻找所有标签链接
+                    tag_names = re.findall(r'class="text-nord13 font-medium">([^<]+)</a>', match.group(0))
+                    return tag_names
+            
+            # 如果没有找到任何语言标签的tags部分, 则尝试找keywords
+            keywords_match = re.search(r'<meta name="keywords" content="([^"]+)"', html)
+            if keywords_match:
+                keywords = keywords_match.group(1).split(',')
+                # 清理标签，去除空格和多余字符
+                return [tag.strip() for tag in keywords if tag.strip()]
+            # 如果没有找到任何标签部分，返回空列表
+            return []
+            
+        except Exception as e:
+            self.logger.info(f"提取标签异常: {str(e)}")
+            return []
+
+    def _extract_studio(self, html: str) -> Optional[str]:
+        """
+        从HTML中提取制作公司
+        支持多语言的制作公司匹配
+        Args:
+            html: HTML页面内容
+        Returns:
+            制作公司名称，如果没有匹配到返回None
+        """
+        try:
+            # 定义多语言的制作公司模式
+            studio_labels = [
+                r'发行商:',  # 中文简体
+                r'發行商:',  # 中文繁体
+                r'制作公司:',  # 中文简体
+                r'製作公司:',  # 中文繁体
+                r'制作商:',  # 中文简体
+                r'製作商:',  # 中文繁体
+                r'メーカー:',  # 日语
+                r'Maker:',  # 英语
+            ]
+            
+            # 尝试使用任何一个语言标签找到studio部分
+            for label_pattern in studio_labels:
+                pattern = label_pattern + r'.*?</div>'
+                match = re.search(pattern, html, re.DOTALL)
+                if match:
+                    self.logger.debug(f"找到制作公司部分，使用标签: {label_pattern}")
+                    # 在studio部分寻找制作公司名称
+                    studio_name = re.search(r'class="text-nord13 font-medium">([^<]+)</a>', match.group(0))
+                    return studio_name.group(1) if studio_name else None
+            
+            # 如果没有找到任何语言标签的studio部分，返回None
+            return None
+        except Exception as e:
+            self.logger.info(f"提取制作公司异常: {str(e)}")
+            return None
+
+    def _extract_series(self, html: str) -> Optional[str]:
+        """
+        从HTML中提取系列名称
+        支持多语言的系列名称匹配
+        Args:
+            html: HTML页面内容
+        Returns:
+            系列名称，如果没有匹配到返回空
+        """
+        try:
+            # 定义多语言的系列名称模式
+            series_labels = [
+                r'シリーズ:',  # 日语
+                r'系列:',      # 中文简体
+                r'系列:',      # 中文繁体
+                r'Series:',    # 英语
+            ]
+            
+            # 尝试使用任何一个语言标签找到series部分
+            for label_pattern in series_labels:
+                pattern = label_pattern + r'.*?</div>'
+                match = re.search(pattern, html, re.DOTALL)
+                if match:
+                    self.logger.debug(f"找到系列部分，使用标签: {label_pattern}")
+                    # 在series部分寻找所有系列链接
+                    series_names = re.findall(r'class="text-nord13 font-medium">([^<]+)</a>', match.group(0))
+                    return series_names[0] if series_names else None
+
+            # 如果没有找到任何语言标签的series部分，返回空
+            return None
+
+        except Exception as e:
+            self.logger.info(f"提取系列异常: {str(e)}")
+            return None
+
+    def _extract_cover_image(self, html: str) -> Optional[str]:
+        """
+        从HTML中提取封面图片链接
+        Args:
+            html: HTML页面内容
+        Returns:
+            封面图片链接，如果没有匹配到返回None
+        """
+        try:
+            # 封面图片在<meta property="og:image" content="封面图片链接" />
+            cover_match = re.search(r'<meta property="og:image" content="([^"]+)"', html)
+            return cover_match.group(1) if cover_match else None
+        except Exception as e:
+            self.logger.info(f"提取封面图片异常: {str(e)}")
+            return None
+
+    def _extract_description(self, html: str) -> Optional[str]:
+        """
+        从HTML中提取视频描述
+        Args:
+            html: HTML页面内容
+        Returns:
+            视频描述，如果没有匹配到返回None
+        """
+        try:
+            # 描述信息在<meta property="og:description" content="视频描述" />
+            description_match = re.search(r'<meta property="og:description" content="([^"]+)"', html)
+            return description_match.group(1) if description_match else None
+        except Exception as e:
+            self.logger.info(f"提取描述异常: {str(e)}")
+            return None
+
+    def _extract_tagline(self, html: str) -> Optional[str]:
+        """
+        从HTML中提取视频标语
+        Args:
+            html: HTML页面内容
+        Returns:
+            视频标语，如果没有匹配到返回None
+        """
+        try:
+            # 标语信息在<meta property="og:title" content="视频标语" />
+            tagline_match = re.search(r'<meta property="og:title" content="([^"]+)"', html)
+            return tagline_match.group(1) if tagline_match else None
+        except Exception as e:
+            self.logger.info(f"提取标语异常: {str(e)}")
+            return None

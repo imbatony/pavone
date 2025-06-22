@@ -16,7 +16,8 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    python_requires=">=3.9",    install_requires=[
+    python_requires=">=3.10",    
+    install_requires=[
         "requests",
         "beautifulsoup4",
         "click",
@@ -24,8 +25,7 @@ setup(
         "configparser",
         "pillow",
         "lxml",
-        'pydantic',
-        "dukpy>=0.5.0",
+        'pydantic'
     ],
     entry_points={
         "console_scripts": [

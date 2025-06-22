@@ -2,7 +2,7 @@
 from abc import abstractmethod
 from typing import List, Optional, Dict
 from ..base import BasePlugin
-from ...core.downloader.options import DownloadOpt
+from ...models import OpertionItem
 from ...config.settings import config_manager, get_download_config
 import time
 from ...config.logging_config import get_logger
@@ -167,13 +167,12 @@ class ExtractorPlugin(BasePlugin):
         pass
     
     @abstractmethod
-    def extract(self, url: str) -> List[DownloadOpt]:
-        """从URL中提取下载选项列表
-        
+    def extract(self, url: str) -> List[OpertionItem]:
+        """从给定的URL提取下载选项
         Args:
-            url: 要分析的URL
-            
+            url: 要处理的URL    
+
         Returns:
-            包含所有可下载资源的DownloadOpt列表
+            可用的下载选项列表
         """
         pass

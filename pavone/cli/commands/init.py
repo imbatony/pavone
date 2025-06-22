@@ -79,7 +79,36 @@ def _interactive_config_setup(config_manager: ConfigManager):
         default=config_manager.config.download.timeout
     )
     config_manager.config.download.timeout = timeout
-      # 代理配置
+    # 自定义User-Agent配置
+    user_agent = click.prompt(
+        "自定义User-Agent (留空使用默认)",
+        default=config_manager.config.download.headers.get("User-Agent", ""),
+        type=str
+    )
+    if user_agent:
+        config_manager.config.download.headers["User-Agent"] = user_agent
+    # 是否自动选择下载链接
+    auto_select = confirm_action(
+        "是否自动选择下载链接？",
+        default=config_manager.config.download.auto_select
+    )
+    config_manager.config.download.auto_select = auto_select
+
+    # 缓存目录配置
+    cache_dir = click.prompt(
+        "缓存目录 (留空使用默认系统缓存目录)",
+        default=config_manager.config.download.cache_dir or "",
+        type=str
+    )
+    config_manager.config.download.cache_dir = cache_dir or None
+    # 是否覆盖已存在的文件
+    overwrite_existing = confirm_action(
+        "是否覆盖已存在的文件？",
+        default=config_manager.config.download.overwrite_existing
+    )
+    config_manager.config.download.overwrite_existing = overwrite_existing
+
+
     click.echo("\n=== 代理配置 ===")
     use_proxy = confirm_action("是否使用代理？", default=False)
     config_manager.config.proxy.enabled = use_proxy
@@ -89,25 +118,31 @@ def _interactive_config_setup(config_manager: ConfigManager):
         https_proxy = click.prompt("HTTPS代理地址 (例: http://127.0.0.1:7890)", default="", type=str)
         config_manager.config.proxy.http_proxy = http_proxy
         config_manager.config.proxy.https_proxy = https_proxy
-      # 整理配置
+    # 整理配置
     click.echo("\n=== 文件整理配置 ===")
     auto_organize = confirm_action("是否自动整理下载的文件？", default=True)
     config_manager.config.organize.auto_organize = auto_organize
     
     if auto_organize:
-        organize_choices = ['studio', 'genre', 'actor']
-        organize_by = prompt_choice(
-            "按什么方式整理文件",
-            choices=organize_choices,
-            default='studio'
+        # 命名模式配置
+        naming_pattern = click.prompt(
+            "文件命名模式 (例如: {code} 或 {code} - {title})",
+            default=config_manager.config.organize.naming_pattern,
+            type=str
         )
-        config_manager.config.organize.organize_by = organize_by
-        
+        config_manager.config.organize.naming_pattern = naming_pattern
+        # 文件夹结构配置
+        folder_structure = click.prompt(
+            "文件夹结构 (例如: {code} 或 {studio})",
+            default=config_manager.config.organize.folder_structure,
+            type=str
+        )
+        config_manager.config.organize.folder_structure = folder_structure
         download_cover = confirm_action("是否下载封面图？", default=True)
         config_manager.config.organize.download_cover = download_cover
-        
         create_nfo = confirm_action("是否生成NFO文件？", default=True)
-        config_manager.config.organize.create_nfo = create_nfo    # 搜索配置
+        config_manager.config.organize.create_nfo = create_nfo    
+    # 搜索配置
     click.echo("\n=== 搜索配置 ===")
     max_results = prompt_int_range(
         "每个网站最大搜索结果数",
@@ -184,12 +219,19 @@ def _show_config_summary(config_manager: ConfigManager):
     click.echo(f"重试间隔: {config.download.retry_interval}ms")
     click.echo(f"下载超时: {config.download.timeout}s")
     click.echo(f"使用代理: {'是' if config.proxy.enabled else '否'}")
+    if config.download.headers.get("User-Agent"):
+        click.echo(f"自定义User-Agent: {config.download.headers['User-Agent']}")
+    else:
+        click.echo("自定义User-Agent: 使用默认")
+    click.echo(f"缓存目录: {config.download.cache_dir or '默认系统缓存目录'}")
+    click.echo(f"自动选择下载链接: {'是' if config.download.auto_select else '否'}")
     if config.proxy.enabled:
         click.echo(f"  HTTP代理: {config.proxy.http_proxy}")
         click.echo(f"  HTTPS代理: {config.proxy.https_proxy}")
     click.echo(f"自动整理: {'是' if config.organize.auto_organize else '否'}")
     if config.organize.auto_organize:
-        click.echo(f"  整理方式: {config.organize.organize_by}")
+        click.echo(f"  文件夹结构: {config.organize.folder_structure}")
+        click.echo(f"  命名模式: {config.organize.naming_pattern}")
         click.echo(f"  下载封面: {'是' if config.organize.download_cover else '否'}")
         click.echo(f"  生成NFO: {'是' if config.organize.create_nfo else '否'}")
     click.echo(f"最大搜索结果: {config.search.max_results_per_site}")

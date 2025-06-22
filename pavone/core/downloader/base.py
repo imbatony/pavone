@@ -1,35 +1,29 @@
-"""
-基础下载器模块
-"""
-
+from ..base import Operator
+from ...config.settings import Config
+from ...config.logging_config import get_logger
+from typing import Dict, Optional
 import os
-from abc import ABC, abstractmethod
-from typing import Optional
-from pavone.config.settings import DownloadConfig
-from .options import DownloadOpt
-from .progress import ProgressCallback
-from pavone.config.logging_config import get_logger
-
-class BaseDownloader(ABC):
+class BaseDownloader(Operator):
     """基础下载器类"""
     
-    def __init__(self, config: DownloadConfig):
-        self.config = config
-        os.makedirs(config.output_dir, exist_ok=True)
+    def __init__(self, config: Config):
+        super().__init__(config, "下载")
+        self.download_config = config.download
+        self.organize_config = config.organize
+        self.proxy_config = config.proxy
+        os.makedirs(config.download.output_dir, exist_ok=True)
         self.logger = get_logger(__name__)
+        self.proxies = self.get_proxies()
 
-    
-    @abstractmethod
-    def download(self, download_opt: DownloadOpt, 
-                 progress_callback: Optional[ProgressCallback] = None) -> bool:
-        """
-        下载文件
+    def get_proxies(self) -> Optional[Dict[str, str]]:
+        """获取代理配置"""
+        if not self.proxy_config.enabled:
+            return None
         
-        Args:
-            download_opt: 下载选项，包含URL、文件名和自定义HTTP头部
-            progress_callback: 进度回调函数，接收ProgressInfo对象
-            
-        Returns:
-            bool: 下载是否成功
-        """
-        pass
+        proxies = {}
+        if self.proxy_config.http_proxy:
+            proxies['http'] = self.proxy_config.http_proxy
+        if self.proxy_config.https_proxy:
+            proxies['https'] = self.proxy_config.https_proxy
+        
+        return proxies if proxies else None

@@ -6,7 +6,7 @@ import unittest
 from typing import List
 
 from pavone.plugins.extractors.base import ExtractorPlugin
-from pavone.core.downloader.options import DownloadOpt
+from pavone.models.operation import OpertionItem
 
 
 class MockExtractorPlugin(ExtractorPlugin):
@@ -20,7 +20,7 @@ class MockExtractorPlugin(ExtractorPlugin):
         """测试用的URL处理检查"""
         return url.startswith("http://test.example.com")
     
-    def extract(self, url: str) -> List[DownloadOpt]:
+    def extract(self, url: str) -> List[OpertionItem]:
         """测试用的提取方法"""
         return []
     

@@ -7,33 +7,18 @@ import requests
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Optional, Dict, Any, Tuple
-from urllib.parse import urlparse
+from typing import Optional, Dict, Tuple
 
-from pavone.config.settings import DownloadConfig
+from pavone.config.settings import Config
 from .base import BaseDownloader
-from .options import DownloadOpt
-from .progress import ProgressCallback, ProgressInfo
+from ...models import OpertionItem, ItemType, ProgressCallback, ProgressInfo
 
 
 class HTTPDownloader(BaseDownloader):
     """HTTP协议下载器"""
     
-    def __init__(self, config: DownloadConfig):
+    def __init__(self, config: Config):
         super().__init__(config)
-    
-    def _get_proxies(self) -> Optional[Dict[str, str]]:
-        """获取代理配置"""
-        if not self.config.proxy_enabled:
-            return None
-        
-        proxies = {}
-        if self.config.http_proxy:
-            proxies['http'] = self.config.http_proxy
-        if self.config.https_proxy:
-            proxies['https'] = self.config.https_proxy
-        
-        return proxies if proxies else None
     
     def _check_range_support(self, url: str, headers: Dict[str, str]) -> Tuple[bool, int]:
         """
@@ -43,12 +28,11 @@ class HTTPDownloader(BaseDownloader):
             Tuple[bool, int]: (是否支持Range请求, 文件大小)
         """
         try:
-            proxies = self._get_proxies()
             response = requests.head(
                 url, 
-                timeout=self.config.timeout,
+                timeout=self.download_config.timeout,
                 headers=headers,
-                proxies=proxies
+                proxies=self.proxies
             )
             response.raise_for_status()
             
@@ -79,12 +63,12 @@ class HTTPDownloader(BaseDownloader):
             range_headers = headers.copy()
             range_headers['Range'] = f'bytes={start}-{end}'
             
-            proxies = self._get_proxies()
+            proxies = self.get_proxies()
             response = requests.get(
                 url,
                 headers=range_headers,
                 stream=True,
-                timeout=self.config.timeout,
+                timeout=self.download_config.timeout,
                 proxies=proxies
             )
             response.raise_for_status()
@@ -116,8 +100,8 @@ class HTTPDownloader(BaseDownloader):
                         with open(chunk_filepath, 'rb') as chunk_file:
                             output_file.write(chunk_file.read())
                         os.remove(chunk_filepath)
-                    else:                        return False
-            
+                    else:                        
+                        return False
             return True
         except Exception as e:
             self.logger.error(f"合并文件块失败: {e}")
@@ -129,10 +113,11 @@ class HTTPDownloader(BaseDownloader):
         """
         # 文件大小小于1MB或不支持Range请求时使用单线程
         min_size_for_multithreading = 1024 * 1024  # 1MB
-        return supports_range and file_size > min_size_for_multithreading and self.config.max_concurrent_downloads > 1
+        return supports_range and file_size > min_size_for_multithreading and self.download_config.max_concurrent_downloads > 1
     
-    def download(self, download_opt: DownloadOpt, 
-                 progress_callback: Optional[ProgressCallback] = None) -> bool:
+    def execute(
+        self, 
+        item: OpertionItem) -> bool:
         """
         下载文件（支持多线程）
         
@@ -143,30 +128,36 @@ class HTTPDownloader(BaseDownloader):
         Returns:
             bool: 下载是否成功
         """
+        target_path:Optional[str] = item.get_target_path()
+        if not target_path:
+            self.logger.warning("目标路径未设置，无法下载")
+            return False
+
+        progress_callback: Optional[ProgressCallback] = item.get_progress_callback()
+        if not progress_callback:
+            self.logger.warning("未设置进度回调函数，无法跟踪下载进度")
+            progress_callback = lambda x: None
+
+        url = item.get_url()
+        if not url:
+            self.logger.warning("下载链接不能为空")
+            return False
+
         try:
             # 准备HTTP头部，合并默认和自定义头部
-            default_headers = {'User-Agent': self.config.user_agent}
-            headers = download_opt.get_effective_headers(default_headers)
-            
-            # 检查Range支持和文件大小
-            supports_range, file_size = self._check_range_support(download_opt.url, headers)
-            
-            # 确定文件名
-            filename = download_opt.filename
-            if not filename:
-                parsed_url = urlparse(download_opt.url)
-                filename = os.path.basename(parsed_url.path) or "download"
-            
-            filepath = os.path.join(self.config.output_dir, filename)
-            
-            # 判断是否使用多线程
-            use_multithreading = self._should_use_multithreading(supports_range, file_size)
-            
-            if use_multithreading:
-                return self._download_multithreaded(download_opt.url, headers, filepath, 
+            headers = item.get_effective_headers(self.download_config.headers)
+            # 检查是否需要多线程下载
+            if self.download_config.max_concurrent_downloads > 1:
+                # 只有类型为视频时才考虑多线程下载
+                if item.item_type == ItemType.VIDEO:
+                                # 检查Range支持和文件大小
+                    supports_range, file_size = self._check_range_support(url, headers)
+                                # 判断是否使用多线程
+                    if self._should_use_multithreading(supports_range, file_size):
+                        return self._download_multithreaded(url, headers, target_path, 
                                                   file_size, progress_callback)
-            else:
-                return self._download_single_threaded(download_opt.url, headers, filepath,                                                    progress_callback)
+            # 单线程下载
+            return self._download_single_threaded(url, headers, target_path, progress_callback)
                 
         except Exception as e:
             self.logger.warning(f"下载失败: {e}")
@@ -176,13 +167,12 @@ class HTTPDownloader(BaseDownloader):
                                 filepath: str, progress_callback: Optional[ProgressCallback] = None) -> bool:
         """单线程下载"""
         try:
-            proxies = self._get_proxies()
             response = requests.get(
                 url, 
                 stream=True, 
-                timeout=self.config.timeout,
+                timeout=self.download_config.timeout,
                 headers=headers,
-                proxies=proxies
+                proxies=self.proxies
             )
             response.raise_for_status()
             
@@ -217,7 +207,7 @@ class HTTPDownloader(BaseDownloader):
                               progress_callback: Optional[ProgressCallback] = None) -> bool:
         """多线程下载"""
         try:
-            num_threads = min(self.config.max_concurrent_downloads, 8)  # 最多8个线程
+            num_threads = min(self.download_config.max_concurrent_downloads, 8)  # 最多8个线程
             chunk_size = file_size // num_threads
             
             # 创建下载任务
@@ -277,42 +267,3 @@ class HTTPDownloader(BaseDownloader):
         except Exception as e:
             self.logger.warning(f"多线程下载失败: {e}")
             return False
-    
-    def get_video_info(self, url: str) -> Dict[str, Any]:
-        """
-        获取视频信息
-        
-        Args:
-            url: 视频URL
-            
-        Returns:
-            Dict: 视频信息
-        """
-        try:
-            # 获取代理设置
-            proxies = self._get_proxies()
-            
-            response = requests.head(
-                url, 
-                timeout=self.config.timeout,
-                headers={'User-Agent': self.config.user_agent},
-                proxies=proxies
-            )
-            response.raise_for_status()
-            
-            content_length = response.headers.get('Content-Length')
-            content_type = response.headers.get('Content-Type', '')
-            
-            return {
-                "title": os.path.basename(urlparse(url).path) or "unknown",
-                "size": int(content_length) if content_length else 0,
-                "content_type": content_type,
-                "url": url            }
-        except Exception as e:
-            self.logger.error(f"获取视频信息失败: {e}")
-            return {
-                "title": "",
-                "size": 0,
-                "content_type": "",
-                "url": url
-            }

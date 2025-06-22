@@ -19,11 +19,7 @@ class ConfigValidator:
             self._validate_search_config(config)
             self._validate_organize_config(config)
             self._validate_logging_config(config)
-            self._validate_plugin_config(config)
-            
-            # 同步代理设置
-            config._sync_proxy_settings()
-            
+            self._validate_plugin_config(config)        
             return True
             
         except Exception as e:
@@ -52,6 +48,26 @@ class ConfigValidator:
         # 验证超时时间
         if config.download.timeout <= 0:
             config.download.timeout = 30
+
+        # 验证缓存目录
+        if config.download.cache_dir:
+            cache_dir = Path(config.download.cache_dir)
+            if not cache_dir.is_absolute():
+                # 如果是相对路径，转换为基于配置目录的绝对路径
+                config.download.cache_dir = str(self.config_dir / "cache")
+            if not cache_dir.exists():
+                cache_dir.mkdir(parents=True, exist_ok=True)
+        else:
+            # 如果没有设置缓存目录，使用默认路径
+            config.download.cache_dir = str(self.config_dir / "cache")
+
+        # 验证请求头
+        if not isinstance(config.download.headers, dict):
+            config.download.headers = {"User-Agent": "Pavone/1.0"}
+        
+        # 验证是否覆盖已存在的文件
+        if not isinstance(config.download.overwrite_existing, bool):
+            config.download.overwrite_existing = False
     
     def _validate_search_config(self, config: Config):
         """验证搜索配置"""
@@ -65,10 +81,16 @@ class ConfigValidator:
     
     def _validate_organize_config(self, config: Config):
         """验证整理配置"""
-        # 验证整理方式
-        valid_organize_by = ["studio", "genre", "actor"]
-        if config.organize.organize_by not in valid_organize_by:
-            config.organize.organize_by = "studio"
+        # 验证自动整理设置
+        if not isinstance(config.organize.auto_organize, bool):
+            config.organize.auto_organize = True
+        # 验证文件夹结构
+        if not config.organize.folder_structure:
+            config.organize.folder_structure = "{code}"
+        # 验证命名模式
+        if not config.organize.naming_pattern:
+            config.organize.naming_pattern = "{code}"
+
     
     def _validate_logging_config(self, config: Config):
         """验证日志配置"""

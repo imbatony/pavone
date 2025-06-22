@@ -73,9 +73,6 @@ class ConfigManager:
     def save_config(self):
         """保存配置"""
         try:
-            # 在保存前同步代理设置
-            self.config._sync_proxy_settings()
-            
             config_dict = {
                 'download': asdict(self.config.download),
                 'organize': asdict(self.config.organize),

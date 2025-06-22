@@ -1,18 +1,13 @@
 """
 核心功能模块
 """
-
-# 导入主要类
-from .organizer import FileOrganizer
-from .metadata import BaseMetadataExtractor
-from .searcher import BaseSearcher
-
-# 导入下载器模块
-from . import downloader
+from .base import Operator
+from .downloader import HTTPDownloader, M3U8Downloader
+from .dummy import DummyOperator
 
 __all__ = [
-    'FileOrganizer',
-    'BaseMetadataExtractor', 
-    'BaseSearcher',
-    'downloader'
+    "Operator",
+    "HTTPDownloader",
+    "M3U8Downloader",
+    "DummyOperator"
 ]

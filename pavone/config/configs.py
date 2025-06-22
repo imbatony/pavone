@@ -6,28 +6,26 @@ from typing import Optional, List
 from dataclasses import dataclass, field
 from .logging_config import LoggingConfig
 
-
+default_user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
 @dataclass
 class DownloadConfig:
     """下载配置"""
     output_dir: str = "./downloads"
-    max_concurrent_downloads: int = 3
+    auto_select: bool = True  # 是否自动选择下载链接
+    max_concurrent_downloads: int = 4
     retry_times: int = 3
     retry_interval: int = 3000  # 重试间隔，单位为毫秒
     timeout: int = 30
-    user_agent: str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-    # 代理设置
-    proxy_enabled: bool = False
-    http_proxy: str = ""
-    https_proxy: str = ""
-
+    cache_dir: Optional[str] = None # 缓存目录，默认为None, 如果为None则使用系统默认缓存目录
+    headers: dict[str, str] = field(default_factory=lambda: {"User-Agent": default_user_agent})
+    overwrite_existing: bool = False  # 是否覆盖已存在的文件
 
 @dataclass
 class OrganizeConfig:
     """整理配置"""
     auto_organize: bool = True
-    organize_by: str = "studio"  # studio, genre, actor
-    naming_pattern: str = "{studio}-{code}-{title}"
+    naming_pattern: str = "{code}" # 命名模式, 例如 "{code}" 或 "{code} - {title}"
+    folder_structure: str = "{code}"  # 文件夹结构, 例如 "{code}"
     create_nfo: bool = True
     download_cover: bool = True
 
@@ -78,13 +76,3 @@ class Config:
     proxy: ProxyConfig = field(default_factory=ProxyConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     plugin: PluginConfig = field(default_factory=PluginConfig)
-    
-    def __post_init__(self):
-        # 同步代理设置到下载配置
-        self._sync_proxy_settings()
-    
-    def _sync_proxy_settings(self):
-        """将代理设置同步到下载配置中"""
-        self.download.proxy_enabled = self.proxy.enabled
-        self.download.http_proxy = self.proxy.http_proxy
-        self.download.https_proxy = self.proxy.https_proxy
