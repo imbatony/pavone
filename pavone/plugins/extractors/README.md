@@ -7,11 +7,12 @@
 - `base.py` - 包含 `ExtractorPlugin` 基类
 - `mp4_direct.py` - MP4 直接链接提取器
 - `m3u8_direct.py` - M3U8 直接链接提取器
+- `missav_extractor.py` - MissAV 网站专用提取器
 - `__init__.py` - 导出所有提取器插件类
 
 ## 什么是提取器插件
 
-提取器插件负责分析给定的URL并提取出可下载的资源列表，而不直接进行下载操作。提取器将返回 `DownloadOpt` 对象的列表，每个对象包含一个可下载资源的信息。
+提取器插件负责分析给定的URL并提取出可下载的资源列表，而不直接进行下载操作。提取器将返回 `DownloadOption` 对象的列表，每个对象包含一个可下载资源的信息，这些 `DownloadOption` 对象随后被包装为 `OperationItem` 进行执行。
 
 ## 如何添加新的提取器
 
@@ -19,7 +20,7 @@
 2. 继承 `ExtractorPlugin` 基类
 3. 实现必需的抽象方法：
    - `can_handle(url: str) -> bool` - 检查是否能处理该URL
-   - `extract(url: str) -> List[DownloadOpt]` - 提取下载选项列表
+   - `extract(url: str) -> List[DownloadOption]` - 提取下载选项列表
    - `initialize() -> bool` - 初始化插件
    - `execute(*args, **kwargs)` - 执行插件功能
 
@@ -30,7 +31,7 @@
 ```python
 from typing import List
 from .base import ExtractorPlugin
-from ...core.downloader.options import DownloadOpt
+from ...models.metadata import DownloadOption
 
 class MyCustomExtractor(ExtractorPlugin):
     def __init__(self):
@@ -49,29 +50,31 @@ class MyCustomExtractor(ExtractorPlugin):
     def can_handle(self, url: str) -> bool:
         return "example.com" in url
     
-    def extract(self, url: str) -> List[DownloadOpt]:
+    def extract(self, url: str) -> List[DownloadOption]:
         # 分析URL并提取资源
         download_options = []
         
         # 示例：提取视频资源
         video_url = "https://example.com/video.mp4"
-        download_opt = DownloadOpt(
+        download_option = DownloadOption(
             url=video_url,
             filename="video.mp4",
-            custom_headers={"Referer": url}
+            headers={"Referer": url}
         )
-        download_options.append(download_opt)
+        download_options.append(download_option)
         
         return download_options
 ```
 
-## 注册插件
+## 注册和使用插件
 
-创建插件后，可以通过插件管理器注册：
+创建插件后，可以通过插件管理器注册并使用：
 
 ```python
 from pavone.plugins import plugin_manager
 from pavone.plugins.extractors import MyCustomExtractor
+from pavone.manager.execution import ExecutionManager
+from pavone.models.operation import OperationItem
 
 # 创建并注册插件
 extractor = MyCustomExtractor()
@@ -81,8 +84,15 @@ plugin_manager.register_plugin(extractor)
 extractor_plugin = plugin_manager.get_extractor_for_url("https://example.com/page")
 if extractor_plugin:
     download_options = extractor_plugin.extract("https://example.com/page")  # type: ignore
-    for opt in download_options:
-        print(f"可下载资源: {opt.url}")
+    
+    # 将下载选项转换为操作项并执行
+    execution_manager = ExecutionManager()
+    for option in download_options:
+        operation = OperationItem.from_download_option(option)
+        execution_manager.add_operation(operation)
+    
+    # 执行所有操作
+    execution_manager.execute_all()
 ```
 
 ## 内置提取器

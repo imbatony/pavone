@@ -105,10 +105,19 @@ pavone download "https://secure.example.com/video.mp4" \
 
 # 使用代理下载
 pavone download "https://example.com/video.mp4" \
-  --proxy "http://proxy.example.com:8080"
+  --proxy "http://127.0.0.1:7890"
 
 # 下载并自动整理
 pavone download "https://example.com/video.mp4" --organize
+
+# 自动选择第一个下载选项
+pavone download "https://missav.ai/video/12345" --auto-select
+
+# 静默下载（无进度显示）
+pavone download "https://example.com/video.mp4" --silent
+
+# 批量下载
+pavone batch-download urls.txt --auto-select
 ```
 
 ### 搜索视频
@@ -143,23 +152,43 @@ pavone/
 │   ├── cli.py                 # 命令行入口
 │   ├── core/                  # 核心功能模块
 │   │   ├── __init__.py
-│   │   ├── metadata.py        # 元数据提取
-│   │   ├── organizer.py       # 文件整理
-│   │   ├── searcher.py        # 搜索功能
+│   │   ├── base.py            # 基础操作类
+│   │   ├── dummy.py           # 测试用占位操作类
 │   │   └── downloader/        # 下载器模块
 │   │       ├── __init__.py
 │   │       ├── base.py        # 基础下载器类
 │   │       ├── http_downloader.py  # HTTP下载器
-│   │       ├── m3u8_downloader.py  # M3U8流媒体下载器
-│   │       ├── options.py     # 下载选项
-│   │       ├── progress.py    # 进度管理
-│   │       └── utils.py       # 工具函数
+│   │       └── m3u8_downloader.py  # M3U8流媒体下载器
+│   ├── models/                # 数据模型
+│   │   ├── __init__.py
+│   │   ├── operation.py       # 操作项模型
+│   │   ├── constants.py       # 常量定义
+│   │   ├── metadata.py        # 元数据模型
+│   │   └── progress_info.py   # 进度信息模型
+│   ├── manager/               # 管理器模块
+│   │   ├── __init__.py
+│   │   ├── execution.py       # 执行管理器
+│   │   └── progress.py        # 进度管理
 │   ├── plugins/               # 插件系统
 │   │   ├── __init__.py
-│   │   └── base.py           # 插件基类
+│   │   ├── base.py           # 插件基类
+│   │   ├── manager.py        # 插件管理器
+│   │   └── extractors/       # 提取器插件
+│   │       ├── __init__.py
+│   │       ├── base.py       # 提取器基类
+│   │       ├── missav_extractor.py    # MissAV提取器
+│   │       ├── m3u8_direct.py         # M3U8直链提取器
+│   │       └── mp4_direct.py          # MP4直链提取器
+│   ├── utils/                # 工具模块
+│   │   ├── __init__.py
+│   │   └── stringutils.py    # 字符串工具
 │   └── config/               # 配置管理
 │       ├── __init__.py
-│       └── settings.py       # 配置设置
+│       ├── configs.py        # 配置类定义
+│       ├── manager.py        # 配置管理器
+│       ├── settings.py       # 配置设置
+│       ├── validator.py      # 配置验证器
+│       └── logging_config.py # 日志配置
 ├── tests/                    # 测试套件
 │   ├── __init__.py
 │   ├── test_downloader.py    # 基础下载器测试
