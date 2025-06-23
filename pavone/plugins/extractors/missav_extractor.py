@@ -44,11 +44,6 @@ class MissAVExtractor(ExtractorPlugin):
         self.supported_domains = SUPPORTED_DOMAINS
         self.author = PLUGIN_AUTHOR
 
-    def initialize(self):
-        """初始化插件"""
-        self.logger.info(f"[{self.name}] 初始化 MissAV 视频提取器")
-        return True
-
     def can_handle(self, url: str) -> bool:
         """检查是否能处理给定的URL"""
         try:
@@ -170,16 +165,6 @@ class MissAVExtractor(ExtractorPlugin):
         else:
             self.logger.error("未能从页面中提取UUID，无法获取视频链接")
             return {}
-
-    def cleanup(self):
-        """清理插件资源"""
-        self.logger.info(f"[{self.name}] 清理 MissAV 视频提取器")
-
-    def execute(self, *args, **kwargs) -> Any:
-        """执行插件功能（为了兼容基类接口）"""
-        if args and isinstance(args[0], str):
-            return self.extract(args[0])
-        return []
 
     def _extract_master_playlist(self, master_url: str) -> Dict[str, str]:
         """

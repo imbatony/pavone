@@ -137,11 +137,10 @@ class M3U8Downloader(BaseDownloader):
             output_file = target_path
 
             # 创建临时目录存储视频段
+            # FIXME：这里应该使用配置的临时目录而不是直接在当前目录下创建
             temp_dir = output_file + "_segments"
             os.makedirs(temp_dir, exist_ok=True)
-            if progress_callback:
-                progress_info = ProgressInfo(total_size=total_segments, downloaded=0, speed=0.0)  # 使用段数作为总数
-                progress_callback(progress_info)
+
             # 下载所有视频段
             downloaded_segments = {}
             failed_downloads = []
@@ -176,7 +175,7 @@ class M3U8Downloader(BaseDownloader):
                             # 更新进度
                             if progress_callback:
                                 progress_info = ProgressInfo(
-                                    total_size=0, downloaded=successful_downloads, speed=speed
+                                    total_size=0, downloaded=total_downloaded_bytes, speed=speed
                                 )
                                 progress_callback(progress_info)
 
@@ -215,6 +214,7 @@ class M3U8Downloader(BaseDownloader):
                 return False
 
             # 合并所有视频段
+            # FIXME：这里应该使用配置的临时目录而不是直接在当前目录下创建: 处理合并逻辑,这里应该使用ffmpeg或类似工具进行合并
             self.logger.info("Merging video segments...")
             with open(output_file, "wb") as output:
                 for i in range(total_segments):

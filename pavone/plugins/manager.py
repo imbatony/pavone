@@ -14,6 +14,7 @@ from ..config.settings import config_manager
 from .extractors import ExtractorPlugin
 from .metadata import MetadataPlugin
 from .search import SearchPlugin
+from .extractors import MP4DirectExtractor, M3U8DirectExtractor, MissAVExtractor, MemojavExtractor, JTableExtractor
 
 class PluginManager:
     """插件管理器"""
@@ -52,13 +53,13 @@ class PluginManager:
     def _load_builtin_extractors(self):
         """加载内置提取器插件"""
         try:
-            from .extractors import MP4DirectExtractor, M3U8DirectExtractor, MissAVExtractor
-
             # 定义内置提取器映射
             builtin_extractors: dict[str, type[ExtractorPlugin]] = {
                 "MP4DirectExtractor": MP4DirectExtractor,
                 "M3U8DirectExtractor": M3U8DirectExtractor,
                 "MissAVExtractor": MissAVExtractor,
+                "MemojavExtractor": MemojavExtractor,
+                "JTableExtractor": JTableExtractor,
             }
 
             loaded_extractors: list[str] = []

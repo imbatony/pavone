@@ -38,16 +38,6 @@ class MP4DirectExtractor(ExtractorPlugin):
         self.priority = PLUGIN_PRIORITY
         self.download_config = get_download_config()
 
-    def initialize(self) -> bool:
-        """初始化插件"""
-        return True
-
-    def execute(self, *args, **kwargs):
-        """执行插件功能"""
-        if len(args) >= 1:
-            return self.extract(args[0])
-        return []
-
     def can_handle(self, url: str) -> bool:
         """检查是否能处理该URL"""
         try:

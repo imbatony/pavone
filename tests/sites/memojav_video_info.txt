@@ -1,0 +1,1 @@
+for (;;);{"type":"hls","url":"https%3A%2F%2Fvideo10.memojav.net%2Fstream%2FFNS-052%2Fmaster.m3u8","success":true}

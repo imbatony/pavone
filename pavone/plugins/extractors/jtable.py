@@ -42,7 +42,7 @@ class JTableExtractor(ExtractorPlugin):
             return any(parsed_url.netloc.lower() == domain.lower() for domain in self.supported_domains)
         except Exception:
             return False
-    
+
     def extract(self, url: str) -> List[OperationItem]:
         """从给定的URL提取下载选项"""
         if not self.can_handle(url):
