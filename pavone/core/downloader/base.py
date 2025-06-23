@@ -3,9 +3,11 @@ from ...config.settings import Config
 from ...config.logging_config import get_logger
 from typing import Dict, Optional
 import os
+
+
 class BaseDownloader(Operator):
     """基础下载器类"""
-    
+
     def __init__(self, config: Config):
         super().__init__(config, "下载")
         self.download_config = config.download
@@ -19,11 +21,11 @@ class BaseDownloader(Operator):
         """获取代理配置"""
         if not self.proxy_config.enabled:
             return None
-        
+
         proxies = {}
         if self.proxy_config.http_proxy:
-            proxies['http'] = self.proxy_config.http_proxy
+            proxies["http"] = self.proxy_config.http_proxy
         if self.proxy_config.https_proxy:
-            proxies['https'] = self.proxy_config.https_proxy
-        
+            proxies["https"] = self.proxy_config.https_proxy
+
         return proxies if proxies else None

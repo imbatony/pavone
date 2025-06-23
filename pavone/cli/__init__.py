@@ -39,5 +39,5 @@ main.add_command(search)
 main.add_command(organize)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

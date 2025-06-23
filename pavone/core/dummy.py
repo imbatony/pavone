@@ -1,5 +1,6 @@
 from .base import Operator
 
+
 class DummyOperator(Operator):
     """
     Dummy操作类，用于测试和占位
@@ -8,7 +9,7 @@ class DummyOperator(Operator):
 
     def __init__(self, config):
         super().__init__(config, "Dummy")
-    
+
     def execute(self, item):
         """
         执行Dummy操作

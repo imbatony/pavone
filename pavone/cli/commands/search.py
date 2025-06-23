@@ -6,7 +6,7 @@ import click
 
 
 @click.command()
-@click.argument('keyword')
+@click.argument("keyword")
 def search(keyword: str):
     """根据关键词搜索视频信息"""
     click.echo(f"正在搜索: {keyword}")

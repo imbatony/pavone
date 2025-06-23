@@ -32,7 +32,7 @@
         "editor.formatOnSave": false,
         "editor.formatOnType": false,
         "editor.formatOnPaste": false,
-        "editor.defaultFormatter": null
+        "editor.defaultFormatter": "ms-python.black-formatter"
     },
     "files.exclude": {
         "**/__pycache__": true,

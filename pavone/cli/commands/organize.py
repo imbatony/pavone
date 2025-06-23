@@ -6,7 +6,7 @@ import click
 
 
 @click.command()
-@click.argument('path')
+@click.argument("path")
 def organize(path: str):
     """整理指定路径下的视频文件"""
     click.echo(f"正在整理: {path}")

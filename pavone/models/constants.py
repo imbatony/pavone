@@ -1,5 +1,19 @@
 # 常用链接类型常量
 
+class OperationType:
+    """
+    操作类型常量, 这个类定义了所有可能的操作类型
+    包括下载视频、图片、字幕、种子等，或者移动文件等操作
+    这些类型可以帮助执行器更好地处理和分类资源
+    """
+    DOWNLOAD = "download"  # 下载资源
+    MOVE = "move"          # 移动资源
+    DELETE = "delete"      # 删除资源
+    RENAME = "rename"      # 重命名资源
+    COPY = "copy"          # 复制资源
+    ARCHIVE = "archive"    # 压缩归档资源
+    SAVE_METADATA = "save_metadata"  # 保存元数据
+
 
 class ItemType:
     """
@@ -14,7 +28,8 @@ class ItemType:
     TORRENT = "torrent"     # 下载种子文件
     META_DATA = "metadata"  # 保存元数据文件, 如 NFO 文件
     MOVE = "move"           # 移动文件 (如移动到指定目录) 用于整理时用
- 
+
+
 class ItemSubType:
     """
     子类型常量, 用于细分类型链接
@@ -45,7 +60,7 @@ class CommonExtraKeys:
     ITEM_SUBTYPE = "item_subtype"  # 子类型, 如 COVER, POSTER, THUMBNAIL, BACKDROP 等
     TARGET_PATH = "target_path"  # 目标路径
     CUSTOM_HEADERS = "cus_headers"  # 自定义 HTTP 头部, 用于下载时的请求头部
-    CUSTOM_FILENAME = "custom_filename"  # 自定义文件名, 用于下载时指定文件名
+    CUSTOM_FILENAME_PREFIX = "custom_filename_prefix"  # 自定义文件名, 用于下载时指定文件名
     PROGRESS_CALLBACK = "progress_callback"  # 进度回调函数, 用于下载进度更新
 
 class VideoCoreExtraKeys:
@@ -66,24 +81,6 @@ class VideoCoreExtraKeys:
     # 分集信息，将影响到分集的命名
     PART = "part"  # 分集信息, 单集或分集编号
 
-class VideoAdditionalExtraKeys:
-    # 其他信息, 用于补充视频的其他属性,并非所有视频都有这些属性
-    LANGUAGE = "video_language"  # 视频语言, 如日语、英语等
-    GENRES = "video_genres"  # 视频类型, 如 动漫、剧情、喜剧 等
-    CENSORED = "video_censored"     # 是否为马赛克版本, True 或 False
-    DESCRIPTION = "video_description"  # 视频描述, 包含剧情简介等信息
-    DURATION = "video_duration"  # 视频时长, 单位为秒
-    RELEASE_DATE = "video_release_date"  # 视频发布日期, 格式为 YYYY-MM-DD
-    RATING = "video_rating"  # 视频评分, 如 IMDb 评分
-    TAGS = "video_tags"  # 视频标签, 如类型、主题等
-    EXTERNAL_LINKS = "video_external_links"  # 外部链接, 如 IMDb、MyDramaList 等
-    VIDEO_COVER = "video_cover"  # 视频封面图片链接
-    VIDEO_THUMBNAIL = "video_thumbnail"  # 视频缩略图链接
-    VIDEO_BACKDROP = "video_backdrop"  # 视频背景图片链接
-    VIDEO_POSTER = "video_poster"  # 视频海报链接
-    TAGLINE = "video_tagline"  # 视频标语或口号
-    DIRECTOR = "video_director"  # 导演, 包含主要导演的名称
-    SERIES = "video_series"  # 系列名称, 如系列电影或电视剧的名称
 
 class ImageExtraKeys:
     """图片额外信息类型常量"""
@@ -92,7 +89,7 @@ class ImageExtraKeys:
 
 class MetadataExtraKeys:
     """元数据额外信息类型常量"""
-    METADATA_DICT = "metadata_dict"  # 元数据字典, 用于存储视频的详细信息
+    METADATA_OBJ = "metadata_obj"  # 元数据字典, 用于存储视频的详细信息
 
 class Quality:
     """

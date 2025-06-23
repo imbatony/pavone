@@ -8,4 +8,4 @@ from .mp4_direct import MP4DirectExtractor
 from .m3u8_direct import M3U8DirectExtractor
 from .missav_extractor import MissAVExtractor
 
-__all__ = ['ExtractorPlugin', 'MP4DirectExtractor', 'M3U8DirectExtractor', 'MissAVExtractor']
+__all__ = ["ExtractorPlugin", "MP4DirectExtractor", "M3U8DirectExtractor", "MissAVExtractor"]

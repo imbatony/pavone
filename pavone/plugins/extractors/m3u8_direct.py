@@ -2,6 +2,7 @@
 M3U8 直接链接提取器
 处理以 .m3u8 结尾的直接播放列表链接
 """
+
 from datetime import datetime
 from typing import List
 from urllib.parse import urlparse
@@ -21,12 +22,14 @@ PLUGIN_AUTHOR = "PAVOne"
 PLUGIN_PRIORITY = 999
 
 SITE_NAME = "Unknown"
+
+
 class M3U8DirectExtractor(ExtractorPlugin):
     """
-    M3U8 直接链接提取器    
+    M3U8 直接链接提取器
     处理以 .m3u8 结尾的直接播放列表链接，无需额外解析网站内容
     """
-    
+
     def __init__(self):
         super().__init__()
         self.name = PLUGIN_NAME
@@ -35,31 +38,31 @@ class M3U8DirectExtractor(ExtractorPlugin):
         self.author = PLUGIN_AUTHOR
         self.priority = PLUGIN_PRIORITY
         self.download_config = get_download_config()
-    
+
     def initialize(self) -> bool:
         """初始化插件"""
         return True
-    
+
     def execute(self, *args, **kwargs):
         """执行插件功能"""
         if len(args) >= 1:
             return self.extract(args[0])
         return []
-    
+
     def can_handle(self, url: str) -> bool:
         """检查是否能处理该URL"""
         try:
             parsed_url = urlparse(url)
             path = parsed_url.path.lower()
-            return path.endswith('.m3u8')
+            return path.endswith(".m3u8")
         except Exception:
             return False
-    
+
     def extract(self, url: str) -> List[OpertionItem]:
         """从 M3U8 直接链接提取下载选项"""
         try:
             parsed_url = urlparse(url)
-            
+
             # 从URL路径中提取文件名（去掉.m3u8扩展名，改为.mp4）
             title = Path(parsed_url.path).stem
             if not title:
@@ -69,16 +72,14 @@ class M3U8DirectExtractor(ExtractorPlugin):
 
             # 创建下载选项
             download_opt = create_stream_item(
-                url = url,
-                site= SITE_NAME,
+                url=url,
+                site=SITE_NAME,
                 title=title,
                 quality=quality,
-                custom_headers={
-                    "Accept": "application/vnd.apple.mpegurl,application/x-mpegurl,video/*;q=0.9,*/*;q=0.8"
-                },
-            )    
+                custom_headers={"Accept": "application/vnd.apple.mpegurl,application/x-mpegurl,video/*;q=0.9,*/*;q=0.8"},
+            )
             return [download_opt]
-            
+
         except Exception as e:
             self.logger.error(f"M3U8提取器错误: {e}")
             return []

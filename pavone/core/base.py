@@ -1,9 +1,9 @@
-
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from ..config.settings import Config
 from ..models import OpertionItem
 from pavone.config.logging_config import get_logger
+
 
 class Operator(ABC):
     """
@@ -32,15 +32,13 @@ class Operator(ABC):
         """
         执行操作
         该方法会被子类重写以实现具体的操作逻辑
-        
+
         Args:
             item: 操作项对象,包含URL和其他操作信息
             target_path: 保存文件的路径
             progress_callback: 进度回调函数,接收ProgressInfo对象
-            
+
         Returns:
             bool: 操作是否成功
         """
         pass
-
-    

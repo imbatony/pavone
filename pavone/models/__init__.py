@@ -1,8 +1,9 @@
-from .operation import OpertionItem, create_stream_item, create_video_item, create_image_item,create_metadata_item
-from .operation import create_backdrop_item, create_cover_item, create_thumbnail_item,create_poster_item
-from .constants import ItemType, ItemSubType, CommonExtraKeys, Quality
+from .operation import OpertionItem, create_stream_item, create_video_item, create_image_item, create_metadata_item
+from .operation import create_backdrop_item, create_cover_item, create_thumbnail_item, create_poster_item
+from .constants import ItemType, ItemSubType, CommonExtraKeys, Quality, OperationType
 from .metadata import BaseMetadata, MovieMetadata, TVShowMetadata, ClipMetadata, DocumentaryMetadata
 from .progress_info import ProgressCallback, ProgressInfo
+
 __all__ = [
     "OpertionItem",
     "create_stream_item",
@@ -13,6 +14,7 @@ __all__ = [
     "create_cover_item",
     "create_thumbnail_item",
     "create_poster_item",
+    "OperationType",
     "ItemType",
     "BaseMetadata",
     "MovieMetadata",
@@ -23,5 +25,5 @@ __all__ = [
     "CommonExtraKeys",
     "Quality",
     "ProgressCallback",
-    "ProgressInfo"
+    "ProgressInfo",
 ]

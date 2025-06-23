@@ -11,6 +11,7 @@ from ...models import OpertionItem, Quality, create_stream_item, create_cover_it
 from ...models import MovieMetadata
 from .base import ExtractorPlugin
 from ...utils.stringutils import StringUtils
+from datetime import datetime
 
 # 定义插件名称和版本
 PLUGIN_NAME = "MissAVExtractor"
@@ -22,20 +23,17 @@ PLUGIN_AUTHOR = "PAVOne"
 PLUGIN_PRIORITY = 30
 
 # 定义支持的域名
-SUPPORTED_DOMAINS = [
-    'missav.ai',
-    'www.missav.ai',
-    'missav.com',
-    'www.missav.com'
-]
+SUPPORTED_DOMAINS = ["missav.ai", "www.missav.ai", "missav.com", "www.missav.com"]
 
 SITE_NAME = "MissAV"
+
 
 class MissAVExtractor(ExtractorPlugin):
     """
     MissAV提取器
     继承自ExtractorPlugin，提供从 missav.ai 和 missav.com 提取视频下载链接的功能。
     """
+
     def __init__(self):
         """初始化MissAV提取器"""
         super().__init__()
@@ -45,25 +43,24 @@ class MissAVExtractor(ExtractorPlugin):
         self.priority = PLUGIN_PRIORITY
         self.supported_domains = SUPPORTED_DOMAINS
         self.author = PLUGIN_AUTHOR
-    
+
     def initialize(self):
         """初始化插件"""
         self.logger.info(f"[{self.name}] 初始化 MissAV 视频提取器")
         return True
-    
+
     def can_handle(self, url: str) -> bool:
         """检查是否能处理给定的URL"""
         try:
             parsed_url = urlparse(url)
             # 检查协议是否为HTTP或HTTPS
-            if parsed_url.scheme.lower() not in ('http', 'https'):
+            if parsed_url.scheme.lower() not in ("http", "https"):
                 return False
             # 检查域名是否在支持列表中
-            return any(parsed_url.netloc.lower() == domain.lower() 
-                      for domain in self.supported_domains)
+            return any(parsed_url.netloc.lower() == domain.lower() for domain in self.supported_domains)
         except Exception:
             return False
-    
+
     def extract(self, url: str) -> List[OpertionItem]:
         """从 MissAV 页面提取视频下载选项"""
         try:
@@ -73,7 +70,7 @@ class MissAVExtractor(ExtractorPlugin):
             if not html_content:
                 self.logger.error(f"获取页面内容失败: {url}")
                 return []
-                
+
             # 提取混淆的JavaScript代码
             video_urls = self._extract_obfuscated_urls(html_content)
             if not video_urls:
@@ -93,17 +90,11 @@ class MissAVExtractor(ExtractorPlugin):
             description = self._extract_description(html_content)
             tagline = self._extract_tagline(html_content)
             cover_item: Optional[OpertionItem] = None
+            release_year = int(release_date.split("-")[0]) if release_date else datetime.now().year
             # 如果有封面图片，创建封面图片项
             if cover_image:
-                cover_item = create_cover_item(
-                    url=cover_image,
-                    title=video_title
-                )
-            identifier = StringUtils.create_identifier(
-                site=SITE_NAME,
-                code=video_code,
-                url=url
-            )
+                cover_item = create_cover_item(url=cover_image, title=video_title)
+            identifier = StringUtils.create_identifier(site=SITE_NAME, code=video_code, url=url)
             matadata = MovieMetadata(
                 title=video_title,
                 identifier=identifier,
@@ -120,12 +111,12 @@ class MissAVExtractor(ExtractorPlugin):
                 series=series,
                 cover=cover_image,
                 description=description,
-                tagline=tagline
+                tagline=tagline,
             )
             # 创建元数据项
             metadata_item = create_metadata_item(
-                title= video_title,
-                meta_data= matadata,
+                title=video_title,
+                meta_data=matadata,
             )
             # 生成下载选项
             download_items: List[OpertionItem] = []
@@ -141,16 +132,8 @@ class MissAVExtractor(ExtractorPlugin):
                     code=video_code,
                     quality=quality,
                     actors=actors,
-                    director=director,
-                    duration=duration,
-                    release_date=release_date,
-                    genres=genres,
-                    tags=tags,
                     studio=studio,
-                    series=series,
-                    cover_image=cover_image,
-                    description=description,
-                    tagline=tagline
+                    year=release_year,
                 )
                 # 如果有封面图片，添加到为子项
                 if cover_item:
@@ -159,22 +142,22 @@ class MissAVExtractor(ExtractorPlugin):
                 download_item.append_child(metadata_item)
                 # 添加到下载选项列表
                 download_items.append(download_item)
-            
+
             return download_items
-  
+
         except Exception as e:
             self.logger.error(f"获取页面失败: {e}")
             return []
-    
+
     def _extract_obfuscated_urls(self, html_content: str) -> Dict[str, str]:
         """
         从JavaScript混淆代码中提取视频URL - 只依赖dukpy执行JavaScript
-        如果dukpy执行失败，直接返回空结果  
+        如果dukpy执行失败，直接返回空结果
         Args:
             html_content: HTML页面内容
-            
+
         Returns:
-            包含video URLs的字典，失败时返回空字典        
+            包含video URLs的字典，失败时返回空字典
         """
         # 首先尝试从HTML中提取UUID
         # 这个UUID通常用于构建主播放列表链接
@@ -182,7 +165,7 @@ class MissAVExtractor(ExtractorPlugin):
         if uuid:
             master_url = f"https://surrit.com/{uuid}/playlist.m3u8"
             self.logger.debug(f"提取到UUID: {uuid}, 构建的主播放列表链接: {master_url}")
-            return self._extract_master_playlist(master_url)    
+            return self._extract_master_playlist(master_url)
         # 如果没有UUID，直接返回空字典
         else:
             self.logger.error("未能从页面中提取UUID，无法获取视频链接")
@@ -191,7 +174,7 @@ class MissAVExtractor(ExtractorPlugin):
     def cleanup(self):
         """清理插件资源"""
         self.logger.info(f"[{self.name}] 清理 MissAV 视频提取器")
-    
+
     def execute(self, *args, **kwargs) -> Any:
         """执行插件功能（为了兼容基类接口）"""
         if args and isinstance(args[0], str):
@@ -199,7 +182,6 @@ class MissAVExtractor(ExtractorPlugin):
         return []
 
     def _extract_master_playlist(self, master_url: str) -> Dict[str, str]:
-
         """
         从大师链接中提取所有子链接
         主要用于处理.m3u8链接，获取所有可用的子链接
@@ -211,7 +193,7 @@ class MissAVExtractor(ExtractorPlugin):
                 self.logger.info(f"获取大师链接失败: {master_url} - 状态码: {response.status_code}")
                 return {}
             # 基准为去除playlist.m3u8的一部分
-            base_url = master_url.rsplit('/', 1)[0] + '/'
+            base_url = master_url.rsplit("/", 1)[0] + "/"
             # 解析.m3u8内容，提取所有子链接
             m3u8_content = response.text
             self.logger.debug(f"处理大师链接内容: {m3u8_content}...")  # 仅打印前100个字符
@@ -219,29 +201,29 @@ class MissAVExtractor(ExtractorPlugin):
             sub_urls = {}
             for line in lines:
                 line = line.strip()
-                if line and not line.startswith('#'):
-                    #找到以m3u8结尾的链接
-                    if line.endswith('m3u8'):
+                if line and not line.startswith("#"):
+                    # 找到以m3u8结尾的链接
+                    if line.endswith("m3u8"):
                         # 如果是绝对链接，直接使用
-                        if line.startswith('http'):
+                        if line.startswith("http"):
                             key = self._get_key_for_url(line)
                             if key:
                                 sub_urls[key] = line
-                                
+
                         # 如果是相对链接，拼接基准URL
-                        else:                            
+                        else:
                             full_url = base_url + line
                             key = self._get_key_for_url(full_url)
                             if key:
                                 sub_urls[key] = full_url
-            
+
             self.logger.debug(f"从大师链接提取到 {len(sub_urls)} 个子链接")
             return sub_urls
-        
+
         except Exception as e:
             self.logger.error(f"处理大师链接时出错: {e}")
             return {}
-    
+
     def _get_key_for_url(self, url: str) -> str:
         """
         获取视频URL的唯一键
@@ -250,7 +232,6 @@ class MissAVExtractor(ExtractorPlugin):
             url: 视频URL
         """
         return Quality.guess(url)
-
 
     def _extract_uuid(self, html: str) -> Optional[str]:
         try:
@@ -275,10 +256,10 @@ class MissAVExtractor(ExtractorPlugin):
         try:
 
             title_match = re.search(r'<meta property="og:title" content="([^"]+)"', html)
-            if title_match: 
+            if title_match:
                 matched = title_match.group(1).strip()
                 # 分离代码和标题
-                parts = matched.split(' ', maxsplit=1)
+                parts = matched.split(" ", maxsplit=1)
                 video_code = parts[0] if len(parts) > 0 else default_code
                 video_title = parts[1] if len(parts) > 1 else default_title
             else:
@@ -367,34 +348,34 @@ class MissAVExtractor(ExtractorPlugin):
         try:
             # 定义多语言的类型标签模式
             genre_labels = [
-                r'ジャンル:',      # 日语
-                r'类型:',          # 中文简体
-                r'類型:',          # 中文繁体  
-                r'分类:',          # 中文简体
-                r'分類:',          # 中文繁体
-                r'种类:',          # 中文简体
-                r'種類:',          # 中文繁体
-                r'Genre:',         # 英语
-                r'Category:',      # 英语
-                r'장르:',          # 韩语
-                r'Thể loại:',      # 越南语
-                r'Kategori:',      # 印尼语
-                r'หมวดหมู่:',       # 泰语
+                r"ジャンル:",  # 日语
+                r"类型:",  # 中文简体
+                r"類型:",  # 中文繁体
+                r"分类:",  # 中文简体
+                r"分類:",  # 中文繁体
+                r"种类:",  # 中文简体
+                r"種類:",  # 中文繁体
+                r"Genre:",  # 英语
+                r"Category:",  # 英语
+                r"장르:",  # 韩语
+                r"Thể loại:",  # 越南语
+                r"Kategori:",  # 印尼语
+                r"หมวดหมู่:",  # 泰语
             ]
-            
+
             # 尝试使用任何一个语言标签找到genres部分
             for label_pattern in genre_labels:
-                pattern = label_pattern + r'.*?</div>'
+                pattern = label_pattern + r".*?</div>"
                 match = re.search(pattern, html, re.DOTALL)
                 if match:
                     self.logger.debug(f"找到类型部分，使用标签: {label_pattern}")
                     # 在genres部分寻找所有类型链接
                     genre_names = re.findall(r'class="text-nord13 font-medium">([^<]+)</a>', match.group(0))
                     return genre_names
-            
+
             # 如果没有找到任何语言标签的genres部分，返回空列表
             return []
-            
+
         except Exception as e:
             self.logger.info(f"提取类型异常: {str(e)}")
             return []
@@ -411,33 +392,33 @@ class MissAVExtractor(ExtractorPlugin):
         try:
             # 定义多语言的标签模式
             tag_labels = [
-                r'タグ:',          # 日语
-                r'标签:',          # 中文简体
-                r'標籤:',          # 中文繁体
-                r'Tags:',          # 英语
-                r'Label:',          # 英语
-                r'Tag:',           # 英语
+                r"タグ:",  # 日语
+                r"标签:",  # 中文简体
+                r"標籤:",  # 中文繁体
+                r"Tags:",  # 英语
+                r"Label:",  # 英语
+                r"Tag:",  # 英语
             ]
-            
+
             # 尝试使用任何一个语言标签找到tags部分
             for label_pattern in tag_labels:
-                pattern = label_pattern + r'.*?</div>'
+                pattern = label_pattern + r".*?</div>"
                 match = re.search(pattern, html, re.DOTALL)
                 if match:
                     self.logger.debug(f"找到标签部分，使用标签: {label_pattern}")
                     # 在tags部分寻找所有标签链接
                     tag_names = re.findall(r'class="text-nord13 font-medium">([^<]+)</a>', match.group(0))
                     return tag_names
-            
+
             # 如果没有找到任何语言标签的tags部分, 则尝试找keywords
             keywords_match = re.search(r'<meta name="keywords" content="([^"]+)"', html)
             if keywords_match:
-                keywords = keywords_match.group(1).split(',')
+                keywords = keywords_match.group(1).split(",")
                 # 清理标签，去除空格和多余字符
                 return [tag.strip() for tag in keywords if tag.strip()]
             # 如果没有找到任何标签部分，返回空列表
             return []
-            
+
         except Exception as e:
             self.logger.info(f"提取标签异常: {str(e)}")
             return []
@@ -454,26 +435,26 @@ class MissAVExtractor(ExtractorPlugin):
         try:
             # 定义多语言的制作公司模式
             studio_labels = [
-                r'发行商:',  # 中文简体
-                r'發行商:',  # 中文繁体
-                r'制作公司:',  # 中文简体
-                r'製作公司:',  # 中文繁体
-                r'制作商:',  # 中文简体
-                r'製作商:',  # 中文繁体
-                r'メーカー:',  # 日语
-                r'Maker:',  # 英语
+                r"发行商:",  # 中文简体
+                r"發行商:",  # 中文繁体
+                r"制作公司:",  # 中文简体
+                r"製作公司:",  # 中文繁体
+                r"制作商:",  # 中文简体
+                r"製作商:",  # 中文繁体
+                r"メーカー:",  # 日语
+                r"Maker:",  # 英语
             ]
-            
+
             # 尝试使用任何一个语言标签找到studio部分
             for label_pattern in studio_labels:
-                pattern = label_pattern + r'.*?</div>'
+                pattern = label_pattern + r".*?</div>"
                 match = re.search(pattern, html, re.DOTALL)
                 if match:
                     self.logger.debug(f"找到制作公司部分，使用标签: {label_pattern}")
                     # 在studio部分寻找制作公司名称
                     studio_name = re.search(r'class="text-nord13 font-medium">([^<]+)</a>', match.group(0))
                     return studio_name.group(1) if studio_name else None
-            
+
             # 如果没有找到任何语言标签的studio部分，返回None
             return None
         except Exception as e:
@@ -492,15 +473,15 @@ class MissAVExtractor(ExtractorPlugin):
         try:
             # 定义多语言的系列名称模式
             series_labels = [
-                r'シリーズ:',  # 日语
-                r'系列:',      # 中文简体
-                r'系列:',      # 中文繁体
-                r'Series:',    # 英语
+                r"シリーズ:",  # 日语
+                r"系列:",  # 中文简体
+                r"系列:",  # 中文繁体
+                r"Series:",  # 英语
             ]
-            
+
             # 尝试使用任何一个语言标签找到series部分
             for label_pattern in series_labels:
-                pattern = label_pattern + r'.*?</div>'
+                pattern = label_pattern + r".*?</div>"
                 match = re.search(pattern, html, re.DOTALL)
                 if match:
                     self.logger.debug(f"找到系列部分，使用标签: {label_pattern}")

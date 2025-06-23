@@ -21,12 +21,14 @@ PLUGIN_AUTHOR = "PAVOne"
 PLUGIN_PRIORITY = 999
 
 SITE_NAME = "Unknown"
+
+
 class MP4DirectExtractor(ExtractorPlugin):
     """
-    MP4 直接链接提取器    
+    MP4 直接链接提取器
     处理以 .mp4 结尾的直接视频链接，无需额外解析网站内容
     """
-    
+
     def __init__(self):
         super().__init__()
         self.name = PLUGIN_NAME
@@ -35,49 +37,47 @@ class MP4DirectExtractor(ExtractorPlugin):
         self.author = PLUGIN_AUTHOR
         self.priority = PLUGIN_PRIORITY
         self.download_config = get_download_config()
-    
+
     def initialize(self) -> bool:
         """初始化插件"""
         return True
-    
+
     def execute(self, *args, **kwargs):
         """执行插件功能"""
         if len(args) >= 1:
             return self.extract(args[0])
         return []
-    
+
     def can_handle(self, url: str) -> bool:
         """检查是否能处理该URL"""
         try:
             parsed_url = urlparse(url)
             path = parsed_url.path.lower()
-            return path.endswith('.mp4')
+            return path.endswith(".mp4")
         except Exception:
             return False
-    
+
     def extract(self, url: str) -> List[OpertionItem]:
         """从 MP4 直接链接提取下载选项"""
         try:
             parsed_url = urlparse(url)
-            
+
             # 从URL路径中提取文件名
             title = Path(parsed_url.path).name
             if not title:
                 title = "video-" + str(datetime.now().timestamp())
 
-            quality = Quality.guess(url)      
+            quality = Quality.guess(url)
             # 创建下载选项
             download_opt = create_video_item(
                 url=url,
                 site=SITE_NAME,
                 title=f"{title}",
                 quality=quality,
-                custom_headers={
-                    "Accept": "video/mp4,video/*;q=0.9,*/*;q=0.8"
-                },
-            )       
+                custom_headers={"Accept": "video/mp4,video/*;q=0.9,*/*;q=0.8"},
+            )
             return [download_opt]
-            
+
         except Exception as e:
             self.logger.error(f"MP4提取器错误: {e}")
             return []
