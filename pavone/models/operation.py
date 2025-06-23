@@ -58,7 +58,7 @@ class OpertionItem:
 
     def support_children(self) -> bool:
         """判断是否支持子项"""
-        return self.item_type in (ItemType.VIDEO, ItemType.STREAM, ItemType.MOVE)
+        return self.item_type in (ItemType.VIDEO, ItemType.STREAM)
 
     def get_quality_info(self) -> str:
         """获取质量信息"""
@@ -282,7 +282,7 @@ class OpertionItem:
                     break
 
         extension = self._extra.get(ImageExtraKeys.IMAGE_FORMAT, extension).lower()
-        return f".{extension}"
+        return extension
 
     def get_subtitle_extension(self) -> str:
         """获取字幕扩展名"""
@@ -297,9 +297,6 @@ class OpertionItem:
         elif self.item_type == ItemType.IMAGE:
             # 图片类型根据图片格式获取扩展名
             return self.get_image_extension()
-        elif self.item_type == ItemType.MOVE:
-            # 移动操作不需要扩展名
-            return None
         elif self.item_type == ItemType.SUBTITLE:
             # 字幕类型默认使用 .srt 扩展名
             return self.get_subtitle_extension()

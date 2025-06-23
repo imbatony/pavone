@@ -27,7 +27,6 @@ class ItemType:
     SUBTITLE = "subtitle"    # 下载字幕文件
     TORRENT = "torrent"     # 下载种子文件
     META_DATA = "metadata"  # 保存元数据文件, 如 NFO 文件
-    MOVE = "move"           # 移动文件 (如移动到指定目录) 用于整理时用
 
 
 class ItemSubType:

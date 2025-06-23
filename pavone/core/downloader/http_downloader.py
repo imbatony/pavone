@@ -124,7 +124,6 @@ class HTTPDownloader(BaseDownloader):
 
         progress_callback: Optional[ProgressCallback] = item.get_progress_callback()
         if not progress_callback:
-            self.logger.warning("未设置进度回调函数，无法跟踪下载进度")
             progress_callback = lambda x: None
 
         url = item.get_url()

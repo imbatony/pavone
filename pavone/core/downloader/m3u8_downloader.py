@@ -146,7 +146,7 @@ class M3U8Downloader(BaseDownloader):
             downloaded_segments = {}
             failed_downloads = []
             total_downloaded_bytes = 0
-            bytes_per_segment = 0
+            successful_downloads = 0
             # 开始时间
             download_start_time = time.time()
 
@@ -159,11 +159,9 @@ class M3U8Downloader(BaseDownloader):
                         segment_index, segment_data = self._download_segment(url, headers, index)
                         # 更新总字节数
                         with self._lock:
-                            nonlocal bytes_per_segment
                             nonlocal total_downloaded_bytes
-                            # 如果是第一次下载，初始化bytes_per_segment
-                            if bytes_per_segment == 0:
-                                bytes_per_segment = len(segment_data)
+                            nonlocal successful_downloads
+                            successful_downloads += 1
                             total_downloaded_bytes += len(segment_data)
                         # 将段数据写入临时文件
                         segment_file = os.path.join(temp_dir, f"segment_{segment_index:06d}.ts")
@@ -177,17 +175,8 @@ class M3U8Downloader(BaseDownloader):
                             downloaded_segments[segment_index] = segment_file
                             # 更新进度
                             if progress_callback:
-                                # 总大小为段数乘以每段大小,为估算值，可能不准, 所以需要取最大值
-                                # 如果总下载字节数大于段数乘以每段大小
-                                guess_size = total_segments * bytes_per_segment
-                                # 如果总下载字节数小于估算值，则使用估算值
-                                # 否则使用总下载字节数+1
-                                if total_downloaded_bytes < guess_size:
-                                    total_size = guess_size
-                                else:
-                                    total_size = total_downloaded_bytes + 1
                                 progress_info = ProgressInfo(
-                                    total_size=total_size, downloaded=total_downloaded_bytes, speed=speed
+                                    total_size=0, downloaded=successful_downloads, speed=speed
                                 )
                                 progress_callback(progress_info)
 
