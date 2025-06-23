@@ -8,7 +8,7 @@ from typing import List
 from urllib.parse import urlparse
 from pathlib import Path
 from .base import ExtractorPlugin
-from ...models import OpertionItem, Quality, create_stream_item
+from ...models import OperationItem, Quality, create_stream_item
 from ...config.settings import get_download_config
 
 # 定义插件名称和版本
@@ -58,7 +58,7 @@ class M3U8DirectExtractor(ExtractorPlugin):
         except Exception:
             return False
 
-    def extract(self, url: str) -> List[OpertionItem]:
+    def extract(self, url: str) -> List[OperationItem]:
         """从 M3U8 直接链接提取下载选项"""
         try:
             parsed_url = urlparse(url)

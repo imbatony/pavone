@@ -2,7 +2,7 @@
 from abc import abstractmethod
 from typing import List, Optional, Dict
 from ..base import BasePlugin
-from ...models import OpertionItem
+from ...models import OperationItem
 from ...config.settings import config_manager, get_download_config
 import time
 from ...config.logging_config import get_logger
@@ -15,9 +15,9 @@ class ExtractorPlugin(BasePlugin):
     而不直接进行下载操作
     """
 
-    def __init__(self):
-        super().__init__()
-        self.priority = 50  # 默认优先级，数值越小优先级越高
+    def __init__(self, name: Optional[str] = None, version: Optional[str] = "1.0.0", description: Optional[str] = "", author: Optional[str] = "", priority: Optional[int] = 50):
+        super().__init__(name=name, version=version, description=description, author=author)
+        self.priority = priority or 50  # 默认优先级为50
         self.logger = get_logger(__name__)
 
     @property
@@ -171,7 +171,7 @@ class ExtractorPlugin(BasePlugin):
         pass
 
     @abstractmethod
-    def extract(self, url: str) -> List[OpertionItem]:
+    def extract(self, url: str) -> List[OperationItem]:
         """从给定的URL提取下载选项
         Args:
             url: 要处理的URL

@@ -1,5 +1,5 @@
 from .base import BaseMetadataOperator
-from ...models import OpertionItem, ItemType
+from ...models import OperationItem, ItemType
 
 
 class MetadataSaver(BaseMetadataOperator):
@@ -17,7 +17,7 @@ class MetadataSaver(BaseMetadataOperator):
         """
         super().__init__(config, "保存元数据")
 
-    def execute(self, item: OpertionItem) -> bool:
+    def execute(self, item: OperationItem) -> bool:
         """
         执行元数据保存操作
         Args:

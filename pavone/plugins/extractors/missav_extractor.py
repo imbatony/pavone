@@ -7,7 +7,7 @@ MissAV视频提取器插件
 import re
 from typing import List, Dict, Any, Optional, Tuple
 from urllib.parse import urlparse
-from ...models import OpertionItem, Quality, create_stream_item, create_cover_item, create_metadata_item
+from ...models import OperationItem, Quality, create_stream_item, create_cover_item, create_metadata_item
 from ...models import MovieMetadata
 from .base import ExtractorPlugin
 from ...utils.stringutils import StringUtils
@@ -61,7 +61,7 @@ class MissAVExtractor(ExtractorPlugin):
         except Exception:
             return False
 
-    def extract(self, url: str) -> List[OpertionItem]:
+    def extract(self, url: str) -> List[OperationItem]:
         """从 MissAV 页面提取视频下载选项"""
         try:
             # 使用基类的统一网页获取方法，自动处理代理和SSL
@@ -89,7 +89,7 @@ class MissAVExtractor(ExtractorPlugin):
             cover_image = self._extract_cover_image(html_content)
             description = self._extract_description(html_content)
             tagline = self._extract_tagline(html_content)
-            cover_item: Optional[OpertionItem] = None
+            cover_item: Optional[OperationItem] = None
             release_year = int(release_date.split("-")[0]) if release_date else datetime.now().year
             # 如果有封面图片，创建封面图片项
             if cover_image:
@@ -119,7 +119,7 @@ class MissAVExtractor(ExtractorPlugin):
                 meta_data=matadata,
             )
             # 生成下载选项
-            download_items: List[OpertionItem] = []
+            download_items: List[OperationItem] = []
             for _, video_url in video_urls.items():
                 if not video_url:
                     continue

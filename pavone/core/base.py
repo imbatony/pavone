@@ -1,7 +1,7 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
 from ..config.settings import Config
-from ..models import OpertionItem
+from ..models import OperationItem
 from pavone.config.logging_config import get_logger
 
 
@@ -28,7 +28,7 @@ class Operator(ABC):
         self.logger = get_logger(__name__)
 
     @abstractmethod
-    def execute(self, item: OpertionItem) -> bool:
+    def execute(self, item: OperationItem) -> bool:
         """
         执行操作
         该方法会被子类重写以实现具体的操作逻辑

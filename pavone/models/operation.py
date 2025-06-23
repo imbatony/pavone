@@ -19,7 +19,7 @@ from .progress_info import ProgressCallback
 from datetime import datetime
 
 
-class OpertionItem:
+class OperationItem:
     """
     操作项
     """
@@ -30,7 +30,7 @@ class OpertionItem:
         self._extra: Dict[str, Any] = extra
         self._url: Optional[str] = None  # 下载链接
         self.desc = desc
-        self._children: list["OpertionItem"] = []
+        self._children: list["OperationItem"] = []
 
     def support_custom_filename_prefix(self) -> bool:
         """
@@ -68,7 +68,7 @@ class OpertionItem:
         """获取操作项的描述"""
         return self.desc
 
-    def append_child(self, child: "OpertionItem"):
+    def append_child(self, child: "OperationItem"):
         """
         将子项添加到复合类型的children中
         """
@@ -76,7 +76,7 @@ class OpertionItem:
             raise ValueError("当前操作项不支持子项")
         self._children.append(child)
 
-    def get_children(self) -> list["OpertionItem"]:
+    def get_children(self) -> list["OperationItem"]:
         """
         获取复合类型的所有子项
         """
@@ -365,7 +365,7 @@ def create_video_item(
     studio: Optional[str] = None,
     year: Optional[int] = None,
     part: Optional[int] = None,
-) -> OpertionItem:
+) -> OperationItem:
     """
     创建一个下载操作项
     Args:
@@ -392,7 +392,7 @@ def create_video_item(
 
     # 设置描述信息
     desc = f"{title} ({quality})"
-    item = OpertionItem(opt_type=OperationType.DOWNLOAD, item_type=item_type, desc=desc)
+    item = OperationItem(opt_type=OperationType.DOWNLOAD, item_type=item_type, desc=desc)
     item.set_url(url)
     item._extra[VideoCoreExtraKeys.QUALITY] = quality
     if custom_headers:
@@ -429,7 +429,7 @@ def create_stream_item(
     studio: Optional[str] = None,
     year: Optional[int] = None,
     part: Optional[int] = None,
-) -> OpertionItem:
+) -> OperationItem:
     """
     创建一个流媒体下载操作项
     Args:
@@ -458,7 +458,7 @@ def create_stream_item(
     # 设置描述信息
     desc = f"{title} ({quality})"
 
-    item = OpertionItem(opt_type=OperationType.DOWNLOAD, item_type=item_type, desc=desc)
+    item = OperationItem(opt_type=OperationType.DOWNLOAD, item_type=item_type, desc=desc)
     item.set_url(url)
 
     if sub_type:
@@ -488,7 +488,7 @@ def create_image_item(
     title: str,
     sub_type: Optional[str] = None,
     custom_headers: Optional[Dict[str, str]] = None,
-) -> OpertionItem:
+) -> OperationItem:
     """
     创建一个图片下载操作项
     Args:
@@ -508,7 +508,7 @@ def create_image_item(
     item_type = ItemType.IMAGE  # 设置为图片类型
     desc = f"{title} ({sub_type})" if sub_type else title
 
-    item = OpertionItem(OperationType.DOWNLOAD, item_type=item_type, desc=desc)
+    item = OperationItem(OperationType.DOWNLOAD, item_type=item_type, desc=desc)
     item.set_url(url)
 
     if sub_type:
@@ -524,7 +524,7 @@ def create_cover_item(
     url: str,
     title: str,
     custom_headers: Optional[Dict[str, str]] = None,
-) -> OpertionItem:
+) -> OperationItem:
     """
     创建一个封面图片下载操作项
     Args:
@@ -541,7 +541,7 @@ def create_backdrop_item(
     url: str,
     title: str,
     custom_headers: Optional[Dict[str, str]] = None,
-) -> OpertionItem:
+) -> OperationItem:
     """创建一个背景图片下载操作项
     Args:
         url: 下载链接
@@ -557,7 +557,7 @@ def create_thumbnail_item(
     url: str,
     title: str,
     custom_headers: Optional[Dict[str, str]] = None,
-) -> OpertionItem:
+) -> OperationItem:
     """
     创建一个缩略图下载操作项
     Args:
@@ -574,7 +574,7 @@ def create_poster_item(
     url: str,
     title: str,
     custom_headers: Optional[Dict[str, str]] = None,
-) -> OpertionItem:
+) -> OperationItem:
     """
     创建一个海报图片下载操作项
     Args:
@@ -590,7 +590,7 @@ def create_poster_item(
 def create_metadata_item(
     title: str,
     meta_data: BaseMetadata,
-) -> OpertionItem:
+) -> OperationItem:
     """
     创建一个元数据下载操作项
     Args:
@@ -606,6 +606,6 @@ def create_metadata_item(
     item_type = ItemType.META_DATA  # 设置为元数据类型
     desc = f"{title} (元数据)"
 
-    item = OpertionItem(OperationType.SAVE_METADATA, item_type=item_type, desc=desc)
+    item = OperationItem(OperationType.SAVE_METADATA, item_type=item_type, desc=desc)
     item._extra[MetadataExtraKeys.METADATA_OBJ] = meta_data
     return item

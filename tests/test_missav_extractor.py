@@ -8,7 +8,7 @@ from typing import List
 import os
 
 from pavone.plugins.extractors.missav_extractor import MissAVExtractor
-from pavone.models.operation import OpertionItem
+from pavone.models.operation import OperationItem
 from pavone.models.constants import Quality
 
 
@@ -292,7 +292,7 @@ class TestMissAVExtractor(unittest.TestCase):
         # 验证第一个下载项的属性
         if result:
             first_item = result[0]
-            self.assertIsInstance(first_item, OpertionItem)
+            self.assertIsInstance(first_item, OperationItem)
     
     @patch('pavone.plugins.extractors.missav_extractor.MissAVExtractor.fetch_webpage')
     def test_extract_no_uuid(self, mock_fetch):

@@ -1,7 +1,7 @@
 from typing import List, Optional, Tuple
 from ..config.settings import Config
 from ..plugins.manager import PluginManager, get_plugin_manager
-from ..models import OpertionItem, ItemType, OperationType
+from ..models import OperationItem, ItemType, OperationType
 from ..core import Operator, HTTPDownloader, M3U8Downloader, DummyOperator, MetadataSaver
 from .progress import create_console_progress_callback, create_silent_progress_callback
 from ..config.logging_config import get_logger
@@ -36,7 +36,7 @@ class ExecutionManager:
         if not self.plugin_manager.extractor_plugins:
             self.plugin_manager.load_plugins()
 
-    def _extract_items(self, url: str) -> List[OpertionItem]:
+    def _extract_items(self, url: str) -> List[OperationItem]:
         """
         从URL提取下载选项
 
@@ -62,7 +62,7 @@ class ExecutionManager:
         else:
             raise ValueError(f"提取器 {extractor.name} 缺少extract方法")
 
-    def _select_download_item(self, items: List[OpertionItem]) -> OpertionItem:
+    def _select_download_item(self, items: List[OperationItem]) -> OperationItem:
         """
         让用户选择下载选项
 
@@ -104,7 +104,7 @@ class ExecutionManager:
             except KeyboardInterrupt:
                 raise ValueError("用户取消了下载")
 
-    def _get_operator_for_item(self, item: OpertionItem) -> Operator:
+    def _get_operator_for_item(self, item: OperationItem) -> Operator:
         """
         跟据操作项获取合适的执行器
         Args:
@@ -130,7 +130,7 @@ class ExecutionManager:
             return DummyOperator(self.config)
 
     def _execute_download(
-        self, selected_item: OpertionItem, silent: bool = False, parent: Optional[OpertionItem] = None
+        self, selected_item: OperationItem, silent: bool = False, parent: Optional[OperationItem] = None
     ) -> bool:
         """
         执行下载或处理操作
@@ -179,7 +179,7 @@ class ExecutionManager:
                 success = False
         return success
 
-    def _set_progress_callback(self, silent: bool, selected_item: OpertionItem) -> None:
+    def _set_progress_callback(self, silent: bool, selected_item: OperationItem) -> None:
         """
         获取进度回调函数
 
@@ -194,7 +194,7 @@ class ExecutionManager:
             callback = create_console_progress_callback() if not silent else create_silent_progress_callback()
             selected_item.set_progress_callback(callback)
 
-    def _set_target_path_for_item(self, item: OpertionItem, parent_item: Optional[OpertionItem]) -> None:
+    def _set_target_path_for_item(self, item: OperationItem, parent_item: Optional[OperationItem]) -> None:
         """
         获取操作项的目标路径
         Args:
@@ -219,7 +219,7 @@ class ExecutionManager:
             item.set_target_path(target_path)
 
     def _get_target_path_for_item(
-        self, item: OpertionItem, target_folder: Optional[str] = None, custom_filename_prefix: Optional[str] = None
+        self, item: OperationItem, target_folder: Optional[str] = None, custom_filename_prefix: Optional[str] = None
     ) -> Tuple[str, str]:
         """
         获取操作项的目标路径

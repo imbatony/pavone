@@ -11,7 +11,7 @@ from typing import Optional, Dict, Tuple
 
 from pavone.config.settings import Config
 from .base import BaseDownloader
-from ...models import OpertionItem, ItemType, ProgressCallback, ProgressInfo
+from ...models import OperationItem, ItemType, ProgressCallback, ProgressInfo
 
 
 class HTTPDownloader(BaseDownloader):
@@ -106,7 +106,7 @@ class HTTPDownloader(BaseDownloader):
         min_size_for_multithreading = 1024 * 1024  # 1MB
         return supports_range and file_size > min_size_for_multithreading and self.download_config.max_concurrent_downloads > 1
 
-    def execute(self, item: OpertionItem) -> bool:
+    def execute(self, item: OperationItem) -> bool:
         """
         下载文件（支持多线程）
 

@@ -12,7 +12,7 @@ from urllib.parse import urljoin
 
 from pavone.config.settings import Config
 from .base import BaseDownloader
-from ...models import OpertionItem, ProgressCallback, ProgressInfo
+from ...models import OperationItem, ProgressCallback, ProgressInfo
 
 
 class M3U8Downloader(BaseDownloader):
@@ -91,7 +91,7 @@ class M3U8Downloader(BaseDownloader):
         except Exception as e:
             raise Exception(f"Failed to download segment {segment_index}: {e}")
 
-    def execute(self, item: OpertionItem) -> bool:
+    def execute(self, item: OperationItem) -> bool:
         """
         下载M3U8视频
 

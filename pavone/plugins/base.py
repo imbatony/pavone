@@ -3,17 +3,17 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Optional
 
 
 class BasePlugin(ABC):
     """插件基类"""
 
-    def __init__(self):
-        self.name = self.__class__.__name__
-        self.version = "1.0.0"
-        self.description = ""
-        self.author = ""
+    def __init__(self, name: Optional[str] = None, version: Optional[str] = "1.0.0", description: Optional[str] = "", author: Optional[str] = ""):
+        self.name = name or self.__class__.__name__
+        self.version = version
+        self.description = description
+        self.author = author
 
     @abstractmethod
     def initialize(self) -> bool:
