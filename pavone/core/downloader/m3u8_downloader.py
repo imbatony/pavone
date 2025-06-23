@@ -6,6 +6,10 @@ import os
 import time
 import requests
 import threading
+import subprocess
+import tempfile
+import uuid
+import shutil
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import urljoin
@@ -134,11 +138,15 @@ class M3U8Downloader(BaseDownloader):
             self.logger.info(f"Found {total_segments} video segments")
 
             # 获取输出文件路径
-            output_file = target_path
-
-            # 创建临时目录存储视频段
-            # FIXME：这里应该使用配置的临时目录而不是直接在当前目录下创建
-            temp_dir = output_file + "_segments"
+            output_file = target_path            # 创建临时目录存储视频段
+            # 使用配置的缓存目录或基于输出文件创建临时目录
+            cache_dir = self.download_config.cache_dir
+            if cache_dir:
+                # 创建唯一的临时目录路径以避免冲突
+                import uuid
+                temp_dir = os.path.join(cache_dir, f"m3u8_{uuid.uuid4().hex}")
+            else:
+                temp_dir = output_file + "_segments"
             os.makedirs(temp_dir, exist_ok=True)
 
             # 下载所有视频段
@@ -211,19 +219,80 @@ class M3U8Downloader(BaseDownloader):
             if failed_downloads:
                 self.logger.warning(f"Failed to download {len(failed_downloads)} segments")
                 # 可以选择重试失败的段
-                return False
-
-            # 合并所有视频段
-            # FIXME：这里应该使用配置的临时目录而不是直接在当前目录下创建: 处理合并逻辑,这里应该使用ffmpeg或类似工具进行合并
+                return False            # 合并所有视频段，优先使用ffmpeg
             self.logger.info("Merging video segments...")
-            with open(output_file, "wb") as output:
-                for i in range(total_segments):
-                    segment_file = downloaded_segments.get(i)
-                    if segment_file and os.path.exists(segment_file):
+            
+            def _merge_using_ffmpeg(segment_files, output_path):
+                """使用ffmpeg合并视频段"""
+                import subprocess
+                import tempfile
+                
+                # 创建临时文件列表
+                with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+                    for segment in segment_files:
+                        f.write(f"file '{os.path.abspath(segment)}'\n")
+                    filelist_path = f.name
+                
+                try:
+                    # 使用ffmpeg合并视频段
+                    cmd = [
+                        'ffmpeg', 
+                        '-f', 'concat', 
+                        '-safe', '0',
+                        '-i', filelist_path,
+                        '-c', 'copy',
+                        '-y',  # 覆盖输出文件
+                        output_path
+                    ]
+                    
+                    self.logger.info(f"Running ffmpeg command: {' '.join(cmd)}")
+                    process = subprocess.Popen(
+                        cmd, 
+                        stdout=subprocess.PIPE, 
+                        stderr=subprocess.PIPE
+                    )
+                    stdout, stderr = process.communicate()
+                    
+                    if process.returncode != 0:
+                        self.logger.warning(f"ffmpeg failed: {stderr.decode('utf-8', errors='replace')}")
+                        return False
+                    return True
+                except Exception as e:
+                    self.logger.warning(f"ffmpeg error: {e}")
+                    return False
+                finally:
+                    # 删除临时文件
+                    try:
+                        os.unlink(filelist_path)
+                    except:
+                        pass
+            
+            # 准备排序后的段文件列表
+            segment_files = []
+            for i in range(total_segments):
+                segment_file = downloaded_segments.get(i)
+                if segment_file and os.path.exists(segment_file):
+                    segment_files.append(segment_file)
+                else:
+                    self.logger.warning(f"Missing segment {i}")
+                    
+            # 尝试使用ffmpeg合并
+            ffmpeg_success = False
+            try:
+                # 检查是否可以使用ffmpeg
+                import shutil
+                if shutil.which('ffmpeg'):
+                    ffmpeg_success = _merge_using_ffmpeg(segment_files, output_file)
+            except Exception as e:
+                self.logger.warning(f"Error checking for ffmpeg: {e}")
+            
+            # 如果ffmpeg失败或不可用，则使用传统方法合并
+            if not ffmpeg_success:
+                self.logger.info("Falling back to direct file merging...")
+                with open(output_file, "wb") as output:
+                    for segment_file in segment_files:
                         with open(segment_file, "rb") as f:
                             output.write(f.read())
-                    else:
-                        self.logger.warning(f"Missing segment {i}")
             # 清理临时文件
             try:
                 for segment_file in downloaded_segments.values():
