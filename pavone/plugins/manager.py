@@ -2,23 +2,28 @@
 插件管理器
 """
 
+from __future__ import annotations
 import importlib
 import inspect
 import pkgutil
-from typing import Dict, List, Optional, Type
+from types import ModuleType
+from typing import Any, Dict, List, Optional, Type
 from pathlib import Path
 from .base import BasePlugin
 from ..config.settings import config_manager
-
+from .extractors import ExtractorPlugin
+from .metadata import MetadataPlugin
+from .search import SearchPlugin
 
 class PluginManager:
     """插件管理器"""
 
-    def __init__(self):
+    def __init__(self) -> None:
+        """初始化插件管理器"""
         self.plugins: Dict[str, BasePlugin] = {}
-        self.extractor_plugins: List[BasePlugin] = []
-        self.metadata_plugins: List[BasePlugin] = []
-        self.search_plugins: List[BasePlugin] = []
+        self.extractor_plugins: List[ExtractorPlugin] = []
+        self.metadata_plugins: List[MetadataPlugin] = []
+        self.search_plugins: List[SearchPlugin] = []
         self.config = config_manager.get_config().plugin
         self.logger = config_manager.get_logger(__name__)
 
@@ -50,13 +55,13 @@ class PluginManager:
             from .extractors import MP4DirectExtractor, M3U8DirectExtractor, MissAVExtractor
 
             # 定义内置提取器映射
-            builtin_extractors = {
+            builtin_extractors: dict[str, type[ExtractorPlugin]] = {
                 "MP4DirectExtractor": MP4DirectExtractor,
                 "M3U8DirectExtractor": M3U8DirectExtractor,
                 "MissAVExtractor": MissAVExtractor,
             }
 
-            loaded_extractors = []
+            loaded_extractors: list[str] = []
 
             for name, extractor_class in builtin_extractors.items():
                 # 检查插件是否被禁用
@@ -84,7 +89,7 @@ class PluginManager:
         except ImportError as e:
             self.logger.error(f"导入内置提取器失败: {e}")
 
-    def _load_plugins_from_directory(self, plugin_dir: str, skip_dirs: Optional[set] = None):
+    def _load_plugins_from_directory(self, plugin_dir: str, skip_dirs: Optional[set[str]] = None):
         """从指定目录加载插件"""
         if skip_dirs is None:
             skip_dirs = set()
@@ -107,10 +112,10 @@ class PluginManager:
             package = importlib.import_module(module_path)
 
             # 遍历包中的模块
-            for finder, name, ispkg in pkgutil.iter_modules(package.__path__, package.__name__ + "."):
+            for _, name, ispkg in pkgutil.iter_modules(package.__path__, package.__name__ + "."):
                 if not ispkg:
                     try:
-                        module = importlib.import_module(name)
+                        module: ModuleType = importlib.import_module(name)
                         self._discover_plugins_in_module(module)
                     except Exception as e:
                         self.logger.error(f"加载模块 {name} 失败: {e}")
@@ -118,7 +123,7 @@ class PluginManager:
         except Exception as e:
             self.logger.error(f"加载包 {package_path} 失败: {e}")
 
-    def _discover_plugins_in_module(self, module):
+    def _discover_plugins_in_module(self, module: ModuleType):
         """在模块中发现并加载插件类"""
         for name, obj in inspect.getmembers(module, inspect.isclass):
             # 检查是否是插件类
@@ -146,12 +151,7 @@ class PluginManager:
                 except Exception as e:
                     self.logger.error(f"实例化插件 {name} 失败: {e}")
 
-    def _is_plugin_class(self, cls: Type) -> bool:
-        """检查类是否是有效的插件类"""
-        from .extractors import ExtractorPlugin
-        from .metadata import MetadataPlugin
-        from .search import SearchPlugin
-
+    def _is_plugin_class(self, cls: Type[Any]) -> bool:
         return issubclass(cls, (ExtractorPlugin, MetadataPlugin, SearchPlugin)) and cls not in (
             ExtractorPlugin,
             MetadataPlugin,
@@ -195,11 +195,6 @@ class PluginManager:
             plugin = self.plugins[plugin_name]
             plugin.cleanup()
 
-            # 从各类型列表中移除
-            from .extractors import ExtractorPlugin
-            from .metadata import MetadataPlugin
-            from .search import SearchPlugin
-
             if isinstance(plugin, ExtractorPlugin):
                 self.extractor_plugins.remove(plugin)
             elif isinstance(plugin, MetadataPlugin):
@@ -209,7 +204,7 @@ class PluginManager:
 
             del self.plugins[plugin_name]
 
-    def get_extractor_for_url(self, url: str) -> Optional[BasePlugin]:
+    def get_extractor_for_url(self, url: str) -> Optional[ExtractorPlugin]:
         """获取适合的提取器插件（按优先级排序）"""
         for plugin in self.extractor_plugins:
             # 运行时类型检查
@@ -218,9 +213,9 @@ class PluginManager:
                     return plugin
         return None
 
-    def get_all_extractors_for_url(self, url: str) -> List[BasePlugin]:
+    def get_all_extractors_for_url(self, url: str) -> List[ExtractorPlugin]:
         """获取所有能处理该URL的提取器插件（按优先级排序）"""
-        matching_extractors = []
+        matching_extractors:List[ExtractorPlugin] = []
         for plugin in self.extractor_plugins:
             # 运行时类型检查
             if hasattr(plugin, "can_handle") and callable(getattr(plugin, "can_handle")):
@@ -228,7 +223,7 @@ class PluginManager:
                     matching_extractors.append(plugin)
         return matching_extractors
 
-    def get_metadata_extractor(self, identifier: str) -> Optional[BasePlugin]:
+    def get_metadata_extractor(self, identifier: str) -> Optional[MetadataPlugin]:
         """获取适合的元数据提取插件"""
         for plugin in self.metadata_plugins:
             # 运行时类型检查
@@ -237,7 +232,7 @@ class PluginManager:
                     return plugin
         return None
 
-    def get_all_search_plugins(self) -> List[BasePlugin]:
+    def get_all_search_plugins(self) -> List[SearchPlugin]:
         """获取所有搜索插件"""
         return self.search_plugins.copy()
 
@@ -296,11 +291,11 @@ class PluginManager:
 
             self.logger.info(f"已更新插件 {plugin_name} 的优先级为 {priority}")
 
-    def get_plugin_info(self) -> Dict:
+    def get_plugin_info(self) -> Dict[str, Any]:
         """获取插件信息统计"""
         disabled_plugins = self.config.disabled_plugins
 
-        info = {
+        info:Dict[str, Any] = {
             "total_plugins": len(self.plugins),
             "extractor_plugins": len(self.extractor_plugins),
             "metadata_plugins": len(self.metadata_plugins),
@@ -319,7 +314,7 @@ class PluginManager:
 
         return info
 
-    def get_plugins_by_type(self, plugin_type: str) -> List[BasePlugin]:
+    def get_plugins_by_type(self, plugin_type: str) -> List[ExtractorPlugin] | List[MetadataPlugin] | List[SearchPlugin]:
         """根据类型获取插件列表"""
         if plugin_type.lower() == "extractor":
             return self.extractor_plugins.copy()

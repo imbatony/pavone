@@ -1,6 +1,6 @@
 from .base import BaseMetadataOperator
 from ...models import OperationItem, ItemType
-
+from ...config.settings import Config
 
 class MetadataSaver(BaseMetadataOperator):
     """
@@ -8,7 +8,7 @@ class MetadataSaver(BaseMetadataOperator):
     负责将元数据保存到指定的存储位置
     """
 
-    def __init__(self, config):
+    def __init__(self, config: Config):
         """
         初始化元数据保存器
         Args:

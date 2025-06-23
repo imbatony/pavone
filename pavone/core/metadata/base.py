@@ -1,5 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Optional
+
+from ...models.operation import OperationItem
+from ...config.settings import Config
 from ..base import Operator
 
 class BaseMetadataOperator(Operator):
@@ -9,7 +12,7 @@ class BaseMetadataOperator(Operator):
     提供统一的接口和配置管理
     """
 
-    def __init__(self, config, operator_name: Optional[str] = None):
+    def __init__(self, config: Config, operator_name: Optional[str] = None):
         """
         初始化元数据操作类
         Args:
@@ -20,7 +23,7 @@ class BaseMetadataOperator(Operator):
         super().__init__(config, name)
 
     @abstractmethod
-    def execute(self, item):
+    def execute(self, item: OperationItem) -> bool:
         """
         执行元数据操作
         该方法会被子类重写以实现具体的操作逻辑
