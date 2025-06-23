@@ -6,10 +6,6 @@ import os
 import time
 import requests
 import threading
-import subprocess
-import tempfile
-import uuid
-import shutil
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import urljoin
