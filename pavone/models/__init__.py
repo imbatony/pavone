@@ -3,6 +3,7 @@ from .operation import create_backdrop_item, create_cover_item, create_thumbnail
 from .constants import ItemType, ItemSubType, CommonExtraKeys, Quality, OperationType
 from .metadata import BaseMetadata, MovieMetadata, TVShowMetadata, ClipMetadata, DocumentaryMetadata
 from .progress_info import ProgressCallback, ProgressInfo
+from .search_result import SearchResult
 
 __all__ = [
     "OperationItem",
@@ -26,4 +27,5 @@ __all__ = [
     "Quality",
     "ProgressCallback",
     "ProgressInfo",
+    "SearchResult"
 ]
