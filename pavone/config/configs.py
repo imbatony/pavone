@@ -47,7 +47,7 @@ class SearchConfig:
 
     def __post_init__(self):
         if self.enabled_sites is None:
-            self.enabled_sites = ["javbus", "javlibrary", "pornhub"]
+            self.enabled_sites = ["All"]  # 默认启用所有站点
 
 
 @dataclass

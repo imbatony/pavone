@@ -52,7 +52,7 @@ class MemojavExtractor(ExtractorPlugin):
         try:
             # 获取内嵌网页内容
             url = url.replace("video", "embed")
-            response = self.fetch_webpage(url)
+            response = self.fetch(url)
             code = self.get_vid_from_url(url) 
             html = response.text
             if not html:
@@ -60,7 +60,7 @@ class MemojavExtractor(ExtractorPlugin):
                 return []
             domain = urlparse(url).netloc.lower()
             get_video_url = f"https://{domain}/hls/get_video_info.php?id={code}&sig=NTg1NTczNg&sts=7264825"
-            response = self.fetch_webpage(get_video_url)
+            response = self.fetch(get_video_url)
             video_info_content = response.text
             if not video_info_content:
                 self.logger.error("视频信息内容为空")

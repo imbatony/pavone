@@ -13,8 +13,10 @@ from .base import BasePlugin
 from ..config.settings import config_manager
 from .extractors import ExtractorPlugin
 from .metadata import MetadataPlugin
-from .search import SearchPlugin
+from .search import SearchPlugin, MissavSearch
 from .extractors import MP4DirectExtractor, M3U8DirectExtractor, MissAVExtractor, MemojavExtractor, JTableExtractor
+from ..models import SearchResult
+
 
 class PluginManager:
     """插件管理器"""
@@ -38,8 +40,8 @@ class PluginManager:
 
         self.logger.info(f"开始加载插件，目录: {plugin_dir}")
 
-        # 加载内置提取器插件
-        self._load_builtin_extractors()
+        # 加载内置插件
+        self._load_builtin_plugins()
 
         # 加载外部插件目录中的插件（跳过 extractors 目录避免重复加载）
         if plugin_dir and Path(plugin_dir).exists():
@@ -50,45 +52,47 @@ class PluginManager:
         else:
             self.logger.warning(f"插件目录不存在: {plugin_dir}")
 
-    def _load_builtin_extractors(self):
-        """加载内置提取器插件"""
+    def _load_builtin_plugins(self):
+        """加载内置插件"""
         try:
-            # 定义内置提取器映射
-            builtin_extractors: dict[str, type[ExtractorPlugin]] = {
+            # 定义内置插件映射
+            builtin_plugins: dict[str, type[BasePlugin]] = {
                 "MP4DirectExtractor": MP4DirectExtractor,
                 "M3U8DirectExtractor": M3U8DirectExtractor,
                 "MissAVExtractor": MissAVExtractor,
                 "MemojavExtractor": MemojavExtractor,
                 "JTableExtractor": JTableExtractor,
+                "MissavSearch": MissavSearch,
             }
 
-            loaded_extractors: list[str] = []
+            loaded_plugins: list[str] = []
 
-            for name, extractor_class in builtin_extractors.items():
+            for name, plugin_class in builtin_plugins.items():
                 # 检查插件是否被禁用
                 if config_manager.is_plugin_disabled(name):
-                    self.logger.info(f"跳过禁用的内置提取器: {name}")
+                    self.logger.info(f"跳过禁用的内置插件: {name}")
                     continue
 
                 try:
-                    extractor = extractor_class()
+                    plugin = plugin_class()
 
                     # 应用配置中的优先级设置
-                    priority = config_manager.get_plugin_priority(name, extractor.priority)
-                    extractor.set_priority(priority)
+                    plugin_priority = plugin.priority
+                    plugin_priority = config_manager.get_plugin_priority(name, plugin_priority)
+                    plugin.set_priority(plugin_priority)
 
-                    self.register_plugin(extractor)
-                    loaded_extractors.append(extractor.name)
-                    self.logger.info(f"已加载内置提取器: {extractor.name} (优先级: {priority})")
+                    self.register_plugin(plugin)
+                    loaded_plugins.append(plugin.name)
+                    self.logger.info(f"已加载内置插件: {plugin.name} (优先级: {plugin_priority})")
 
                 except Exception as e:
-                    self.logger.error(f"加载内置提取器 {name} 失败: {e}")
+                    self.logger.error(f"加载内置插件 {name} 失败: {e}")
 
-            if loaded_extractors:
-                self.logger.info(f"成功加载 {len(loaded_extractors)} 个内置提取器")
+            if loaded_plugins:
+                self.logger.info(f"成功加载 {len(loaded_plugins)} 个内置插件: {', '.join(loaded_plugins)}")
 
         except ImportError as e:
-            self.logger.error(f"导入内置提取器失败: {e}")
+            self.logger.error(f"导入内置插件失败: {e}")
 
     def _load_plugins_from_directory(self, plugin_dir: str, skip_dirs: Optional[set[str]] = None):
         """从指定目录加载插件"""
@@ -169,12 +173,7 @@ class PluginManager:
 
         if plugin.initialize():
             self.plugins[plugin.name] = plugin
-
             # 检查插件类型并分类
-            from .extractors import ExtractorPlugin
-            from .metadata import MetadataPlugin
-            from .search import SearchPlugin
-
             if isinstance(plugin, ExtractorPlugin):
                 self.extractor_plugins.append(plugin)
                 # 按优先级排序（数值越小优先级越高）
@@ -216,7 +215,7 @@ class PluginManager:
 
     def get_all_extractors_for_url(self, url: str) -> List[ExtractorPlugin]:
         """获取所有能处理该URL的提取器插件（按优先级排序）"""
-        matching_extractors:List[ExtractorPlugin] = []
+        matching_extractors: List[ExtractorPlugin] = []
         for plugin in self.extractor_plugins:
             # 运行时类型检查
             if hasattr(plugin, "can_handle") and callable(getattr(plugin, "can_handle")):
@@ -296,7 +295,7 @@ class PluginManager:
         """获取插件信息统计"""
         disabled_plugins = self.config.disabled_plugins
 
-        info:Dict[str, Any] = {
+        info: Dict[str, Any] = {
             "total_plugins": len(self.plugins),
             "extractor_plugins": len(self.extractor_plugins),
             "metadata_plugins": len(self.metadata_plugins),
@@ -325,6 +324,26 @@ class PluginManager:
             return self.search_plugins.copy()
         else:
             return []
+
+    def search(self, keyword: str, limit: int = 20, enable_sites: Optional[List[str]] = None) -> List[SearchResult]:
+        """在所有搜索插件中执行搜索"""
+        if not self.search_plugins:
+            self.logger.warning("没有可用的搜索插件")
+            return []
+
+        results: List[SearchResult] = []
+        is_all_enabled = enable_sites and enable_sites.__len__() == 1 and enable_sites[0] == "All"
+        if enable_sites is None:
+            enable_sites = [plugin.get_site_name() for plugin in self.search_plugins]
+        for plugin in self.search_plugins:
+            if not is_all_enabled and plugin.get_site_name() not in enable_sites:
+                continue
+            try:
+                plugin_results = plugin.search(keyword, limit)
+                results.extend(plugin_results)
+            except Exception as e:
+                self.logger.error(f"搜索插件 {plugin.name} 执行失败: {e}")
+        return results
 
 
 # 全局插件管理器实例

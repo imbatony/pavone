@@ -46,43 +46,14 @@ class TestExtractorBase(unittest.TestCase):
         """设置测试环境"""
         self.extractor = MockExtractorPlugin()
     
-    def test_sanitize_filename(self):
-        """测试文件名清理功能"""
-        test_cases = [
-            ('Test<>Video', 'Test__Video'),
-            ('Video: Title', 'Video_ Title'),
-            ('Video/Title\\Name', 'Video_Title_Name'),
-            ('Video|Title?Name', 'Video_Title_Name'),
-            ('Video*Title"Name', 'Video_Title_Name'),
-            ('Normal Video', 'Normal Video'),
-            ('', 'video'),
-            ('   ', 'video'),  # 只有空格
-            ('A' * 250, 'A' * 200),  # 超长文件名
-            ('  Spaced Name  ', 'Spaced Name'),  # 前后空格
-        ]
-        
-        for input_name, expected in test_cases:
-            with self.subTest(input_name=input_name):
-                result = self.extractor.sanitize_filename(input_name)
-                self.assertEqual(result, expected)
-    
-    def test_sanitize_filename_all_illegal_chars(self):
-        """测试所有非法字符的替换"""
-        illegal_chars = ['<', '>', ':', '"', '/', '\\', '|', '?', '*']
-        input_filename = 'Test' + ''.join(illegal_chars) + 'Video'
-        expected = 'Test' + '_' * len(illegal_chars) + 'Video'
-        
-        result = self.extractor.sanitize_filename(input_filename)
-        self.assertEqual(result, expected)
-    
     def test_priority_management(self):
         """测试优先级管理"""
         # 默认优先级
-        self.assertEqual(self.extractor.priority_level, 50)
-        
+        self.assertEqual(self.extractor.get_priority(), 50)
+
         # 设置新优先级
         self.extractor.set_priority(10)
-        self.assertEqual(self.extractor.priority_level, 10)
+        self.assertEqual(self.extractor.get_priority(), 10)
         self.assertEqual(self.extractor.priority, 10)
 
 

@@ -49,7 +49,7 @@ class JTableExtractor(ExtractorPlugin):
             return []
         try:
             # 获取网页内容
-            response = self.fetch_webpage(url)
+            response = self.fetch(url)
             if response is None:
                 return []
 

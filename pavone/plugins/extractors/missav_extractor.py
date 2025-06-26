@@ -60,7 +60,7 @@ class MissAVExtractor(ExtractorPlugin):
         """从 MissAV 页面提取视频下载选项"""
         try:
             # 使用基类的统一网页获取方法，自动处理代理和SSL
-            response = self.fetch_webpage(url, timeout=30, verify_ssl=False)
+            response = self.fetch(url, timeout=30, verify_ssl=False)
             html_content = response.text
             if not html_content:
                 self.logger.error(f"获取页面内容失败: {url}")
@@ -173,7 +173,7 @@ class MissAVExtractor(ExtractorPlugin):
         """
         try:
             # 获取大师链接内容
-            response = self.fetch_webpage(master_url, timeout=30, verify_ssl=False)
+            response = self.fetch(master_url, timeout=30, verify_ssl=False)
             if response.status_code != 200:
                 self.logger.info(f"获取大师链接失败: {master_url} - 状态码: {response.status_code}")
                 return {}
