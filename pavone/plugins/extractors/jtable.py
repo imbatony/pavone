@@ -1,10 +1,10 @@
 import re
-from typing import List, Dict, Any, Optional, Tuple
+from typing import List, Optional, Tuple
 from urllib.parse import urlparse
 from ...models import OperationItem, Quality, create_stream_item, create_cover_item, create_metadata_item
 from ...models import MovieMetadata
 from .base import ExtractorPlugin
-from ...utils.stringutils import StringUtils
+from ...utils import StringUtils, CodeExtractUtils
 from datetime import datetime
 
 # 定义插件名称和版本
@@ -50,11 +50,7 @@ class JTableExtractor(ExtractorPlugin):
         try:
             # 获取网页内容
             response = self.fetch(url)
-            if response is None:
-                return []
-
             html = response.text
-
             # 1. 提取m3u8
             pattern = r"var hlsUrl = '(https?://[^']+)'"
             match = re.search(pattern, html)
@@ -131,8 +127,10 @@ class JTableExtractor(ExtractorPlugin):
         # 分离编号和标题
         title_parts = title.split(" ", 1)
         if len(title_parts) == 2:
-            code = title_parts[0]
+            code = CodeExtractUtils.extract_code_from_text(title_parts[0])
             title = title_parts[1]
+            if not code:
+                code = StringUtils.sha_256_hash(title_parts[0])
         else:
             code = StringUtils.sha_256_hash(title)
         return (code, title)

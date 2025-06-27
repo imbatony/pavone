@@ -9,6 +9,7 @@ from typing import List, Optional
 from urllib.parse import unquote, urlparse
 from ...models import OperationItem, Quality, create_stream_item, create_cover_item, create_metadata_item
 from .base import ExtractorPlugin
+from ...utils import CodeExtractUtils
 
 # 定义插件名称和版本
 PLUGIN_NAME = "MemojavExtractor"
@@ -53,13 +54,14 @@ class MemojavExtractor(ExtractorPlugin):
             # 获取内嵌网页内容
             url = url.replace("video", "embed")
             response = self.fetch(url)
-            code = self.get_vid_from_url(url) 
+            vid = self.get_vid_from_url(url)
+            code = CodeExtractUtils.extract_code_from_text(vid) 
             html = response.text
             if not html:
                 self.logger.error("无法获取网页内容")
                 return []
             domain = urlparse(url).netloc.lower()
-            get_video_url = f"https://{domain}/hls/get_video_info.php?id={code}&sig=NTg1NTczNg&sts=7264825"
+            get_video_url = f"https://{domain}/hls/get_video_info.php?id={vid}&sig=NTg1NTczNg&sts=7264825"
             response = self.fetch(get_video_url)
             video_info_content = response.text
             if not video_info_content:
