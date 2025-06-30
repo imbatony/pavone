@@ -1,10 +1,7 @@
 ﻿from abc import abstractmethod
-from typing import Dict, List, Optional
-
-import requests
+from typing import List, Optional
 
 from ...models import OperationItem
-from ...utils.http_utils import HttpUtils
 from ..base import BasePlugin
 
 

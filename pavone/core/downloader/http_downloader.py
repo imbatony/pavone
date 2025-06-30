@@ -126,7 +126,9 @@ class HTTPDownloader(BaseDownloader):
 
         progress_callback: Optional[ProgressCallback] = item.get_progress_callback()
         if not progress_callback:
-            progress_callback = lambda x: None
+            def dummy_progress_callback(x):
+                pass
+            progress_callback = dummy_progress_callback
 
         url = item.get_url()
         if not url:

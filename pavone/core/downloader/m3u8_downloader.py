@@ -112,7 +112,10 @@ class M3U8Downloader(BaseDownloader):
         progress_callback: Optional[ProgressCallback] = item.get_progress_callback()
         if not progress_callback:
             self.logger.warning("未设置进度回调函数，无法跟踪下载进度")
-            progress_callback = lambda x: None
+
+            def dummy_progress_callback(x):
+                pass
+            progress_callback = dummy_progress_callback
 
         url = item.get_url()
         if not url:
@@ -261,7 +264,7 @@ class M3U8Downloader(BaseDownloader):
                     # 删除临时文件
                     try:
                         os.unlink(filelist_path)
-                    except:
+                    except OSError:
                         pass
 
             # 准备排序后的段文件列表

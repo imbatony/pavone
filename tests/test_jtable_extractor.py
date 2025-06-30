@@ -129,7 +129,6 @@ class TestJTableExtractor(unittest.TestCase):
 
     def test_extract_release_date_no_match(self):
         """测试发布日期提取失败的情况"""
-        html_without_date = "<html><body>No release date here</body></html>"
         release_date = self.extractor._extract_release_date(self.test_html_content.replace("発売された", "removed"))
         # 应该返回当前日期
         self.assertIsInstance(release_date, datetime)

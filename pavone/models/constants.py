@@ -71,11 +71,11 @@ class VideoCoreExtraKeys:
     """
 
     # 主要信息，将影响到命名和分类
-    ## 视频的必要信息
+    # 视频的必要信息
     TITLE = "title"  # 视频标题, 不含编号
     YEAR = "year"  # 年份, 如 2023
     SITE = "site"  # 来源网站, 如 YouTube、Bilibili 等
-    ## 非必要信息, 但有助于分类和搜索
+    # 非必要信息, 但有助于分类和搜索
     CODE = "code"  # 资源代码, 如 AV 编号等
     STUDIO = "studio"  # 制作公司, 如 S1、SOD 等
     ACTORS = "actors"  # 演员列表, 包含主要演员的名称

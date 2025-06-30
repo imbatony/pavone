@@ -8,7 +8,7 @@ import re
 from typing import List, Optional
 from urllib.parse import unquote, urlparse
 
-from ...models import OperationItem, Quality, create_cover_item, create_metadata_item, create_stream_item
+from ...models import OperationItem, Quality, create_cover_item, create_stream_item
 from ...utils import CodeExtractUtils
 from .base import ExtractorPlugin
 
