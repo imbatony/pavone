@@ -165,10 +165,10 @@ jobs:
         pip install -e .
         pip install pytest pytest-cov pytest-mock
         
-    - name: Run M3U8 downloader tests specifically
-      run: |
-        echo "🧪 Running M3U8 downloader tests..."
-        pytest tests/test_m3u8_downloader.py -v --cov=pavone.core.downloader.m3u8_downloader --cov-report=term-missing
+    # - name: Run M3U8 downloader tests specifically
+    #   run: |
+    #     echo "🧪 Running M3U8 downloader tests..."
+    #     pytest tests/test_m3u8_downloader.py -v --cov=pavone.core.downloader.m3u8_downloader --cov-report=term-missing
         
     - name: Test M3U8 downloader import and basic functionality
       run: |

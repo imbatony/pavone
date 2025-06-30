@@ -115,6 +115,7 @@ class M3U8Downloader(BaseDownloader):
 
             def dummy_progress_callback(x):
                 pass
+
             progress_callback = dummy_progress_callback
 
         url = item.get_url()
