@@ -1,6 +1,7 @@
-from .base import BaseMetadataOperator
-from ...models import OperationItem, ItemType
 from ...config.settings import Config
+from ...models import ItemType, OperationItem
+from .base import BaseMetadataOperator
+
 
 class MetadataSaver(BaseMetadataOperator):
     """

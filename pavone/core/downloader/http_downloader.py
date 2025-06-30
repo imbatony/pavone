@@ -3,15 +3,17 @@ HTTP下载器实现
 """
 
 import os
-import requests
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Optional, Dict, Tuple
+from typing import Dict, Optional, Tuple
+
+import requests
 
 from pavone.config.settings import Config
+
+from ...models import ItemType, OperationItem, ProgressCallback, ProgressInfo
 from .base import BaseDownloader
-from ...models import OperationItem, ItemType, ProgressCallback, ProgressInfo
 
 
 class HTTPDownloader(BaseDownloader):
@@ -124,7 +126,11 @@ class HTTPDownloader(BaseDownloader):
 
         progress_callback: Optional[ProgressCallback] = item.get_progress_callback()
         if not progress_callback:
-            progress_callback = lambda x: None
+
+            def dummy_progress_callback(x):
+                pass
+
+            progress_callback = dummy_progress_callback
 
         url = item.get_url()
         if not url:

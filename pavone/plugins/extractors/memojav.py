@@ -7,7 +7,9 @@ Memojav视频提取器插件
 import re
 from typing import List, Optional
 from urllib.parse import unquote, urlparse
-from ...models import OperationItem, Quality, create_stream_item, create_cover_item, create_metadata_item
+
+from ...models import OperationItem, Quality, create_cover_item, create_stream_item
+from ...utils import CodeExtractUtils
 from .base import ExtractorPlugin
 
 # 定义插件名称和版本
@@ -24,15 +26,23 @@ SUPPORTED_DOMAINS = ["memojav.com", "www.memojav.com"]
 
 SITE_NAME = "Memojav"
 
+
 class MemojavExtractor(ExtractorPlugin):
     """
     提取 memojav.com 的视频下载链接
     """
+
     def __init__(self):
-        super().__init__(name=PLUGIN_NAME, version=PLUGIN_VERSION, description=PLUGIN_DESCRIPTION, author=PLUGIN_AUTHOR, priority=PLUGIN_PRIORITY)
+        super().__init__(
+            name=PLUGIN_NAME,
+            version=PLUGIN_VERSION,
+            description=PLUGIN_DESCRIPTION,
+            author=PLUGIN_AUTHOR,
+            priority=PLUGIN_PRIORITY,
+        )
         self.supported_domains = SUPPORTED_DOMAINS
         self.site_name = SITE_NAME
-        
+
     def can_handle(self, url: str) -> bool:
         """检查是否能处理给定的URL"""
         try:
@@ -52,15 +62,16 @@ class MemojavExtractor(ExtractorPlugin):
         try:
             # 获取内嵌网页内容
             url = url.replace("video", "embed")
-            response = self.fetch_webpage(url)
-            code = self.get_vid_from_url(url) 
+            response = self.fetch(url)
+            vid = self.get_vid_from_url(url)
+            code = CodeExtractUtils.extract_code_from_text(vid)
             html = response.text
             if not html:
                 self.logger.error("无法获取网页内容")
                 return []
             domain = urlparse(url).netloc.lower()
-            get_video_url = f"https://{domain}/hls/get_video_info.php?id={code}&sig=NTg1NTczNg&sts=7264825"
-            response = self.fetch_webpage(get_video_url)
+            get_video_url = f"https://{domain}/hls/get_video_info.php?id={vid}&sig=NTg1NTczNg&sts=7264825"
+            response = self.fetch(get_video_url)
             video_info_content = response.text
             if not video_info_content:
                 self.logger.error("视频信息内容为空")
@@ -83,16 +94,9 @@ class MemojavExtractor(ExtractorPlugin):
 
             # 4. 构建操作项
             item = create_stream_item(
-                code=code,
-                quality= Quality.UNKNOWN,  # Memojav 不提供质量信息
-                title=title,
-                url=m3u8_url,
-                site=SITE_NAME
+                code=code, quality=Quality.UNKNOWN, title=title, url=m3u8_url, site=SITE_NAME  # Memojav 不提供质量信息
             )
-            cover_item = create_cover_item(
-                url=cover_url,
-                title=title
-            )
+            cover_item = create_cover_item(url=cover_url, title=title)
             item.append_child(cover_item)
             return [item]
         except Exception as e:
@@ -123,14 +127,14 @@ class MemojavExtractor(ExtractorPlugin):
         match = re.search(pattern, html)
         if match:
             title = match.group(1)
-            title = title.split("|", maxsplit= 1)[1].strip()
+            title = title.split("|", maxsplit=1)[1].strip()
             return title
         raise ValueError("未能提取视频代码和标题")
 
     def get_vid_from_url(self, url: str) -> str:
         """从URL中提取视频代码"""
         parsed_url = urlparse(url)
-        path_parts = parsed_url.path.split('/')
+        path_parts = parsed_url.path.split("/")
         if len(path_parts) > 1:
             return path_parts[-1]
         raise ValueError("无法从URL中提取视频代码")

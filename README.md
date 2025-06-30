@@ -136,9 +136,6 @@ pavone search "关键词" --site javbus
 # 整理指定目录
 pavone organize "/path/to/videos"
 
-# 按制作商整理
-pavone organize "/path/to/videos" --by studio
-
 # 查找重复文件
 pavone organize "/path/to/videos" --find-duplicates
 ```

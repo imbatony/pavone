@@ -2,12 +2,14 @@
 Download commands - 下载相关命令
 """
 
-import click
 from typing import Optional
+
+import click
+
 from ...config.settings import get_config
-from .utils import echo_success, echo_error, echo_info, read_urls_from_file, read_urls_from_input
-from ...plugins.manager import get_plugin_manager
 from ...manager.execution import create_exe_manager
+from ...plugins.manager import get_plugin_manager
+from .utils import echo_error, echo_info, echo_success, read_urls_from_file, read_urls_from_input
 
 
 @click.command()
@@ -144,8 +146,6 @@ def batch_download(
         # 获取配置
         config = get_config()
         download_config = config.download
-        organize_config = config.organize
-        proxy_config = config.proxy
 
         # 应用命令行选项覆盖配置
         if output_dir:
@@ -199,7 +199,7 @@ def batch_download(
         successful = sum(1 for _, success in results if success)
         failed = len(results) - successful
 
-        echo_info(f"批量下载完成:")
+        echo_info("批量下载完成:")
         echo_success(f"成功: {successful}")
         if failed > 0:
             echo_error(f"失败: {failed}")

@@ -7,8 +7,8 @@ PAVOne CLI主入口 - 向后兼容导入
 from .cli import main
 
 # 保持向后兼容
-__all__ = ['main']
+__all__ = ["main"]
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

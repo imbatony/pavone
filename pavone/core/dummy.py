@@ -1,7 +1,7 @@
-from .base import Operator
-
 from ..config.settings import Config
 from ..models.operation import OperationItem
+from .base import Operator
+
 
 class DummyOperator(Operator):
     """

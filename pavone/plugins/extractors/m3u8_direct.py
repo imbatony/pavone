@@ -4,12 +4,13 @@ M3U8 直接链接提取器
 """
 
 from datetime import datetime
+from pathlib import Path
 from typing import List
 from urllib.parse import urlparse
-from pathlib import Path
-from .base import ExtractorPlugin
-from ...models import OperationItem, Quality, create_stream_item
+
 from ...config.settings import get_download_config
+from ...models import OperationItem, Quality, create_stream_item
+from .base import ExtractorPlugin
 
 # 定义插件名称和版本
 PLUGIN_NAME = "M3U8DirectExtractor"

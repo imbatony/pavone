@@ -3,7 +3,8 @@ Init command - 初始化PAVOne配置
 """
 
 import click
-from ...config.settings import get_config_manager, ConfigManager
+
+from ...config.settings import ConfigManager, get_config_manager
 from .utils import confirm_action, prompt_choice, prompt_int_range
 
 

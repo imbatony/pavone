@@ -1,9 +1,10 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import Optional
 
-from ...models.operation import OperationItem
 from ...config.settings import Config
+from ...models.operation import OperationItem
 from ..base import Operator
+
 
 class BaseMetadataOperator(Operator):
     """
@@ -27,10 +28,10 @@ class BaseMetadataOperator(Operator):
         """
         执行元数据操作
         该方法会被子类重写以实现具体的操作逻辑
-        
+
         Args:
             item: 操作项对象,包含URL和其他操作信息
-            
+
         Returns:
             bool: 操作是否成功
         """

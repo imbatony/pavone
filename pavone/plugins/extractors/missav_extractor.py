@@ -5,13 +5,13 @@ MissAV视频提取器插件
 """
 
 import re
-from typing import List, Dict, Any, Optional, Tuple
-from urllib.parse import urlparse
-from ...models import OperationItem, Quality, create_stream_item, create_cover_item, create_metadata_item
-from ...models import MovieMetadata
-from .base import ExtractorPlugin
-from ...utils.stringutils import StringUtils
 from datetime import datetime
+from typing import Dict, List, Optional, Tuple
+from urllib.parse import urlparse
+
+from ...models import MovieMetadata, OperationItem, Quality, create_cover_item, create_metadata_item, create_stream_item
+from ...utils import CodeExtractUtils, StringUtils
+from .base import ExtractorPlugin
 
 # 定义插件名称和版本
 PLUGIN_NAME = "MissAVExtractor"
@@ -60,7 +60,7 @@ class MissAVExtractor(ExtractorPlugin):
         """从 MissAV 页面提取视频下载选项"""
         try:
             # 使用基类的统一网页获取方法，自动处理代理和SSL
-            response = self.fetch_webpage(url, timeout=30, verify_ssl=False)
+            response = self.fetch(url, timeout=30, verify_ssl=False)
             html_content = response.text
             if not html_content:
                 self.logger.error(f"获取页面内容失败: {url}")
@@ -173,7 +173,7 @@ class MissAVExtractor(ExtractorPlugin):
         """
         try:
             # 获取大师链接内容
-            response = self.fetch_webpage(master_url, timeout=30, verify_ssl=False)
+            response = self.fetch(master_url, timeout=30, verify_ssl=False)
             if response.status_code != 200:
                 self.logger.info(f"获取大师链接失败: {master_url} - 状态码: {response.status_code}")
                 return {}
@@ -245,12 +245,15 @@ class MissAVExtractor(ExtractorPlugin):
                 matched = title_match.group(1).strip()
                 # 分离代码和标题
                 parts = matched.split(" ", maxsplit=1)
-                video_code = parts[0] if len(parts) > 0 else default_code
+                # 正规化代码和标题
+                video_code = CodeExtractUtils.extract_code_from_text(parts[0]) if len(parts) > 0 else default_code
                 video_title = parts[1] if len(parts) > 1 else default_title
             else:
                 video_title = default_title
                 video_code = default_code
             self.logger.debug(f"提取到视频标题: {video_title}, 代码: {video_code}")
+            if not video_code:
+                video_code = default_code
             return (video_title, video_code)
         except Exception as e:
             self.logger.error(f"提取标题和代码异常: {str(e)}")
