@@ -5,6 +5,7 @@ from ...models.operation import OperationItem
 from ...config.settings import Config
 from ..base import Operator
 
+
 class BaseMetadataOperator(Operator):
     """
     基础元数据操作类
@@ -27,10 +28,10 @@ class BaseMetadataOperator(Operator):
         """
         执行元数据操作
         该方法会被子类重写以实现具体的操作逻辑
-        
+
         Args:
             item: 操作项对象,包含URL和其他操作信息
-            
+
         Returns:
             bool: 操作是否成功
         """

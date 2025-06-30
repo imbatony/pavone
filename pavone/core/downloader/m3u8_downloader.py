@@ -134,12 +134,13 @@ class M3U8Downloader(BaseDownloader):
             self.logger.info(f"Found {total_segments} video segments")
 
             # 获取输出文件路径
-            output_file = target_path            # 创建临时目录存储视频段
+            output_file = target_path  # 创建临时目录存储视频段
             # 使用配置的缓存目录或基于输出文件创建临时目录
             cache_dir = self.download_config.cache_dir
             if cache_dir:
                 # 创建唯一的临时目录路径以避免冲突
                 import uuid
+
                 temp_dir = os.path.join(cache_dir, f"m3u8_{uuid.uuid4().hex}")
             else:
                 temp_dir = output_file + "_segments"
@@ -153,7 +154,7 @@ class M3U8Downloader(BaseDownloader):
             # 开始时间
             download_start_time = time.time()
 
-            def download_with_progress(segment_info:Tuple[int, str]) -> bool:
+            def download_with_progress(segment_info: Tuple[int, str]) -> bool:
                 index, url = segment_info
 
                 # 使用配置的重试次数进行重试
@@ -178,9 +179,7 @@ class M3U8Downloader(BaseDownloader):
                             downloaded_segments[segment_index] = segment_file
                             # 更新进度
 
-                            progress_info = ProgressInfo(
-                                    total_size=0, downloaded=total_downloaded_bytes, speed=speed
-                            )
+                            progress_info = ProgressInfo(total_size=0, downloaded=total_downloaded_bytes, speed=speed)
                             progress_callback(progress_info)
 
                         return True
@@ -215,40 +214,40 @@ class M3U8Downloader(BaseDownloader):
             if failed_downloads:
                 self.logger.warning(f"Failed to download {len(failed_downloads)} segments")
                 # 可以选择重试失败的段
-                return False            # 合并所有视频段，优先使用ffmpeg
+                return False  # 合并所有视频段，优先使用ffmpeg
             self.logger.info("Merging video segments...")
 
             def _merge_using_ffmpeg(segment_files: list[str], output_path: str) -> bool:
                 """使用ffmpeg合并视频段"""
                 import subprocess
                 import tempfile
-                
+
                 # 创建临时文件列表
-                with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as f:
+                with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
                     for segment in segment_files:
                         f.write(f"file '{os.path.abspath(segment)}'\n")
                     filelist_path = f.name
-                
+
                 try:
                     # 使用ffmpeg合并视频段
                     cmd = [
-                        'ffmpeg', 
-                        '-f', 'concat', 
-                        '-safe', '0',
-                        '-i', filelist_path,
-                        '-c', 'copy',
-                        '-y',  # 覆盖输出文件
-                        output_path
+                        "ffmpeg",
+                        "-f",
+                        "concat",
+                        "-safe",
+                        "0",
+                        "-i",
+                        filelist_path,
+                        "-c",
+                        "copy",
+                        "-y",  # 覆盖输出文件
+                        output_path,
                     ]
-                    
+
                     self.logger.info(f"Running ffmpeg command: {' '.join(cmd)}")
-                    process = subprocess.Popen(
-                        cmd, 
-                        stdout=subprocess.PIPE, 
-                        stderr=subprocess.PIPE
-                    )
+                    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
                     _, stderr = process.communicate()
-                    
+
                     if process.returncode != 0:
                         self.logger.warning(f"ffmpeg failed: {stderr.decode('utf-8', errors='replace')}")
                         return False
@@ -262,7 +261,7 @@ class M3U8Downloader(BaseDownloader):
                         os.unlink(filelist_path)
                     except:
                         pass
-            
+
             # 准备排序后的段文件列表
             segment_files: list[str] = []
             for i in range(total_segments):
@@ -271,17 +270,18 @@ class M3U8Downloader(BaseDownloader):
                     segment_files.append(segment_file)
                 else:
                     self.logger.warning(f"Missing segment {i}")
-                    
+
             # 尝试使用ffmpeg合并
             ffmpeg_success = False
             try:
                 # 检查是否可以使用ffmpeg
                 import shutil
-                if shutil.which('ffmpeg'):
+
+                if shutil.which("ffmpeg"):
                     ffmpeg_success = _merge_using_ffmpeg(segment_files, output_file)
             except Exception as e:
                 self.logger.warning(f"Error checking for ffmpeg: {e}")
-            
+
             # 如果ffmpeg失败或不可用，则使用传统方法合并
             if not ffmpeg_success:
                 self.logger.info("Falling back to direct file merging...")

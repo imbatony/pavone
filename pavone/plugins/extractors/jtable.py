@@ -26,11 +26,18 @@ class JTableExtractor(ExtractorPlugin):
     """
     提取 jp.jable.tv 的视频下载链接
     """
+
     def __init__(self):
-        super().__init__(name=PLUGIN_NAME, version=PLUGIN_VERSION, description=PLUGIN_DESCRIPTION, author=PLUGIN_AUTHOR, priority=PLUGIN_PRIORITY)
+        super().__init__(
+            name=PLUGIN_NAME,
+            version=PLUGIN_VERSION,
+            description=PLUGIN_DESCRIPTION,
+            author=PLUGIN_AUTHOR,
+            priority=PLUGIN_PRIORITY,
+        )
         self.supported_domains = SUPPORTED_DOMAINS
         self.site_name = SITE_NAME
-        
+
     def can_handle(self, url: str) -> bool:
         """检查是否能处理给定的URL"""
         try:
@@ -79,19 +86,16 @@ class JTableExtractor(ExtractorPlugin):
                 quality=Quality.guess(title),
                 actors=actors,
                 year=year,
-                studio= "",  # JTable 不提供制作公司信息  
+                studio="",  # JTable 不提供制作公司信息
             )
             if cover:
-                cover_item = create_cover_item(
-                    url=cover,
-                    title=title
-                )
+                cover_item = create_cover_item(url=cover, title=title)
                 m3u8_item.append_child(cover_item)
-            
+
             metadata = MovieMetadata(
                 identifier=f"{self.site_name}_{code}",
                 code=code,
-                title=title,                
+                title=title,
                 url=url,
                 site=self.site_name,
                 cover=cover,
@@ -116,8 +120,8 @@ class JTableExtractor(ExtractorPlugin):
         if match:
             return match.group(1)
         return None
-    
-    def _extract_code_title(self, html: str) -> Tuple[str,str]:
+
+    def _extract_code_title(self, html: str) -> Tuple[str, str]:
         """从HTML中提取视频标题"""
         pattern = r'<meta property="og:title" content="([^"]+)"'
         match = re.search(pattern, html)
@@ -160,7 +164,7 @@ class JTableExtractor(ExtractorPlugin):
         pattern = r'<a href="https://jp.jable.tv/categories/[^"]+" class="cat">([^<]+)</a>'
         matches = re.findall(pattern, html)
         return matches if matches else []
-    
+
     def _extract_tags(self, html: str) -> List[str]:
         """从HTML中提取标签"""
         # <a href="https://jp.jable.tv/tags/girl/">少女</a>

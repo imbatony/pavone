@@ -10,4 +10,11 @@ from .missav_extractor import MissAVExtractor
 from .memojav import MemojavExtractor
 from .jtable import JTableExtractor
 
-__all__ = ["ExtractorPlugin", "MP4DirectExtractor", "M3U8DirectExtractor", "MissAVExtractor", "MemojavExtractor", "JTableExtractor"]
+__all__ = [
+    "ExtractorPlugin",
+    "MP4DirectExtractor",
+    "M3U8DirectExtractor",
+    "MissAVExtractor",
+    "MemojavExtractor",
+    "JTableExtractor",
+]

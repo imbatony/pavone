@@ -3,6 +3,7 @@ from .base import Operator
 from ..config.settings import Config
 from ..models.operation import OperationItem
 
+
 class DummyOperator(Operator):
     """
     Dummy操作类，用于测试和占位

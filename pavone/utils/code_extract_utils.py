@@ -1,6 +1,7 @@
 """
 尝试从文件名或者keywords或者标题中提取编号代码
 """
+
 import re
 from typing import Optional
 
@@ -21,13 +22,13 @@ carib_regrex = r"(\d{6})[-_](\d{3})(?:-carib)?"
 
 
 class CodeExtractUtils:
-    
+
     @staticmethod
     def extract_code_from_text(original_text: str) -> Optional[str]:
         """
         从文本中提取编号代码
         """
-        # 如果文本为空，返回空字符串        
+        # 如果文本为空，返回空字符串
         if not original_text:
             return ""
 
@@ -57,7 +58,7 @@ class CodeExtractUtils:
         if "heydouga" in text:
             if match := re.search(heydouga_regrex, text, re.IGNORECASE):
                 return "Heydouga-" + match.group(2) + "-" + match.group(3)
-        
+
         # hey识别, 匹配缩写成hey的heydouga影片。由于番号分三部分，要先于后面分两部分的进行匹配
         if "hey" in text and ("hey-" in text or "hey_" in text):
             if match := re.search(hey_regex, text, re.IGNORECASE):
@@ -66,9 +67,9 @@ class CodeExtractUtils:
         # TMA番号识别
         if "t28" in text:
             if match := re.search(tma_regrex, text, re.IGNORECASE):
-                return match.group(1).upper() + "-" + match.group(3)        
-                
-         # Try to match Tokyo-hot n, k series
+                return match.group(1).upper() + "-" + match.group(3)
+
+        # Try to match Tokyo-hot n, k series
         if "n" in text:
             if match := re.search(n_series_regex, text, re.IGNORECASE):
                 return match.group(1).lower()
@@ -84,7 +85,7 @@ class CodeExtractUtils:
         if match := re.search(normal_regrex, text, re.IGNORECASE):
             # 返回带分隔符的番号
             return match.group(1).upper() + "-" + match.group(2)
-        
+
         # 再将影片视作缺失了-分隔符来匹配
         if match := re.search(normal_regrex_2, text, re.IGNORECASE):
             return match.group(1).upper() + "-" + match.group(2)

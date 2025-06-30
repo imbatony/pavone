@@ -20,10 +20,12 @@ def search(keyword: str):
 
         # 获取插件管理器
         plugin_manager = get_plugin_manager()
-        plugin_manager.load_plugins(plugin_dir= plugin_config.plugin_dir)
+        plugin_manager.load_plugins(plugin_dir=plugin_config.plugin_dir)
 
         # 执行搜索
-        results = plugin_manager.search(keyword, limit=search_config.max_results_per_site, enable_sites=search_config.enabled_sites)
+        results = plugin_manager.search(
+            keyword, limit=search_config.max_results_per_site, enable_sites=search_config.enabled_sites
+        )
 
         if not results:
             echo_info("没有找到相关结果")
