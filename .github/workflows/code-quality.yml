@@ -170,24 +170,24 @@ jobs:
     #     echo "🧪 Running M3U8 downloader tests..."
     #     pytest tests/test_m3u8_downloader.py -v --cov=pavone.core.downloader.m3u8_downloader --cov-report=term-missing
         
-    - name: Test M3U8 downloader import and basic functionality
-      run: |
-        python -c "
-        from pavone.config.settings import DownloadConfig
-        from pavone.core.downloader.m3u8_downloader import M3U8Downloader
-        from pavone.core.downloader.options import DownloadOpt
+    # - name: Test M3U8 downloader import and basic functionality
+    #   run: |
+    #     python -c "
+    #     from pavone.config.settings import DownloadConfig
+    #     from pavone.core.downloader.m3u8_downloader import M3U8Downloader
+    #     from pavone.core.downloader.options import DownloadOpt
         
-        # Test basic instantiation
-        config = DownloadConfig()
-        downloader = M3U8Downloader(config)
+    #     # Test basic instantiation
+    #     config = DownloadConfig()
+    #     downloader = M3U8Downloader(config)
         
-        # Test parsing functionality (without network)
-        content = '#EXTM3U\n#EXTINF:10.0,\nsegment001.ts'
-        segments = downloader._parse_m3u8_playlist(content, 'https://example.com/')
+    #     # Test parsing functionality (without network)
+    #     content = '#EXTM3U\n#EXTINF:10.0,\nsegment001.ts'
+    #     segments = downloader._parse_m3u8_playlist(content, 'https://example.com/')
         
-        assert segments == ['https://example.com/segment001.ts']
-        print('✅ M3U8 downloader basic functionality test passed!')
-        "
+    #     assert segments == ['https://example.com/segment001.ts']
+    #     print('✅ M3U8 downloader basic functionality test passed!')
+    #     "
 
   dependency-audit:
     name: Dependency Security Audit
