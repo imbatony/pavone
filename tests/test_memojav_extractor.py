@@ -129,7 +129,7 @@ class TestMemojavExtractor(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.extractor.get_vid_from_url("https://memojav.com/")
 
-    @patch("pavone.plugins.extractors.memojav.MemojavExtractor.fetch_webpage")
+    @patch("pavone.plugins.extractors.memojav.MemojavExtractor.fetch")
     @patch("pavone.plugins.extractors.memojav.MemojavExtractor._extract_title")
     @patch("pavone.plugins.extractors.memojav.MemojavExtractor._extract_m3u8")
     @patch("pavone.plugins.extractors.memojav.MemojavExtractor._extract_cover")

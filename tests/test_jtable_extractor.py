@@ -5,10 +5,9 @@ JTable提取器测试
 import os
 import unittest
 from datetime import datetime
-from typing import List, Optional
-from unittest.mock import MagicMock, Mock, patch
+from typing import Optional
+from unittest.mock import Mock, patch
 
-from pavone.models.constants import Quality
 from pavone.models.metadata import BaseMetadata, MovieMetadata
 from pavone.models.operation import OperationItem
 from pavone.plugins.extractors.jtable import JTableExtractor
@@ -189,7 +188,7 @@ class TestJTableExtractor(unittest.TestCase):
         tags = self.extractor._extract_tags(html_without_tags)
         self.assertEqual(tags, [])
 
-    @patch("pavone.plugins.extractors.jtable.JTableExtractor.fetch_webpage")
+    @patch("pavone.plugins.extractors.jtable.JTableExtractor.fetch")
     def test_extract_success(self, mock_fetch):
         """测试成功提取的情况"""
         # 模拟网页响应
@@ -258,19 +257,19 @@ class TestJTableExtractor(unittest.TestCase):
                 self.assertIsNotNone(m_metadata.tags)
                 self.assertIn("黒ストッキング", m_metadata.tags)  # type: ignore
 
-    @patch("pavone.plugins.extractors.jtable.JTableExtractor.fetch_webpage")
+    @patch("pavone.plugins.extractors.jtable.JTableExtractor.fetch")
     def test_extract_invalid_url(self, mock_fetch):
         """测试无效URL的情况"""
         url = "https://invalid-site.com/video"
         result = self.extractor.extract(url)
 
-        # 不应该调用fetch_webpage
+        # 不应该调用fetch
         mock_fetch.assert_not_called()
 
         # 应该返回空列表
         self.assertEqual(result, [])
 
-    @patch("pavone.plugins.extractors.jtable.JTableExtractor.fetch_webpage")
+    @patch("pavone.plugins.extractors.jtable.JTableExtractor.fetch")
     def test_extract_fetch_failure(self, mock_fetch):
         """测试网页获取失败的情况"""
         mock_fetch.return_value = None
@@ -284,7 +283,7 @@ class TestJTableExtractor(unittest.TestCase):
         # 应该返回空列表
         self.assertEqual(result, [])
 
-    @patch("pavone.plugins.extractors.jtable.JTableExtractor.fetch_webpage")
+    @patch("pavone.plugins.extractors.jtable.JTableExtractor.fetch")
     def test_extract_no_m3u8(self, mock_fetch):
         """测试没有找到m3u8的情况"""
         mock_response = Mock()
@@ -300,7 +299,7 @@ class TestJTableExtractor(unittest.TestCase):
         # 应该返回空列表
         self.assertEqual(result, [])
 
-    @patch("pavone.plugins.extractors.jtable.JTableExtractor.fetch_webpage")
+    @patch("pavone.plugins.extractors.jtable.JTableExtractor.fetch")
     def test_extract_exception_handling(self, mock_fetch):
         """测试异常处理"""
         mock_fetch.side_effect = Exception("Network error")
@@ -314,7 +313,7 @@ class TestJTableExtractor(unittest.TestCase):
         # 应该返回空列表
         self.assertEqual(result, [])
 
-    @patch("pavone.plugins.extractors.jtable.JTableExtractor.fetch_webpage")
+    @patch("pavone.plugins.extractors.jtable.JTableExtractor.fetch")
     def test_extract_with_missing_cover(self, mock_fetch):
         """测试没有封面的情况"""
         # 创建没有封面的HTML

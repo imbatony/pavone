@@ -219,7 +219,7 @@ class TestMissAVExtractor(unittest.TestCase):
             expected_quality = Quality.guess(url)
             self.assertEqual(key, expected_quality)
 
-    @patch("pavone.plugins.extractors.missav_extractor.MissAVExtractor.fetch_webpage")
+    @patch("pavone.plugins.extractors.missav_extractor.MissAVExtractor.fetch")
     def test_extract_master_playlist(self, mock_fetch):
         """测试主播放列表提取"""
         # 模拟m3u8响应内容
@@ -248,7 +248,7 @@ class TestMissAVExtractor(unittest.TestCase):
             self.assertTrue(url.startswith("https://surrit.com/test-uuid/"))
             self.assertTrue(url.endswith(".m3u8"))
 
-    @patch("pavone.plugins.extractors.missav_extractor.MissAVExtractor.fetch_webpage")
+    @patch("pavone.plugins.extractors.missav_extractor.MissAVExtractor.fetch")
     def test_extract_master_playlist_failure(self, mock_fetch):
         """测试主播放列表提取失败"""
         mock_response = Mock()
@@ -260,7 +260,7 @@ class TestMissAVExtractor(unittest.TestCase):
 
         self.assertEqual(result, {})
 
-    @patch("pavone.plugins.extractors.missav_extractor.MissAVExtractor.fetch_webpage")
+    @patch("pavone.plugins.extractors.missav_extractor.MissAVExtractor.fetch")
     def test_extract_with_uuid(self, mock_fetch):
         """测试带UUID的完整提取流程"""
         # 模拟获取页面的响应
@@ -279,7 +279,7 @@ class TestMissAVExtractor(unittest.TestCase):
         mock_m3u8_response.status_code = 200
         mock_m3u8_response.text = m3u8_content
 
-        # 设置fetch_webpage的不同返回值
+        # 设置fetch的不同返回值
         mock_fetch.side_effect = [mock_page_response, mock_m3u8_response]
 
         test_url = "https://missav.ai/dm18/sdab-183"
@@ -294,7 +294,7 @@ class TestMissAVExtractor(unittest.TestCase):
             first_item = result[0]
             self.assertIsInstance(first_item, OperationItem)
 
-    @patch("pavone.plugins.extractors.missav_extractor.MissAVExtractor.fetch_webpage")
+    @patch("pavone.plugins.extractors.missav_extractor.MissAVExtractor.fetch")
     def test_extract_no_uuid(self, mock_fetch):
         """测试没有UUID的提取流程"""
         html_without_uuid = "<html><body>No UUID here</body></html>"
@@ -308,7 +308,7 @@ class TestMissAVExtractor(unittest.TestCase):
         # 没有UUID应该返回空列表
         self.assertEqual(result, [])
 
-    @patch("pavone.plugins.extractors.missav_extractor.MissAVExtractor.fetch_webpage")
+    @patch("pavone.plugins.extractors.missav_extractor.MissAVExtractor.fetch")
     def test_extract_fetch_failure(self, mock_fetch):
         """测试页面获取失败的情况"""
         mock_fetch.side_effect = Exception("Network error")
