@@ -2,9 +2,10 @@
 编号提取工具测试
 """
 
+import os
 import unittest
 from pathlib import Path
-import os
+
 from pavone.utils.code_extract_utils import CodeExtractUtils
 
 

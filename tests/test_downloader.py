@@ -2,11 +2,12 @@
 测试下载器功能
 """
 
-import unittest
-import tempfile
 import os
-from pavone.core.downloader.http_downloader import HTTPDownloader
+import tempfile
+import unittest
+
 from pavone.config.settings import Config, DownloadConfig, ProxyConfig
+from pavone.core.downloader.http_downloader import HTTPDownloader
 
 
 class TestHTTPDownloader(unittest.TestCase):

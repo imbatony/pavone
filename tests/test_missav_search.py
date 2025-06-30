@@ -1,6 +1,7 @@
 import os
-from pavone.plugins.search.missav_search import MissavSearch
+
 from pavone.models.search_result import SearchResult
+from pavone.plugins.search.missav_search import MissavSearch
 
 
 class TestMissavSearch:

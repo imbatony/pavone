@@ -1,10 +1,10 @@
-from logging import Logger
 import time
+from logging import Logger
 from typing import Dict, Optional
 
 import requests
 
-from pavone.config.configs import ProxyConfig, DownloadConfig
+from pavone.config.configs import DownloadConfig, ProxyConfig
 
 
 class HttpUtils:

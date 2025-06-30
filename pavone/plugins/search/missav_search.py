@@ -1,8 +1,10 @@
 from __future__ import annotations
+
 from re import findall
-from .base import SearchPlugin
+
 from ...models.search_result import SearchResult
 from ...utils import CodeExtractUtils
+from .base import SearchPlugin
 
 # 定义插件名称和版本
 PLUGIN_NAME = "MissavSearch"

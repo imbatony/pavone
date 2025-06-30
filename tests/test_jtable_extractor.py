@@ -2,16 +2,16 @@
 JTable提取器测试
 """
 
-import unittest
-from unittest.mock import Mock, patch, MagicMock
-from typing import List, Optional
 import os
+import unittest
 from datetime import datetime
+from typing import List, Optional
+from unittest.mock import MagicMock, Mock, patch
 
-from pavone.models.metadata import MovieMetadata, BaseMetadata
-from pavone.plugins.extractors.jtable import JTableExtractor
-from pavone.models.operation import OperationItem
 from pavone.models.constants import Quality
+from pavone.models.metadata import BaseMetadata, MovieMetadata
+from pavone.models.operation import OperationItem
+from pavone.plugins.extractors.jtable import JTableExtractor
 
 
 class DummyTableJTableExtractor(JTableExtractor):

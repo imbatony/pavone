@@ -3,16 +3,18 @@ M3U8视频下载器实现
 """
 
 import os
-import time
-import requests
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 
+import requests
+
 from pavone.config.settings import Config
-from .base import BaseDownloader
+
 from ...models import OperationItem, ProgressCallback, ProgressInfo
+from .base import BaseDownloader
 
 
 class M3U8Downloader(BaseDownloader):

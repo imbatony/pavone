@@ -2,9 +2,10 @@
 Memojav提取器测试
 """
 
-import unittest
-from unittest.mock import patch, Mock
 import os
+import unittest
+from unittest.mock import Mock, patch
+
 from pavone.plugins.extractors.memojav import MemojavExtractor
 
 

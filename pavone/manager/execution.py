@@ -1,11 +1,12 @@
-from typing import List, Optional, Tuple
-from ..config.settings import Config
-from ..plugins.manager import PluginManager, get_plugin_manager
-from ..models import OperationItem, ItemType, OperationType
-from ..core import Operator, HTTPDownloader, M3U8Downloader, DummyOperator, MetadataSaver
-from .progress import create_console_progress_callback, create_silent_progress_callback
-from ..config.logging_config import get_logger
 import os
+from typing import List, Optional, Tuple
+
+from ..config.logging_config import get_logger
+from ..config.settings import Config
+from ..core import DummyOperator, HTTPDownloader, M3U8Downloader, MetadataSaver, Operator
+from ..models import ItemType, OperationItem, OperationType
+from ..plugins.manager import PluginManager, get_plugin_manager
+from .progress import create_console_progress_callback, create_silent_progress_callback
 
 
 class ExecutionManager:

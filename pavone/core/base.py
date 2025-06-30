@@ -1,8 +1,11 @@
 from __future__ import annotations
+
 from abc import ABC, abstractmethod
+
+from pavone.config.logging_config import get_logger
+
 from ..config.settings import Config
 from ..models import OperationItem
-from pavone.config.logging_config import get_logger
 
 
 class Operator(ABC):

@@ -3,9 +3,10 @@ Search command - 搜索命令
 """
 
 import click
+
 from ...config.settings import get_config
-from .utils import echo_success, echo_error, echo_info
 from ...plugins.manager import get_plugin_manager
+from .utils import echo_error, echo_info, echo_success
 
 
 @click.command()

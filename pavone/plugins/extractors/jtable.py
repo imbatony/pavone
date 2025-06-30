@@ -1,11 +1,11 @@
 import re
+from datetime import datetime
 from typing import List, Optional, Tuple
 from urllib.parse import urlparse
-from ...models import OperationItem, Quality, create_stream_item, create_cover_item, create_metadata_item
-from ...models import MovieMetadata
+
+from ...models import MovieMetadata, OperationItem, Quality, create_cover_item, create_metadata_item, create_stream_item
+from ...utils import CodeExtractUtils, StringUtils
 from .base import ExtractorPlugin
-from ...utils import StringUtils, CodeExtractUtils
-from datetime import datetime
 
 # 定义插件名称和版本
 PLUGIN_NAME = "JTableExtractor"

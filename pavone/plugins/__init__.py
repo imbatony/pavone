@@ -5,9 +5,9 @@
 
 from .base import BasePlugin
 from .extractors import ExtractorPlugin
-from .metadata import MetadataPlugin
-from .search import SearchPlugin, MissavSearch
 from .manager import PluginManager, plugin_manager
+from .metadata import MetadataPlugin
+from .search import MissavSearch, SearchPlugin
 
 __all__ = [
     "BasePlugin",

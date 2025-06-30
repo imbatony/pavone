@@ -5,8 +5,8 @@ ExtractorPlugin基类测试
 import unittest
 from typing import List
 
-from pavone.plugins.extractors.base import ExtractorPlugin
 from pavone.models.operation import OperationItem
+from pavone.plugins.extractors.base import ExtractorPlugin
 
 
 class MockExtractorPlugin(ExtractorPlugin):

@@ -1,8 +1,9 @@
-from ..base import Operator
-from ...config.settings import Config
-from ...config.logging_config import get_logger
-from typing import Dict, Optional
 import os
+from typing import Dict, Optional
+
+from ...config.logging_config import get_logger
+from ...config.settings import Config
+from ..base import Operator
 
 
 class BaseDownloader(Operator):

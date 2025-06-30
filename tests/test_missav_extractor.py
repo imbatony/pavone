@@ -2,14 +2,14 @@
 MissAV提取器测试
 """
 
-import unittest
-from unittest.mock import Mock, patch, MagicMock
-from typing import List
 import os
+import unittest
+from typing import List
+from unittest.mock import MagicMock, Mock, patch
 
-from pavone.plugins.extractors.missav_extractor import MissAVExtractor
-from pavone.models.operation import OperationItem
 from pavone.models.constants import Quality
+from pavone.models.operation import OperationItem
+from pavone.plugins.extractors.missav_extractor import MissAVExtractor
 
 
 class TestMissAVExtractor(unittest.TestCase):

@@ -6,8 +6,9 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
 import requests
-from pavone.config.settings import get_config_manager
+
 from pavone.config.logging_config import get_logger
+from pavone.config.settings import get_config_manager
 from pavone.utils.http_utils import HttpUtils
 
 

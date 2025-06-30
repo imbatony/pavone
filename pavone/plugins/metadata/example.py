@@ -3,8 +3,9 @@
 演示如何在metadata模块中创建具体的元数据提取器
 """
 
+from typing import Any, Dict
+
 from . import MetadataPlugin
-from typing import Dict, Any
 
 
 class ExampleMetadataPlugin(MetadataPlugin):

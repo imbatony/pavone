@@ -2,8 +2,9 @@
 CLI Utilities - 共享的辅助函数
 """
 
-import click
 from typing import List, Optional
+
+import click
 
 
 def confirm_action(message: str, default: bool = False) -> bool:

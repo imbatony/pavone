@@ -2,21 +2,22 @@
 操作项
 """
 
-from typing import Optional, Dict, Any
+from datetime import datetime
+from typing import Any, Dict, Optional
+
 from ..utils import StringUtils
 from .constants import (
-    OperationType,
-    ItemType,
     CommonExtraKeys,
+    ImageExtraKeys,
     ItemSubType,
+    ItemType,
+    MetadataExtraKeys,
+    OperationType,
     Quality,
     VideoCoreExtraKeys,
-    ImageExtraKeys,
-    MetadataExtraKeys,
 )
 from .metadata import BaseMetadata
 from .progress_info import ProgressCallback
-from datetime import datetime
 
 
 class OperationItem:

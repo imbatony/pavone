@@ -1,10 +1,11 @@
 ﻿from abc import abstractmethod
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional
 
 import requests
-from ..base import BasePlugin
+
 from ...models import OperationItem
 from ...utils.http_utils import HttpUtils
+from ..base import BasePlugin
 
 
 class ExtractorPlugin(BasePlugin):
