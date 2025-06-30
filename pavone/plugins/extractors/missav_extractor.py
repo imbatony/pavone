@@ -9,7 +9,7 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
-from ...models import MovieMetadata, OperationItem, Quality, create_cover_item, create_metadata_item, create_stream_item
+from ...models import MovieMetadata, OperationItem, Quality, create_cover_item, create_metadata_item, create_stream_item, create_poster_item
 from ...utils import CodeExtractUtils, StringUtils
 from .base import ExtractorPlugin
 
@@ -82,16 +82,19 @@ class MissAVExtractor(ExtractorPlugin):
             studio = self._extract_studio(html_content)
             series = self._extract_series(html_content)
             cover_image = self._extract_cover_image(html_content)
+            poster_image = cover_image  # 封面图片和海报图片相同
             description = self._extract_description(html_content)
             tagline = self._extract_tagline(html_content)
             cover_item: Optional[OperationItem] = None
+            poster_item: Optional[OperationItem] = None
             release_year = int(release_date.split("-")[0]) if release_date else datetime.now().year
             # 如果有封面图片，创建封面图片项
             if cover_image:
                 cover_item = create_cover_item(url=cover_image, title=video_title)
+                poster_item= create_poster_item(url=cover_image, title=video_title)
             identifier = StringUtils.create_identifier(site=SITE_NAME, code=video_code, url=url)
             matadata = MovieMetadata(
-                title=video_title,
+                title=f"{video_code} {video_title}",
                 identifier=identifier,
                 site=SITE_NAME,
                 url=url,
@@ -133,6 +136,8 @@ class MissAVExtractor(ExtractorPlugin):
                 # 如果有封面图片，添加到为子项
                 if cover_item:
                     download_item.append_child(cover_item)
+                if poster_item:
+                    download_item.append_child(poster_item)
                 # 添加元数据项
                 download_item.append_child(metadata_item)
                 # 添加到下载选项列表
