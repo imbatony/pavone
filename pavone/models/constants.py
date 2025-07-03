@@ -46,6 +46,7 @@ class ItemSubType:
     POSTER = "poster"  # 海报图片
     THUMBNAIL = "thumbnail"  # 缩略图
     BACKDROP = "backdrop"  # 背景图片
+    LANDSCAPE = "landscape"  # 横幅图片, 通常用于视频的横幅展示
     # 字幕文件的子类型
     SUBTITLE_SRT = "subtitle_srt"  # SRT格式字幕
     SUBTITLE_VTT = "subtitle_vtt"  # VTT格式字幕

@@ -10,6 +10,7 @@ from .operation import (
     create_stream_item,
     create_thumbnail_item,
     create_video_item,
+    create_landscape_item,
 )
 from .progress_info import ProgressCallback, ProgressInfo
 from .search_result import SearchResult
@@ -24,6 +25,7 @@ __all__ = [
     "create_cover_item",
     "create_thumbnail_item",
     "create_poster_item",
+    "create_landscape_item",
     "OperationType",
     "ItemType",
     "BaseMetadata",
