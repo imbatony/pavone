@@ -235,7 +235,10 @@ class ExecutionManager:
         # 如果没有指定目标文件夹，则使用配置中的输出目录
         if not target_folder:
             output_dir = self.config.download.output_dir
-            if self.config.organize.auto_organize:
+            if custom_filename_prefix is not None:
+                # 如果有自定义文件名前缀，则不使用自动整理
+                target_folder = output_dir
+            elif self.config.organize.auto_organize:
                 folder_pattern = self.config.organize.folder_structure
                 target_sub_folder = item.get_target_subfolder(
                     output_dir=output_dir, folder_name_pattern=folder_pattern
