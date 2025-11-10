@@ -247,7 +247,9 @@ class MissAVExtractor(ExtractorPlugin):
                 parts = matched.split(" ", maxsplit=1)
                 # 正规化代码和标题
                 video_code = CodeExtractUtils.extract_code_from_text(parts[0]) if len(parts) > 0 else default_code
-                video_title = parts[1] if len(parts) > 1 else default_title
+                if not video_code:
+                    video_code = default_code
+                video_title = video_code + " " + parts[1] if len(parts) > 1 else default_title
             else:
                 video_title = default_title
                 video_code = default_code

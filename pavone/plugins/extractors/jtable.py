@@ -121,18 +121,20 @@ class JTableExtractor(ExtractorPlugin):
         """从HTML中提取视频标题"""
         pattern = r'<meta property="og:title" content="([^"]+)"'
         match = re.search(pattern, html)
+        default_title = "Jable Video"
+        default_code = StringUtils.sha_256_hash(default_title)
         if not match:
-            raise ValueError("未找到视频标题")
+            return (default_code, default_title)
         title = match.group(1)
         # 分离编号和标题
         title_parts = title.split(" ", 1)
         if len(title_parts) == 2:
             code = CodeExtractUtils.extract_code_from_text(title_parts[0])
-            title = title_parts[1]
             if not code:
-                code = StringUtils.sha_256_hash(title_parts[0])
+                code = default_code
+            title = code + " " + title_parts[1]
         else:
-            code = StringUtils.sha_256_hash(title)
+            code = default_code
         return (code, title)
 
     def _extract_actors(self, html: str) -> List[str]:
