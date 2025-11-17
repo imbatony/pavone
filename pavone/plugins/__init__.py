@@ -10,11 +10,11 @@ from .search import SearchPlugin, MissavSearch
 from .manager import PluginManager, plugin_manager
 
 __all__ = [
-    'BasePlugin',
-    'ExtractorPlugin', 
-    'MetadataPlugin',
-    'SearchPlugin',
-    'MissavSearch',
-    'PluginManager',
-    'plugin_manager'
+    "BasePlugin",
+    "ExtractorPlugin",
+    "MetadataPlugin",
+    "SearchPlugin",
+    "MissavSearch",
+    "PluginManager",
+    "plugin_manager",
 ]

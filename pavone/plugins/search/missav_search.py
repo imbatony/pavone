@@ -15,6 +15,7 @@ SITE_NAME = "MissAV"
 # Missav 网站的基础 URL,有可能未来会调整
 MISSAV_BASE_URL = "https://missav.ai"
 
+
 class MissavSearch(SearchPlugin):
     """
     Missav 搜索插件
@@ -60,7 +61,9 @@ class MissavSearch(SearchPlugin):
             results = self._parse_search_results(res.text, limit, keyword)
             return results
         else:
-            self.logger.error(f"Failed to fetch search results for {keyword}. Status code: {res.status_code if res else 'No response'}")
+            self.logger.error(
+                f"Failed to fetch search results for {keyword}. Status code: {res.status_code if res else 'No response'}"
+            )
             return []
 
     def _parse_video_page(self, html: str, code: str) -> SearchResult:
@@ -78,7 +81,7 @@ class MissavSearch(SearchPlugin):
             url=f"{MISSAV_BASE_URL}/ja/{code}",
             code=code,
         )
-    
+
     def _parse_search_results(self, html: str, limit: int, keyword: str) -> list[SearchResult]:
         """
         解析搜索结果页面，提取视频信息
@@ -103,7 +106,7 @@ class MissavSearch(SearchPlugin):
                 title=title,
                 description=f"Search result for {title} on {SITE_NAME}",
                 url=url,
-                code=alt.upper()  # 将编号转换为大写形式
+                code=alt.upper(),  # 将编号转换为大写形式
             )
             results.append(result)
         return results

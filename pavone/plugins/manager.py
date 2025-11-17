@@ -9,6 +9,8 @@ import pkgutil
 from types import ModuleType
 from typing import Any, Dict, List, Optional, Type
 from pathlib import Path
+
+from pavone.plugins.extractors.av01_extractor import AV01Extractor
 from .base import BasePlugin
 from ..config.settings import config_manager
 from .extractors import ExtractorPlugin
@@ -63,6 +65,7 @@ class PluginManager:
                 "MemojavExtractor": MemojavExtractor,
                 "JTableExtractor": JTableExtractor,
                 "MissavSearch": MissavSearch,
+                "AV01Extractor": AV01Extractor,
             }
 
             loaded_plugins: list[str] = []

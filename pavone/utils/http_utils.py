@@ -1,4 +1,3 @@
-
 from logging import Logger
 import time
 from typing import Dict, Optional

@@ -13,7 +13,15 @@ from ...config.logging_config import get_logger
 class SearchPlugin(BasePlugin):
     """搜索插件基类"""
 
-    def __init__(self, site:str,name: str = "SearchPlugin", version: str = "1.0.0", description: str = "", author: str = "", priority: int = 50):
+    def __init__(
+        self,
+        site: str,
+        name: str = "SearchPlugin",
+        version: str = "1.0.0",
+        description: str = "",
+        author: str = "",
+        priority: int = 50,
+    ):
         super().__init__(name, version, description, author)
         self.logger = get_logger(__name__)
         self.config = get_config_manager().get_config()

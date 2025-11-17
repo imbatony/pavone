@@ -1,5 +1,6 @@
 from typing import Optional
 
+
 class StringUtils:
     @staticmethod
     def normalize_string(s: Optional[str]) -> str:
@@ -9,15 +10,15 @@ class StringUtils:
         # 去除首尾空格
         s = s.strip()
         # 替换多个空格为一个空格
-        s = ' '.join(s.split())
+        s = " ".join(s.split())
         # 替换特殊字符
-        special_chars = ['/', '\\', ':', '*', '?', '"', '<', '>', '|']
+        special_chars = ["/", "\\", ":", "*", "?", '"', "<", ">", "|"]
         for char in special_chars:
-            s = s.replace(char, '')
+            s = s.replace(char, "")
         return s
 
     @staticmethod
-    def normalize_folder_path(folder:str) -> str:
+    def normalize_folder_path(folder: str) -> str:
         """
         规范化文件夹路径
         Args:
@@ -41,7 +42,8 @@ class StringUtils:
             str: SHA-256 哈希值
         """
         import hashlib
-        return hashlib.sha256(s.encode('utf-8')).hexdigest()
+
+        return hashlib.sha256(s.encode("utf-8")).hexdigest()
 
     @staticmethod
     def create_identifier(site: str, code: str, url: str) -> str:

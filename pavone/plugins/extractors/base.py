@@ -1,5 +1,4 @@
-﻿
-from abc import abstractmethod
+﻿from abc import abstractmethod
 from typing import List, Optional, Dict
 
 import requests
@@ -15,9 +14,16 @@ class ExtractorPlugin(BasePlugin):
     而不直接进行下载操作
     """
 
-    def __init__(self, name: Optional[str] = None, version: Optional[str] = "1.0.0", description: Optional[str] = "", author: Optional[str] = "", priority: Optional[int] = 50):
+    def __init__(
+        self,
+        name: Optional[str] = None,
+        version: Optional[str] = "1.0.0",
+        description: Optional[str] = "",
+        author: Optional[str] = "",
+        priority: Optional[int] = 50,
+    ):
         super().__init__(name=name, version=version, description=description, author=author, priority=priority)
-        
+
     def initialize(self) -> bool:
         """初始化插件"""
         self.logger.info(f"初始化 {self.name} 插件")

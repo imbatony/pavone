@@ -27,5 +27,5 @@ __all__ = [
     "Quality",
     "ProgressCallback",
     "ProgressInfo",
-    "SearchResult"
+    "SearchResult",
 ]
