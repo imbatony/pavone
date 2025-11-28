@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from ...models.operation import OperationItem
 from ...config.settings import Config
+from ...models.operation import OperationItem
 from ..base import Operator
 
 

@@ -2,21 +2,22 @@
 操作项
 """
 
-from typing import Optional, Dict, Any
+from datetime import datetime
+from typing import Any, Dict, Optional
+
 from ..utils import StringUtils
 from .constants import (
-    OperationType,
-    ItemType,
     CommonExtraKeys,
+    ImageExtraKeys,
     ItemSubType,
+    ItemType,
+    MetadataExtraKeys,
+    OperationType,
     Quality,
     VideoCoreExtraKeys,
-    ImageExtraKeys,
-    MetadataExtraKeys,
 )
 from .metadata import BaseMetadata
 from .progress_info import ProgressCallback
-from datetime import datetime
 
 
 class OperationItem:
@@ -329,13 +330,15 @@ class OperationItem:
             # 需要更细化图片类型的后缀名
             sub_type = self.get_subtype()
             if sub_type == ItemSubType.COVER:
-                return f"-cover{extension}"
+                return f"{extension}"
             elif sub_type == ItemSubType.POSTER:
                 return f"-poster{extension}"
             elif sub_type == ItemSubType.THUMBNAIL:
                 return f"-thumbnail{extension}"
             elif sub_type == ItemSubType.BACKDROP:
                 return f"-backdrop{extension}"
+            elif sub_type == ItemSubType.LANDSCAPE:
+                return f"-landscape{extension}"
             else:
                 return extension
         return None  # 对于其他类型不返回后缀名
@@ -535,6 +538,23 @@ def create_cover_item(
         OpertionItem: 创建的下载操作项
     """
     return create_image_item(url, title, ItemSubType.COVER, custom_headers)
+
+
+def create_landscape_item(
+    url: str,
+    title: str,
+    custom_headers: Optional[Dict[str, str]] = None,
+) -> OperationItem:
+    """
+    创建一个风景图片下载操作项
+    Args:
+        url: 下载链接
+        title: 标题
+        custom_headers: 自定义HTTP头部
+    Returns:
+        OpertionItem: 创建的下载操作项
+    """
+    return create_image_item(url, title, ItemSubType.LANDSCAPE, custom_headers)
 
 
 def create_backdrop_item(

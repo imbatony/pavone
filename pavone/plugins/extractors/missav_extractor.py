@@ -5,13 +5,21 @@ MissAV视频提取器插件
 """
 
 import re
-from typing import List, Dict, Optional, Tuple
-from urllib.parse import urlparse
-from ...models import OperationItem, Quality, create_stream_item, create_cover_item, create_metadata_item
-from ...models import MovieMetadata
-from .base import ExtractorPlugin
-from ...utils import StringUtils, CodeExtractUtils
 from datetime import datetime
+from typing import Dict, List, Optional, Tuple
+from urllib.parse import urlparse
+
+from ...models import (
+    MovieMetadata,
+    OperationItem,
+    Quality,
+    create_cover_item,
+    create_landscape_item,
+    create_metadata_item,
+    create_stream_item,
+)
+from ...utils import CodeExtractUtils, StringUtils
+from .base import ExtractorPlugin
 
 # 定义插件名称和版本
 PLUGIN_NAME = "MissAVExtractor"
@@ -85,10 +93,12 @@ class MissAVExtractor(ExtractorPlugin):
             description = self._extract_description(html_content)
             tagline = self._extract_tagline(html_content)
             cover_item: Optional[OperationItem] = None
+            landscape_item: Optional[OperationItem] = None
             release_year = int(release_date.split("-")[0]) if release_date else datetime.now().year
             # 如果有封面图片，创建封面图片项
             if cover_image:
                 cover_item = create_cover_item(url=cover_image, title=video_title)
+                landscape_item = create_landscape_item(url=cover_image, title=video_title)
             identifier = StringUtils.create_identifier(site=SITE_NAME, code=video_code, url=url)
             matadata = MovieMetadata(
                 title=video_title,
@@ -133,6 +143,8 @@ class MissAVExtractor(ExtractorPlugin):
                 # 如果有封面图片，添加到为子项
                 if cover_item:
                     download_item.append_child(cover_item)
+                if landscape_item:
+                    download_item.append_child(landscape_item)
                 # 添加元数据项
                 download_item.append_child(metadata_item)
                 # 添加到下载选项列表

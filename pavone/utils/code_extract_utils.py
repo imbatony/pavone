@@ -5,7 +5,6 @@
 import re
 from typing import Optional
 
-
 ignore_regrex = r"\w+2048\.com|Carib(?:beancom)?|[^a-z\d](?:f?hd|lt)[^a-z\d]"
 fc2_regrex = r"fc2[^a-z\d]{0,5}(ppv[^a-z\d]{0,5})?(\d{5,7})"
 heydouga_regrex = r"(heydouga)[-_]*(\d{4})[-_]0?(\d{3,5})"

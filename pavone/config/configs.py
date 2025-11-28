@@ -2,8 +2,9 @@
 配置类定义
 """
 
-from typing import Optional, List
 from dataclasses import dataclass, field
+from typing import List, Optional
+
 from .logging_config import LoggingConfig
 
 default_user_agent = (

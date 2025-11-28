@@ -3,7 +3,7 @@
 """
 
 # 导入所有配置相关的类和功能
-from .configs import Config, DownloadConfig, OrganizeConfig, SearchConfig, ProxyConfig, PluginConfig
+from .configs import Config, DownloadConfig, OrganizeConfig, PluginConfig, ProxyConfig, SearchConfig
 from .manager import ConfigManager
 from .validator import ConfigValidator
 

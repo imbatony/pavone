@@ -2,12 +2,14 @@
 Download commands - 下载相关命令
 """
 
-import click
 from typing import Optional
+
+import click
+
 from ...config.settings import get_config
-from .utils import echo_success, echo_error, echo_info, read_urls_from_file, read_urls_from_input
-from ...plugins.manager import get_plugin_manager
 from ...manager.execution import create_exe_manager
+from ...plugins.manager import get_plugin_manager
+from .utils import echo_error, echo_info, echo_success, read_urls_from_file, read_urls_from_input
 
 
 @click.command()

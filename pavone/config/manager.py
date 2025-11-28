@@ -3,11 +3,11 @@
 """
 
 import json
+from dataclasses import asdict
 from pathlib import Path
 from typing import Optional
-from dataclasses import asdict
 
-from .configs import Config, DownloadConfig, OrganizeConfig, SearchConfig, ProxyConfig, PluginConfig
+from .configs import Config, DownloadConfig, OrganizeConfig, PluginConfig, ProxyConfig, SearchConfig
 from .logging_config import LoggingConfig, get_log_manager, init_log_manager
 from .validator import ConfigValidator
 

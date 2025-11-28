@@ -1,13 +1,14 @@
 ##元数据
 
+from abc import abstractmethod
 from datetime import datetime
 from typing import Optional
+
 from pydantic import BaseModel
-from abc import abstractmethod
 
 """与操作nfo文件相关的功能"""
-from lxml.etree import tostring, _Element
 from lxml.builder import E
+from lxml.etree import _Element, tostring
 
 
 class MetadataType:

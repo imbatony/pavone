@@ -7,9 +7,17 @@ Memojav视频提取器插件
 import re
 from typing import List, Optional
 from urllib.parse import unquote, urlparse
-from ...models import OperationItem, Quality, create_stream_item, create_cover_item, create_metadata_item
-from .base import ExtractorPlugin
+
+from ...models import (
+    OperationItem,
+    Quality,
+    create_cover_item,
+    create_landscape_item,
+    create_metadata_item,
+    create_stream_item,
+)
 from ...utils import CodeExtractUtils
+from .base import ExtractorPlugin
 
 # 定义插件名称和版本
 PLUGIN_NAME = "MemojavExtractor"
@@ -96,7 +104,9 @@ class MemojavExtractor(ExtractorPlugin):
                 code=code, quality=Quality.UNKNOWN, title=title, url=m3u8_url, site=SITE_NAME  # Memojav 不提供质量信息
             )
             cover_item = create_cover_item(url=cover_url, title=title)
+            landscape_item = create_landscape_item(url=cover_url, title=title)
             item.append_child(cover_item)
+            item.append_child(landscape_item)
             return [item]
         except Exception as e:
             self.logger.error(f"提取视频信息失败: {e}")

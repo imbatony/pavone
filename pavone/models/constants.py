@@ -44,6 +44,7 @@ class ItemSubType:
     # 封面、海报、缩略图和背景图片的子类型
     COVER = "cover"  # 封面图片
     POSTER = "poster"  # 海报图片
+    LANDSCAPE = "landscape"  # 风景图片
     THUMBNAIL = "thumbnail"  # 缩略图
     BACKDROP = "backdrop"  # 背景图片
     # 字幕文件的子类型

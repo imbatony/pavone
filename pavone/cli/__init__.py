@@ -4,15 +4,16 @@ PAVOne CLI主入口
 """
 
 import click
+
 from .. import __version__
+from ..config.logging_config import get_log_manager
+from .commands.config import config
+from .commands.download import batch_download, download
 
 # 导入所有命令模块
 from .commands.init import init
-from .commands.download import download, batch_download
-from .commands.config import config
-from .commands.search import search
 from .commands.organize import organize
-from ..config.logging_config import get_log_manager
+from .commands.search import search
 
 
 @click.group()

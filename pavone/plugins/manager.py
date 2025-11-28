@@ -3,21 +3,29 @@
 """
 
 from __future__ import annotations
+
 import importlib
 import inspect
 import pkgutil
+from pathlib import Path
 from types import ModuleType
 from typing import Any, Dict, List, Optional, Type
-from pathlib import Path
 
 from pavone.plugins.extractors.av01_extractor import AV01Extractor
-from .base import BasePlugin
+
 from ..config.settings import config_manager
-from .extractors import ExtractorPlugin
-from .metadata import MetadataPlugin
-from .search import SearchPlugin, MissavSearch
-from .extractors import MP4DirectExtractor, M3U8DirectExtractor, MissAVExtractor, MemojavExtractor, JTableExtractor
 from ..models import SearchResult
+from .base import BasePlugin
+from .extractors import (
+    ExtractorPlugin,
+    JTableExtractor,
+    M3U8DirectExtractor,
+    MemojavExtractor,
+    MissAVExtractor,
+    MP4DirectExtractor,
+)
+from .metadata import MetadataPlugin
+from .search import MissavSearch, SearchPlugin
 
 
 class PluginManager:
