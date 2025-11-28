@@ -4,14 +4,14 @@ AV01提取器测试
 测试AV01Extractor从 av01.tv 提取视频信息（完全基于API）
 """
 
-import sys
 import os
+import sys
 
 # 添加项目根目录到路径
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from pavone.plugins.extractors.av01_extractor import AV01Extractor
 from pavone.models.constants import ItemType, MetadataExtraKeys
+from pavone.plugins.extractors.av01_extractor import AV01Extractor
 
 
 def print_separator(title="", char="="):
@@ -78,12 +78,12 @@ def test_geo_api():
     
     if geo_data:
         print("✓ 成功获取geo数据")
-        print(f"  Token: {geo_data.get('token', 'N/A')[:15]}...")
-        print(f"  IP: {geo_data.get('ip', 'N/A')}")
-        print(f"  Expires: {geo_data.get('expires', 'N/A')}")
-        print(f"  Country: {geo_data.get('country', 'N/A')}")
-        print(f"  ISP: {geo_data.get('isp', 'N/A')}")
-        print(f"  TTL: {geo_data.get('ttl', 'N/A')}秒")
+        print(f"  Token: {geo_data.token[:15]}...")
+        print(f"  IP: {geo_data.ip}")
+        print(f"  Expires: {geo_data.expires}")
+        print(f"  Country: {geo_data.country}")
+        print(f"  ISP: {geo_data.isp}")
+        print(f"  TTL: {geo_data.ttl}秒")
     else:
         print("✗ 获取geo数据失败")
 
@@ -103,21 +103,21 @@ def test_video_metadata():
     
     if metadata:
         print("✓ 成功获取视频元数据")
-        print(f"  标题: {metadata.get('title', 'N/A')}")
-        print(f"  番号: {metadata.get('number', metadata.get('code', 'N/A'))}")
-        print(f"  时长: {metadata.get('duration', 'N/A')}秒")
-        print(f"  发布日期: {metadata.get('published_at', 'N/A')}")
+        print(f"  标题: {metadata.title}")
+        print(f"  番号: {metadata.dvd_id}")
+        print(f"  时长: {metadata.duration}秒")
+        print(f"  发布日期: {metadata.published_time}")
         
-        if 'actors' in metadata:
-            actors = [a.get('name', '') for a in metadata['actors'][:3]]
+        actors = metadata.get_actor_names()[:3]
+        if actors:
             print(f"  演员: {', '.join(actors)}")
         
-        if 'studio' in metadata and isinstance(metadata['studio'], dict):
-            print(f"  制作商: {metadata['studio'].get('name', 'N/A')}")
+        if metadata.maker:
+            print(f"  制作商: {metadata.maker}")
         
-        if 'genres' in metadata:
-            genres = [g.get('name', '') for g in metadata['genres'][:5]]
-            print(f"  类型: {', '.join(genres)}")
+        tags = metadata.get_tag_names()[:5]
+        if tags:
+            print(f"  标签: {', '.join(tags)}")
     else:
         print("✗ 获取视频元数据失败")
 
