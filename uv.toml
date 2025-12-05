@@ -1,0 +1,5 @@
+index = [
+    { name = "aliyun", url = "https://mirrors.aliyun.com/pypi/simple/" },
+    { name = "tsinghua", url = "https://pypi.tuna.tsinghua.edu.cn/simple" },
+]
+index-url = "https://mirrors.aliyun.com/pypi/simple/"

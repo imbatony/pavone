@@ -4,6 +4,7 @@ Jellyfin 集成模块
 提供与 Jellyfin 服务器交互的功能，包括连接、搜索、库管理等。
 """
 
+from .client import JellyfinClientWrapper
 from .exceptions import (
     JellyfinAPIError,
     JellyfinAuthenticationError,
@@ -14,6 +15,7 @@ from .exceptions import (
 from .models import JellyfinItem, JellyfinMetadata, LibraryInfo
 
 __all__ = [
+    "JellyfinClientWrapper",
     "JellyfinException",
     "JellyfinConnectionError",
     "JellyfinAuthenticationError",

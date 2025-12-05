@@ -1,0 +1,6 @@
+[index]
+default = "https://mirrors.aliyun.com/pypi/simple/"
+
+[[index.extra]]
+name = "official"
+url = "https://pypi.org/simple/"
