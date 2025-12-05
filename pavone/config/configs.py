@@ -79,6 +79,21 @@ class PluginConfig:
 
 
 @dataclass
+class JellyfinConfig:
+    """Jellyfin 配置"""
+
+    enabled: bool = False
+    server_url: str = ""
+    username: Optional[str] = None
+    password: Optional[str] = None
+    api_key: Optional[str] = None
+    libraries: List[str] = field(default_factory=list)
+    verify_ssl: bool = True
+    timeout: int = 30
+    auto_match: bool = True  # 是否自动匹配元数据
+
+
+@dataclass
 class Config:
     """主配置类"""
 
@@ -88,3 +103,4 @@ class Config:
     proxy: ProxyConfig = field(default_factory=ProxyConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     plugin: PluginConfig = field(default_factory=PluginConfig)
+    jellyfin: JellyfinConfig = field(default_factory=JellyfinConfig)

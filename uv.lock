@@ -1073,6 +1073,21 @@ wheels = [
 ]
 
 [[package]]
+name = "jellyfin-apiclient-python"
+version = "1.11.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "certifi" },
+    { name = "requests" },
+    { name = "urllib3" },
+    { name = "websocket-client" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c2/b0/61cacc2261f6b1972e4a53d142857def8b4d3b6fbd1481a2257b26e31029/jellyfin_apiclient_python-1.11.0.tar.gz", hash = "sha256:f5e3dc4ea06a80d26859a62ace7c3ab26f762063a3032f9109f4cea2ed8ac5de", size = 62581, upload-time = "2025-03-17T23:11:29.289Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1f/f3/c5d2ba45e432ed706c705e961c8e2a01c5600f93265279e8d61c61f544ae/jellyfin_apiclient_python-1.11.0-py3-none-any.whl", hash = "sha256:b666c8d175b36f2ce9e6020c13821eb1aa104a585bfbba58f6790fa15f358b40", size = 51475, upload-time = "2025-03-17T23:11:27.91Z" },
+]
+
+[[package]]
 name = "jinja2"
 version = "3.1.6"
 source = { registry = "https://pypi.org/simple" }
@@ -1509,7 +1524,7 @@ wheels = [
 
 [[package]]
 name = "pavone"
-version = "0.1.1"
+version = "0.2.0"
 source = { editable = "." }
 dependencies = [
     { name = "beautifulsoup4" },
@@ -1517,6 +1532,7 @@ dependencies = [
     { name = "click", version = "8.3.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
     { name = "configparser" },
     { name = "dukpy" },
+    { name = "jellyfin-apiclient-python" },
     { name = "lxml" },
     { name = "pillow", version = "11.3.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.10'" },
     { name = "pillow", version = "12.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.10'" },
@@ -1557,6 +1573,7 @@ requires-dist = [
     { name = "click", specifier = ">=8.1.0" },
     { name = "configparser", specifier = ">=5.3.0" },
     { name = "dukpy", specifier = ">=0.5.0" },
+    { name = "jellyfin-apiclient-python", specifier = ">=0.12.0" },
     { name = "lxml", specifier = ">=4.9.0" },
     { name = "pillow", specifier = ">=10.0.0" },
     { name = "pydantic", specifier = ">=2.12.4" },
@@ -2917,6 +2934,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/15/22/9ee70a2574a4f4599c47dd506532914ce044817c7752a79b6a51286319bc/urllib3-2.5.0.tar.gz", hash = "sha256:3fc47733c7e419d4bc3f6b3dc2b4f890bb743906a30d56ba4a5bfa4bbff92760", size = 393185, upload-time = "2025-06-18T14:07:41.644Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a7/c2/fe1e52489ae3122415c51f387e221dd0773709bad6c6cdaa599e8a2c5185/urllib3-2.5.0-py3-none-any.whl", hash = "sha256:e6b01673c0fa6a13e374b50871808eb3bf7046c4b125b216f6bf1cc604cff0dc", size = 129795, upload-time = "2025-06-18T14:07:40.39Z" },
+]
+
+[[package]]
+name = "websocket-client"
+version = "1.9.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/2c/41/aa4bf9664e4cda14c3b39865b12251e8e7d239f4cd0e3cc1b6c2ccde25c1/websocket_client-1.9.0.tar.gz", hash = "sha256:9e813624b6eb619999a97dc7958469217c3176312b3a16a4bd1bc7e08a46ec98", size = 70576, upload-time = "2025-10-07T21:16:36.495Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/34/db/b10e48aa8fff7407e67470363eac595018441cf32d5e1001567a7aeba5d2/websocket_client-1.9.0-py3-none-any.whl", hash = "sha256:af248a825037ef591efbf6ed20cc5faa03d3b47b9e5a2230a529eeee1c1fc3ef", size = 82616, upload-time = "2025-10-07T21:16:34.951Z" },
 ]
 
 [[package]]
