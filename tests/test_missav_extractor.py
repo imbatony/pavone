@@ -371,8 +371,10 @@ class TestMissAVExtractor(unittest.TestCase):
 
     def test_execute_with_non_string_args(self):
         """测试execute方法使用非字符串参数"""
-        result = self.extractor.execute(123, 456)
-        self.assertEqual(result, [])
+        # 使用Mock以避免实际网络调用
+        with patch.object(self.extractor, 'extract', return_value=[]):
+            result = self.extractor.execute(123, 456)
+            self.assertEqual(result, [])
 
 
 if __name__ == "__main__":
