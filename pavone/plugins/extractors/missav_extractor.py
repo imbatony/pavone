@@ -243,6 +243,8 @@ class MissAVExtractor(ExtractorPlugin):
     def _extract_title_and_code(self, html: str) -> Tuple[str, str]:
         """
         从HTML中提取视频标题和代码
+        返回 (video_title, video_code)，其中 video_title 不包含代码前缀
+        
         Args:
             html: HTML页面内容
         Returns:
@@ -262,7 +264,8 @@ class MissAVExtractor(ExtractorPlugin):
                 video_code = CodeExtractUtils.extract_code_from_text(parts[0]) if len(parts) > 0 else default_code
                 if not video_code:
                     video_code = default_code
-                video_title = video_code + " " + parts[1] if len(parts) > 1 else default_title
+                # 返回纯标题（不含代码前缀）
+                video_title = parts[1] if len(parts) > 1 else default_title
             else:
                 video_title = default_title
                 video_code = default_code

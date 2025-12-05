@@ -539,23 +539,6 @@ def create_cover_item(
     return create_image_item(url, title, ItemSubType.COVER, custom_headers)
 
 
-def create_landscape_item(
-    url: str,
-    title: str,
-    custom_headers: Optional[Dict[str, str]] = None,
-) -> OperationItem:
-    """
-    创建一个风景图片下载操作项
-    Args:
-        url: 下载链接
-        title: 标题
-        custom_headers: 自定义HTTP头部
-    Returns:
-        OpertionItem: 创建的下载操作项
-    """
-    return create_image_item(url, title, ItemSubType.LANDSCAPE, custom_headers)
-
-
 def create_backdrop_item(
     url: str,
     title: str,
@@ -587,6 +570,7 @@ def create_thumbnail_item(
         OpertionItem: 创建的下载操作项
     """
     return create_image_item(url, title, ItemSubType.THUMBNAIL, custom_headers)
+
 
 def create_landscape_item(
     url: str,

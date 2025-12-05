@@ -137,10 +137,7 @@ class GeoData:
     def __repr__(self) -> str:
         """返回对象的字符串表示"""
         token_preview = self.token[:10] + "..." if len(self.token) > 10 else self.token
-        return (
-            f"GeoData(token={token_preview}, ip={self.ip}, "
-            f"country={self.country}, expires={self.expires})"
-        )
+        return f"GeoData(token={token_preview}, ip={self.ip}, " f"country={self.country}, expires={self.expires})"
 
 
 @dataclass
@@ -348,6 +345,8 @@ class AV01VideoMetadata:
     def __repr__(self) -> str:
         """返回对象的字符串表示"""
         return f"AV01VideoMetadata(id={self.id}, dvd_id={self.dvd_id}, title={self.title[:50]}...)"
+
+
 # 定义插件名称和版本
 PLUGIN_NAME = "AV01Extractor"
 PLUGIN_VERSION = "1.0.0"
@@ -491,7 +490,12 @@ class AV01Extractor(ExtractorPlugin):
             return None
 
     def _build_download_items(
-        self, video_metadata: AV01VideoMetadata, video_urls: Dict[str, str], original_url: str, geo_data: GeoData, video_id: str
+        self,
+        video_metadata: AV01VideoMetadata,
+        video_urls: Dict[str, str],
+        original_url: str,
+        geo_data: GeoData,
+        video_id: str,
     ) -> List[OperationItem]:
         """
         根据视频元数据和URL列表构建下载选项
@@ -684,7 +688,7 @@ class AV01Extractor(ExtractorPlugin):
 
             metadata_dict = response.json()
             self.logger.debug(f"视频元数据: {json.dumps(metadata_dict, ensure_ascii=False)[:200]}...")
-            
+
             # 转换为 AV01VideoMetadata 实例
             metadata = AV01VideoMetadata.from_dict(metadata_dict)
             return metadata

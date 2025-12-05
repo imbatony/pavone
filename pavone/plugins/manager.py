@@ -21,7 +21,7 @@ from .extractors import (
     MemojavExtractor,
     MissAVExtractor,
     MP4DirectExtractor,
-    AV01Extractor
+    AV01Extractor,
 )
 from .metadata import MetadataPlugin
 from .search import MissavSearch, SearchPlugin

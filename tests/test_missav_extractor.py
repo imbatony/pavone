@@ -293,6 +293,27 @@ class TestMissAVExtractor(unittest.TestCase):
         if result:
             first_item = result[0]
             self.assertIsInstance(first_item, OperationItem)
+            
+            # 验证子项中包含元数据项
+            children = first_item.get_children()
+            self.assertGreater(len(children), 0)
+            
+            # 查找元数据项并验证code字段
+            metadata_item = None
+            for child in children:
+                if child.item_type == "metadata":
+                    metadata_item = child
+                    break
+            
+            self.assertIsNotNone(metadata_item, "元数据项不应为空")
+            if metadata_item:
+                from pavone.models.metadata import MovieMetadata
+                metadata = metadata_item.get_metadata()
+                self.assertIsNotNone(metadata)
+                self.assertIsInstance(metadata, MovieMetadata)
+                # 验证code字段已正确设置
+                m_metadata: MovieMetadata = metadata  # type: ignore
+                self.assertEqual(m_metadata.code, "SDAB-183")
 
     @patch("pavone.plugins.extractors.missav_extractor.MissAVExtractor.fetch")
     def test_extract_no_uuid(self, mock_fetch):

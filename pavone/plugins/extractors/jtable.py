@@ -132,13 +132,17 @@ class JTableExtractor(ExtractorPlugin):
         return None
 
     def _extract_code_title(self, html: str) -> Tuple[str, str]:
-        """从HTML中提取视频标题"""
+        """从HTML中提取视频标题和代码
+        
+        返回 (code, title)，其中 title 不包含代码前缀
+        """
         pattern = r'<meta property="og:title" content="([^"]+)"'
         match = re.search(pattern, html)
         default_title = "Jable Video"
         default_code = StringUtils.sha_256_hash(default_title)
         if not match:
-            return (default_code, default_title)
+            raise ValueError("未找到视频标题")
+        
         title = match.group(1)
         # 分离编号和标题
         title_parts = title.split(" ", 1)
@@ -146,10 +150,11 @@ class JTableExtractor(ExtractorPlugin):
             code = CodeExtractUtils.extract_code_from_text(title_parts[0])
             if not code:
                 code = default_code
-            title = code + " " + title_parts[1]
+            # 返回代码和纯标题（不含代码前缀）
+            return (code, title_parts[1])
         else:
             code = default_code
-        return (code, title)
+            return (code, title)
 
     def _extract_actors(self, html: str) -> List[str]:
         """从HTML中提取演员信息"""

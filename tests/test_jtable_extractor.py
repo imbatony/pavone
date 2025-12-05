@@ -1,28 +1,28 @@
 """
-JTable提取器测试
+JTable 提取器测试
 """
 
 import os
 import unittest
-from unittest.mock import Mock, patch, MagicMock
-from typing import List, Optional
-import os
 from datetime import datetime
+from typing import List, Optional
+from unittest.mock import Mock, patch
 
-from pavone.models.metadata import MovieMetadata, BaseMetadata
+from pavone.models.metadata import BaseMetadata, MovieMetadata
+from pavone.models.operation import OperationItem
 from pavone.plugins.extractors.jtable import JTableExtractor
 
 
 class DummyTableJTableExtractor(JTableExtractor):
-    """可测试的JTable提取器，实现了抽象方法"""
+    """可测试的 JTable 提取器，实现了抽象方法"""
 
     def initialize(self) -> bool:
-        """实现抽象方法"""
+        """初始化提取器"""
         return True
 
-    def execute(self, *args, **kwargs):
-        """实现抽象方法"""
-        pass
+    def execute(self, *args, **kwargs) -> List[OperationItem]:
+        """执行提取操作"""
+        return []
 
 
 class TestJTableExtractor(unittest.TestCase):
@@ -216,14 +216,17 @@ class TestJTableExtractor(unittest.TestCase):
 
         # 验证子项目
         children = main_item.get_children()
-        self.assertEqual(len(children), 2)  # cover和metadata
+        self.assertEqual(len(children), 3)  # cover、landscape 和 metadata
 
         # 验证封面项目和元数据项目
         cover_item = None
+        landscape_item = None
         metadata_item: Optional[OperationItem] = None
         for child in children:
             if child.get_subtype() == "cover":
                 cover_item = child
+            elif child.get_subtype() == "landscape":
+                landscape_item = child
             elif child.item_type == "metadata":
                 metadata_item = child
 
