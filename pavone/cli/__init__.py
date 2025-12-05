@@ -12,6 +12,8 @@ from .commands.download import batch_download, download
 
 # 导入所有命令模块
 from .commands.init import init
+from .commands.jellyfin import jellyfin
+from .commands.metadata import metadata
 from .commands.organize import organize
 from .commands.search import search
 
@@ -37,7 +39,9 @@ main.add_command(download)
 main.add_command(batch_download)
 main.add_command(config)
 main.add_command(search)
+main.add_command(metadata)
 main.add_command(organize)
+main.add_command(jellyfin)
 
 
 if __name__ == "__main__":

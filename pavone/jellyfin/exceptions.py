@@ -31,3 +31,9 @@ class JellyfinVideoMatchError(JellyfinException):
     """Jellyfin 视频匹配错误"""
 
     pass
+
+
+class JellyfinLibraryError(JellyfinException):
+    """Jellyfin 库操作错误"""
+
+    pass

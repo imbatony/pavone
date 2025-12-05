@@ -14,22 +14,22 @@ def confirm_action(message: str, default: bool = False) -> bool:
 
 def echo_success(message: str):
     """显示成功消息"""
-    click.echo(f"✅  {message}")
+    click.echo(f"[OK] {message}")
 
 
 def echo_error(message: str):
     """显示错误消息"""
-    click.echo(f"❌  {message}")
+    click.echo(f"[ERROR] {message}")
 
 
 def echo_warning(message: str):
     """显示警告消息"""
-    click.echo(f"⚠️  {message}")
+    click.echo(f"[WARNING] {message}")
 
 
 def echo_info(message: str):
     """显示信息消息"""
-    click.echo(f"ℹ️  {message}")
+    click.echo(f"[INFO] {message}")
 
 
 def prompt_choice(message: str, choices: List[str], default: Optional[str] = None) -> str:

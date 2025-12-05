@@ -5,22 +5,28 @@ Jellyfin 集成模块
 """
 
 from .client import JellyfinClientWrapper
+from .download_helper import JellyfinDownloadHelper
 from .exceptions import (
     JellyfinAPIError,
     JellyfinAuthenticationError,
     JellyfinConnectionError,
     JellyfinException,
+    JellyfinLibraryError,
     JellyfinVideoMatchError,
 )
+from .library_manager import LibraryManager
 from .models import JellyfinItem, JellyfinMetadata, LibraryInfo
 
 __all__ = [
     "JellyfinClientWrapper",
+    "LibraryManager",
+    "JellyfinDownloadHelper",
     "JellyfinException",
     "JellyfinConnectionError",
     "JellyfinAuthenticationError",
     "JellyfinAPIError",
     "JellyfinVideoMatchError",
+    "JellyfinLibraryError",
     "JellyfinItem",
     "JellyfinMetadata",
     "LibraryInfo",

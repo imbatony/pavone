@@ -1,12 +1,20 @@
 import os
 from typing import List, Optional, Tuple
 
+import click
+
 from ..config.logging_config import get_logger
 from ..config.settings import Config
 from ..core import DummyOperator, HTTPDownloader, M3U8Downloader, MetadataSaver, Operator
 from ..models import ItemType, OperationItem, OperationType
 from ..plugins.manager import PluginManager, get_plugin_manager
 from .progress import create_console_progress_callback, create_silent_progress_callback
+
+# Jellyfin 集成
+try:
+    from ..jellyfin import JellyfinDownloadHelper
+except ImportError:
+    JellyfinDownloadHelper = None
 
 
 class ExecutionManager:
@@ -33,6 +41,13 @@ class ExecutionManager:
         self.http_downloader = HTTPDownloader(config)
         self.m3u8_downloader = M3U8Downloader(config)
         self.metadata_saver = MetadataSaver(config)
+        # 初始化 Jellyfin 助手
+        self.jellyfin_helper = None
+        if JellyfinDownloadHelper and config.jellyfin.enabled:
+            try:
+                self.jellyfin_helper = JellyfinDownloadHelper(config.jellyfin)
+            except Exception as e:
+                self.logger.warning(f"Jellyfin 助手初始化失败: {e}")
         # 确保插件已加载
         if not self.plugin_manager.extractor_plugins:
             self.plugin_manager.load_plugins()
@@ -103,7 +118,226 @@ class ExecutionManager:
                     raise
                 print("输入无效，请输入数字")
             except KeyboardInterrupt:
+                print("\n已取消")
                 raise ValueError("用户取消了下载")
+
+    def _handle_jellyfin_duplicate_check(self, item: OperationItem) -> bool:
+        """
+        检查 Jellyfin 中是否已有该视频，如果有则询问用户是否继续
+
+        Args:
+            item: 操作项
+
+        Returns:
+            True 表示继续下载，False 表示跳过
+        """
+        try:
+            if not self.jellyfin_helper:
+                self.logger.debug("Jellyfin helper 未初始化")
+                return True
+            
+            if not self.jellyfin_helper.is_available():
+                self.logger.debug("Jellyfin 不可用")
+                return True
+            
+            video_title = item.get_description()
+            video_code = item.get_code()  # 尝试获取代码而不是文件名前缀
+            
+            # 如果代码为空，尝试从标题中提取番号
+            if not video_code:
+                # 尝试从标题开头提取番号（通常格式为：CODE-XXXX）
+                import re
+                match = re.match(r'^([A-Z0-9]+-\d+)', video_title)
+                if match:
+                    video_code = match.group(1)
+            
+            self.logger.info(f"检查 Jellyfin 重复: {video_title} (代码: {video_code})")
+
+            duplicate_info = self.jellyfin_helper.check_duplicate(video_title, video_code)
+
+            if duplicate_info and duplicate_info.get("exists"):
+                # 用黄色显示警告信息
+                click.secho(f"\n! 警告: 视频已在 Jellyfin 中存在", fg='yellow', bold=True)
+                click.secho(f"  项目: {duplicate_info['item'].name}\n", fg='yellow')
+                
+                # 显示质量信息
+                self.jellyfin_helper.display_existing_video_quality(duplicate_info["quality_info"])
+                
+                # 比较质量
+                new_quality = item.get_quality_info()
+                existing_quality = duplicate_info["quality_info"].get("resolution", "未知")
+                
+                # 智能建议
+                suggestion = self._compare_quality_and_suggest(new_quality, existing_quality)
+                if suggestion:
+                    click.echo(f"\n{suggestion}\n")
+
+                # 询问用户是否继续
+                while True:
+                    try:
+                        choice = input("是否继续下载? (y/n/s - 是/否/跳过其他): ").strip().lower()
+                        if choice in ("y", "yes", "是"):
+                            self.logger.info("用户选择继续下载")
+                            return True
+                        elif choice in ("n", "no", "否"):
+                            self.logger.info("用户选择取消下载")
+                            return False
+                        elif choice in ("s", "skip", "跳过"):
+                            self.logger.info("用户选择跳过")
+                            return False
+                        else:
+                            print("请输入 y/n/s 中的一个")
+                    except KeyboardInterrupt:
+                        print("\n已取消")
+                        raise
+
+            return True
+
+        except KeyboardInterrupt:
+            raise
+        except Exception as e:
+            self.logger.warning(f"Jellyfin 重复检查失败: {e}")
+            return True  # 检查失败时继续下载
+
+    def _compare_quality_and_suggest(self, new_quality: str, existing_quality: str) -> str:
+        """
+        比较新下载的质量和现有质量，给出建议
+
+        Args:
+            new_quality: 新下载的质量信息（如 "360p", "480p", "1080p"）
+            existing_quality: 现有视频的分辨率（如 "720x410"）
+
+        Returns:
+            建议文本，如果相同或更好则返回空字符串
+        """
+        try:
+            # 从新质量中提取分辨率数字
+            import re
+            new_match = re.search(r'(\d+)p', str(new_quality))
+            new_res = int(new_match.group(1)) if new_match else 0
+            
+            # 从现有分辨率中提取高度
+            existing_match = re.search(r'x(\d+)', str(existing_quality))
+            existing_res = int(existing_match.group(1)) if existing_match else 0
+            
+            if new_res <= 0 or existing_res <= 0:
+                return ""
+            
+            # 比较并给出建议
+            if new_res < existing_res:
+                click.secho(
+                    f"建议: 新下载的质量 ({new_quality}) 低于现有视频 ({existing_quality})，建议不下载。",
+                    fg='red'
+                )
+                return ""
+            elif new_res == existing_res:
+                return f"提示: 新下载的质量 ({new_quality}) 与现有视频相同。"
+            else:
+                return f"提示: 新下载的质量 ({new_quality}) 高于现有视频 ({existing_quality})，可以考虑更新。"
+        except Exception as e:
+            self.logger.debug(f"质量比较失败: {e}")
+            return ""
+
+    def _handle_jellyfin_post_download(self, item: OperationItem) -> None:
+        """
+        下载完成后处理 Jellyfin 集成
+
+        Args:
+            item: 操作项
+        """
+        try:
+            target_path = item.get_target_path()
+            if not target_path:
+                self.logger.warning("无法获取下载文件的目标路径")
+                return
+
+            # 询问是否移动文件到 Jellyfin 库
+            try:
+                choice = input("是否将文件移动到 Jellyfin 库中? (y/n): ").strip().lower()
+            except KeyboardInterrupt:
+                print("\n已取消")
+                raise
+            if choice not in ("y", "yes", "是"):
+                return
+
+            # 获取库列表
+            library_folders = self.jellyfin_helper.get_library_folders()
+            if not library_folders:
+                self.logger.warning("无法获取 Jellyfin 库信息")
+                return
+
+            # 显示库列表
+            self.logger.info("可用的 Jellyfin 库:")
+            libraries_list = list(library_folders.items())
+            for i, (lib_name, folders) in enumerate(libraries_list, 1):
+                self.logger.info(f"  {i}. {lib_name}")
+                for folder in folders:
+                    self.logger.info(f"     -> {folder}")
+
+            # 让用户选择库
+            while True:
+                try:
+                    lib_choice = int(input(f"选择库 (1-{len(libraries_list)}): ").strip())
+                    if 1 <= lib_choice <= len(libraries_list):
+                        selected_lib_name, selected_folders = libraries_list[lib_choice - 1]
+                        break
+                    else:
+                        print(f"请输入 1 到 {len(libraries_list)} 之间的数字")
+                except KeyboardInterrupt:
+                    print("\n已取消")
+                    raise
+                except ValueError:
+                    print("输入无效，请输入数字")
+
+            # 如果库有多个文件夹，让用户选择
+            if len(selected_folders) > 1:
+                self.logger.info(f"库 '{selected_lib_name}' 有多个文件夹:")
+                for i, folder in enumerate(selected_folders, 1):
+                    self.logger.info(f"  {i}. {folder}")
+
+                while True:
+                    try:
+                        folder_choice = int(input(f"选择文件夹 (1-{len(selected_folders)}): ").strip())
+                        if 1 <= folder_choice <= len(selected_folders):
+                            target_folder = selected_folders[folder_choice - 1]
+                            break
+                        else:
+                            print(f"请输入 1 到 {len(selected_folders)} 之间的数字")
+                    except KeyboardInterrupt:
+                        print("\n已取消")
+                        raise
+                    except ValueError:
+                        print("输入无效，请输入数字")
+            else:
+                target_folder = selected_folders[0] if selected_folders else None
+
+            if not target_folder:
+                self.logger.warning("未选择有效的目标文件夹")
+                return
+
+            # 执行文件移动
+            if self.jellyfin_helper.move_to_library(target_path, target_folder):
+                self.logger.info("文件移动成功")
+
+                # 询问是否刷新元数据
+                try:
+                    refresh_choice = input("是否刷新 Jellyfin 库的元数据? (y/n): ").strip().lower()
+                except KeyboardInterrupt:
+                    print("\n已取消")
+                    raise
+                if refresh_choice in ("y", "yes", "是"):
+                    if self.jellyfin_helper.refresh_library(selected_lib_name):
+                        self.logger.info("元数据刷新成功")
+                    else:
+                        self.logger.warning("元数据刷新失败")
+            else:
+                self.logger.error("文件移动失败")
+
+        except KeyboardInterrupt:
+            print("\n已取消")
+            raise
+        except Exception as e:
+            self.logger.warning(f"Jellyfin 后下载处理失败: {e}")
 
     def _get_operator_for_item(self, item: OperationItem) -> Operator:
         """
@@ -146,6 +380,12 @@ class ExecutionManager:
 
         success = True
 
+        # 在下载前检查 Jellyfin 中是否已有该视频（仅在非静默模式下提示用户）
+        if (self.jellyfin_helper and self.jellyfin_helper.is_available() and 
+            selected_item.opt_type == OperationType.DOWNLOAD and not silent):
+            if not self._handle_jellyfin_duplicate_check(selected_item):
+                return False
+
         # 设置目标
         self._set_target_path_for_item(selected_item, parent)
         # 设置进度回调函数
@@ -157,6 +397,10 @@ class ExecutionManager:
         if not success:
             self.logger.error(f"执行失败: {selected_item.get_description()}")
             return False
+
+        # 下载完成后处理 Jellyfin 集成
+        if self.jellyfin_helper and self.jellyfin_helper.is_available() and selected_item.opt_type == OperationType.DOWNLOAD:
+            self._handle_jellyfin_post_download(selected_item)
 
         if not selected_item.has_children():
             return success

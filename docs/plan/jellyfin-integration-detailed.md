@@ -297,23 +297,179 @@ class LibraryManager:
         pass
 ```
 
-#### 3.2 集成到下载流程
+#### 3.2 集成到下载流程 - 下载前重复检测
 **修改文件**：`pavone/manager/execution.py`
 
-在 `_extract_items()` 方法中添加 Jellyfin 检查：
+在 `_extract_items()` 方法中添加 Jellyfin 重复检测与质量对比：
 ```python
 def _extract_items(self, url: str) -> List[OperationItem]:
     # ... 现有代码 ...
     
-    # 添加 Jellyfin 检查
+    # 添加 Jellyfin 检查 - 检测重复并获取现有视频质量
     if self.config.jellyfin.enabled:
-        jellyfin_check = self._check_jellyfin_duplicate(url)
+        jellyfin_check = self._check_jellyfin_duplicate(video_title)
         if jellyfin_check:
-            self.logger.warning(f"视频已在 Jellyfin 中存在: {jellyfin_check}")
-            # 可以选择提示用户或直接跳过
+            self.logger.warning(f"视频已在 Jellyfin 中存在!")
+            # 显示 Jellyfin 中的视频质量信息
+            self._display_existing_video_quality(jellyfin_check)
+            # 询问用户是否继续下载或跳过
+            user_choice = self._prompt_user_duplicate_action(jellyfin_check)
+            if user_choice == 'skip':
+                return []  # 跳过下载
     
     # ... 继续下载流程 ...
+
+def _check_jellyfin_duplicate(self, video_title: str) -> Optional[JellyfinItem]:
+    """检查 Jellyfin 是否已有该视频"""
+    # 按番号或标题在 Jellyfin 中搜索
+    # 返回匹配的 JellyfinItem 或 None
+
+def _display_existing_video_quality(self, item: JellyfinItem) -> None:
+    """显示 Jellyfin 中已有视频的质量信息"""
+    # 显示信息：
+    # - 文件路径
+    # - 文件大小
+    # - 分辨率（如果可用）
+    # - 比特率（如果可用）
+    # - 添加时间
+    # - 播放状态
+
+def _prompt_user_duplicate_action(self, item: JellyfinItem) -> str:
+    """提示用户是否跳过或重新下载"""
+    # 返回: 'skip' / 'download' / 'cancel'
 ```
+
+**质量信息字段**：
+- 文件路径：`item.path`
+- 文件大小：`item.metadata.get('Size')`
+- 分辨率：`item.metadata.get('Width')x${item.metadata.get('Height')}`
+- 比特率：`item.metadata.get('VideoBitrate')`
+- 编码格式：`item.metadata.get('VideoCodec')`
+- 添加时间：`item.metadata.get('DateCreated')`
+
+#### 3.3 集成到下载流程 - 下载完成后的文件管理
+**修改文件**：`pavone/manager/execution.py`
+
+在下载完成后添加 Jellyfin 库移动交互流程：
+```python
+def _on_download_complete(self, operation: OperationItem) -> None:
+    """下载完成后的处理"""
+    # ... 现有代码 ...
+    
+    # 添加 Jellyfin 库移动流程
+    if self.config.jellyfin.enabled:
+        self._handle_jellyfin_library_import(operation)
+
+def _handle_jellyfin_library_import(self, operation: OperationItem) -> None:
+    """处理下载完成后的 Jellyfin 库导入"""
+    
+    # Step 1: 询问用户是否移动文件到 Jellyfin 库
+    move_to_library = self._prompt_move_to_jellyfin_library()
+    if not move_to_library:
+        return
+    
+    # Step 2: 获取 Jellyfin 库列表和对应的本地文件夹
+    library_folders = self._get_jellyfin_library_folders()
+    
+    # Step 3: 让用户选择目标库
+    target_library = self._select_jellyfin_library(library_folders)
+    if not target_library:
+        return
+    
+    # Step 4: 如果库有多个文件夹，让用户选择具体文件夹
+    target_folder = self._select_library_folder(target_library)
+    if not target_folder:
+        return
+    
+    # Step 5: 执行文件移动
+    success = self._move_downloaded_files(
+        source=operation.output_path,
+        destination=target_folder
+    )
+    
+    if success:
+        # Step 6: 询问是否刷新 Jellyfin 库元数据
+        refresh_metadata = self._prompt_refresh_jellyfin_metadata()
+        if refresh_metadata:
+            self._refresh_jellyfin_library(target_library)
+
+def _prompt_move_to_jellyfin_library(self) -> bool:
+    """询问用户是否移动文件到 Jellyfin 库"""
+    # 返回 True/False
+
+def _get_jellyfin_library_folders(self) -> Dict[str, List[str]]:
+    """获取 Jellyfin 库及其对应的本地文件夹"""
+    # 返回格式:
+    # {
+    #     "电影": ["/media/movies", "/mnt/films"],
+    #     "电视剧": ["/media/tv"],
+    #     "其他": ["/media/other"]
+    # }
+    libraries = self.jellyfin_client.get_libraries_with_paths()
+    result = {}
+    for lib in libraries:
+        lib_name = lib['Name']
+        lib_paths = lib['CollectionFolders']  # 库可能有多个文件夹
+        result[lib_name] = lib_paths
+    return result
+
+def _select_jellyfin_library(self, library_folders: Dict[str, List[str]]) -> Optional[str]:
+    """让用户选择目标库"""
+    # 显示所有库及其文件夹信息
+    # 返回选中的库名称或 None
+
+def _select_library_folder(self, library_name: str) -> Optional[str]:
+    """如果库有多个文件夹，让用户选择具体文件夹"""
+    # 如果只有一个文件夹，直接返回
+    # 如果有多个文件夹，显示列表让用户选择
+    # 返回选中的文件夹路径或 None
+
+def _move_downloaded_files(self, source: str, destination: str) -> bool:
+    """执行文件移动操作"""
+    # 将下载的文件移动到 Jellyfin 库文件夹
+    # 注意：Windows 和 Linux 路径处理
+    # 返回 True 成功，False 失败
+
+def _prompt_refresh_jellyfin_metadata(self) -> bool:
+    """询问用户是否刷新 Jellyfin 库的元数据"""
+    # 返回 True/False
+
+def _refresh_jellyfin_library(self, library_name: str) -> None:
+    """刷新 Jellyfin 库的元数据"""
+    # 调用 Jellyfin API 刷新指定库
+    # 显示刷新进度/完成提示
+```
+
+**用户交互流程示意**：
+```
+下载完成
+    ↓
+询问: "是否将文件移动到 Jellyfin 库中? (Y/n)"
+    ↓ (Yes)
+显示 Jellyfin 库列表:
+  1. 电影 → /media/movies, /mnt/films
+  2. 电视剧 → /media/tv
+  3. 其他 → /media/other
+询问: "选择目标库 (1-3):"
+    ↓ (选择 1)
+电影库有多个文件夹，选择具体文件夹:
+  1. /media/movies
+  2. /mnt/films
+询问: "选择文件夹 (1-2):"
+    ↓ (选择 1)
+移动文件: /downloads/video.mkv → /media/movies/video.mkv
+    ↓
+询问: "文件已移动，是否刷新 Jellyfin 库元数据? (Y/n)"
+    ↓ (Yes)
+刷新 Jellyfin 库元数据...
+完成！
+```
+
+**关键考虑**：
+- 文件系统与程序一致性：确保本地文件系统路径与 Jellyfin 中配置的路径对应
+- 跨平台支持：处理 Windows (`C:\`) 和 Linux (`/mnt/`) 路径差异
+- 安全移动：检查目标文件夹权限，确保文件移动不会失败
+- 原子性：如果移动失败，需要清晰的错误提示和回滚选项
 
 ---
 

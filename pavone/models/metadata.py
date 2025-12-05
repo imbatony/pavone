@@ -112,7 +112,8 @@ class MovieMetadata(BaseMetadata):
     runtime: Optional[int] = None  # 影片时长（分钟）
     tags: Optional[list[str]] = None  # 标签列表
     tags_normalized: Optional[list[str]] = None  # 标准化标签列表
-    rating: Optional[float] = None  # 评分
+    rating: Optional[float] = None  # 评分（通常是0-10的评分系统）
+    official_rating: Optional[str] = None  # 官方分级（如PG, R, PG-13等，或地区分级）
     genres: Optional[list[str]] = None  # 类型列表
     genres_normalized: Optional[list[str]] = None  # 标准化类型列表
     mpaa: Optional[str] = None  # 家长分级（如 PG-13, R 等）
@@ -137,6 +138,9 @@ class MovieMetadata(BaseMetadata):
 
         if d.rating:
             nfo.append(E.rating(str(d.rating)))
+
+        if d.official_rating:
+            nfo.append(E.certification(d.official_rating))
 
         if d.premiered:
             nfo.append(E.premiered(d.premiered))

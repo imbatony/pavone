@@ -394,7 +394,7 @@ def create_video_item(
         quality = Quality.UNKNOWN
 
     # 设置描述信息
-    desc = f"{title} ({quality})"
+    desc = f"{code} {title} ({quality})"
     item = OperationItem(opt_type=OperationType.DOWNLOAD, item_type=item_type, desc=desc)
     item.set_url(url)
     item._extra[VideoCoreExtraKeys.QUALITY] = quality
@@ -456,7 +456,7 @@ def create_stream_item(
     if not quality:
         quality = Quality.UNKNOWN
     # 设置描述信息
-    desc = f"{title} ({quality})"
+    desc = f"{code} {title} ({quality})"
 
     item = OperationItem(opt_type=OperationType.DOWNLOAD, item_type=item_type, desc=desc)
     item.set_url(url)

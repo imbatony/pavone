@@ -144,7 +144,7 @@ class TestJellyfinClientAPIMethods:
             ]
         }
 
-        authenticated_client.client.jellyfin.get_libraries = Mock(return_value=mock_response)
+        authenticated_client.client.jellyfin.media_folders = Mock(return_value=mock_response)
 
         libraries = authenticated_client.get_libraries()
 
@@ -155,7 +155,7 @@ class TestJellyfinClientAPIMethods:
 
     def test_get_libraries_error(self, authenticated_client):
         """测试获取库列表时出错"""
-        authenticated_client.client.jellyfin.get_libraries = Mock(
+        authenticated_client.client.jellyfin.media_folders = Mock(
             side_effect=Exception("API Error")
         )
 
