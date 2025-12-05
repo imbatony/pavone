@@ -133,7 +133,7 @@ class JTableExtractor(ExtractorPlugin):
 
     def _extract_code_title(self, html: str) -> Tuple[str, str]:
         """从HTML中提取视频标题和代码
-        
+
         返回 (code, title)，其中 title 不包含代码前缀
         """
         pattern = r'<meta property="og:title" content="([^"]+)"'
@@ -142,7 +142,7 @@ class JTableExtractor(ExtractorPlugin):
         default_code = StringUtils.sha_256_hash(default_title)
         if not match:
             raise ValueError("未找到视频标题")
-        
+
         title = match.group(1)
         # 分离编号和标题
         title_parts = title.split(" ", 1)

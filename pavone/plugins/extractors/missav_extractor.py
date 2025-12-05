@@ -244,7 +244,7 @@ class MissAVExtractor(ExtractorPlugin):
         """
         从HTML中提取视频标题和代码
         返回 (video_title, video_code)，其中 video_title 不包含代码前缀
-        
+
         Args:
             html: HTML页面内容
         Returns:
