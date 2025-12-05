@@ -448,9 +448,6 @@ def create_stream_item(
     if not title:
         raise ValueError("标题不能为空")
 
-    if not code:
-        raise ValueError("代码不能为空")
-
     if not site:
         raise ValueError("站点不能为空")
 
@@ -473,6 +470,8 @@ def create_stream_item(
     item._extra[VideoCoreExtraKeys.QUALITY] = quality
 
     # 视频的主要信息
+    if not code:
+        code = StringUtils.sha_256_hash(title)
     item.set_code(code)
     item.set_title(title)
     if actors:
@@ -588,6 +587,22 @@ def create_thumbnail_item(
         OpertionItem: 创建的下载操作项
     """
     return create_image_item(url, title, ItemSubType.THUMBNAIL, custom_headers)
+
+def create_landscape_item(
+    url: str,
+    title: str,
+    custom_headers: Optional[Dict[str, str]] = None,
+) -> OperationItem:
+    """
+    创建一个横幅图片下载操作项
+    Args:
+        url: 下载链接
+        title: 标题
+        custom_headers: 自定义HTTP头部
+    Returns:
+        OpertionItem: 创建的下载操作项
+    """
+    return create_image_item(url, title, ItemSubType.LANDSCAPE, custom_headers)
 
 
 def create_poster_item(

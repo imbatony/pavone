@@ -11,8 +11,6 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, Dict, List, Optional, Type
 
-from pavone.plugins.extractors.av01_extractor import AV01Extractor
-
 from ..config.settings import config_manager
 from ..models import SearchResult
 from .base import BasePlugin
@@ -23,6 +21,7 @@ from .extractors import (
     MemojavExtractor,
     MissAVExtractor,
     MP4DirectExtractor,
+    AV01Extractor
 )
 from .metadata import MetadataPlugin
 from .search import MissavSearch, SearchPlugin

@@ -90,18 +90,19 @@ class MissAVExtractor(ExtractorPlugin):
             studio = self._extract_studio(html_content)
             series = self._extract_series(html_content)
             cover_image = self._extract_cover_image(html_content)
+            landscape = cover_image  # 假设封面图片也是横幅图片
             description = self._extract_description(html_content)
             tagline = self._extract_tagline(html_content)
             cover_item: Optional[OperationItem] = None
             landscape_item: Optional[OperationItem] = None
             release_year = int(release_date.split("-")[0]) if release_date else datetime.now().year
             # 如果有封面图片，创建封面图片项
-            if cover_image:
+            if cover_image and landscape:
                 cover_item = create_cover_item(url=cover_image, title=video_title)
                 landscape_item = create_landscape_item(url=cover_image, title=video_title)
             identifier = StringUtils.create_identifier(site=SITE_NAME, code=video_code, url=url)
             matadata = MovieMetadata(
-                title=video_title,
+                title=f"{video_code} {video_title}",
                 identifier=identifier,
                 site=SITE_NAME,
                 url=url,
