@@ -1,23 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Jellyfin 库诊断工具
-
-用于诊断 Jellyfin 库的文件夹配置问题。
-使用方式:
-  uv run python -m pavone.tools.diagnose_jellyfin
-
-这个工具可以帮助你检查：
-1. Jellyfin 服务器连接状态
-2. 库的配置和文件夹路径
-3. 为什么某些库没有文件夹路径
+Jellyfin Library Diagnostic Tool
 """
 
 import json
 import sys
 from pathlib import Path
 
-# 添加项目根目录到 Python 路径
+# Add project root to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
@@ -27,14 +18,12 @@ from pavone.jellyfin.library_manager import LibraryManager
 
 
 def print_header(text: str) -> None:
-    """打印标题"""
     print(f"\n{'=' * 80}")
     print(f"  {text}")
     print(f"{'=' * 80}")
 
 
 def print_section(text: str) -> None:
-    """打印分段标题"""
     print(f"\n{text}")
     print("-" * len(text))
 

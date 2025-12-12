@@ -41,5 +41,10 @@
         "build/": true,
         "dist/": true,
         "*.egg-info/": true
-    }
+    },
+    "files.encoding": "utf8",
+    "terminal.integrated.env.windows": {
+        "PYTHONIOENCODING": "utf-8"
+    },
+    "terminal.integrated.shellArgs.windows": ["-NoExit", "-Command", "chcp 65001"]
 }

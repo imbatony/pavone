@@ -225,12 +225,24 @@ class JellyfinDownloadHelper:
             {库名: 文件夹路径列表} 的字典
         """
         if not self.is_available():
-            return {}
+            # 尝试重新初始化连接
+            self.logger.warning("Jellyfin 助手不可用，尝试重新初始化...")
+            try:
+                self.client = JellyfinClientWrapper(self.config)
+                self.client.authenticate()
+                self.library_manager = LibraryManager(self.client)
+                self.library_manager.initialize()
+                self.logger.info("Jellyfin 重新初始化成功")
+            except Exception as e:
+                self.logger.error(f"Jellyfin 重新初始化失败: {e}")
+                return {}
 
         try:
-            return self.library_manager.get_library_folders()
+            folders = self.library_manager.get_library_folders()
+            self.logger.info(f"成功获取 {len(folders)} 个库的文件夹信息")
+            return folders
         except Exception as e:
-            self.logger.warning(f"获取库文件夹失败: {e}")
+            self.logger.error(f"获取库文件夹失败: {e}", exc_info=True)
             return {}
 
     def move_to_library(
