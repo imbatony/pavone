@@ -521,3 +521,137 @@ def duplicate_check(keyword):
     except Exception as e:
         echo_error(f"检查失败: {e}")
         return 1
+
+
+@jellyfin.command()
+@click.argument("source_path", type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=str))
+def move(source_path):
+    """将下载的文件夹移动到 Jellyfin 库
+    
+    示例:
+        pavone jellyfin move "/path/to/downloaded/video_folder"
+    """
+    import os
+    from pathlib import Path
+    
+    config_manager = get_config_manager()
+    config = config_manager.get_config()
+
+    if not config.jellyfin.enabled:
+        echo_error("Jellyfin 未启用")
+        return
+
+    try:
+        # 验证源路径
+        source = Path(source_path)
+        if not source.is_dir():
+            echo_error(f"源路径不是文件夹: {source_path}")
+            return 1
+        
+        source_folder_name = source.name
+        
+        # 初始化 Jellyfin 助手
+        helper = JellyfinDownloadHelper(config.jellyfin)
+        
+        if not helper.is_available():
+            echo_error("Jellyfin 不可用，请检查服务器连接")
+            return 1
+        
+        # 获取库列表
+        library_folders = helper.get_library_folders()
+        if not library_folders:
+            echo_error("无法获取 Jellyfin 库信息")
+            return 1
+        
+        # 过滤有有效文件夹路径的库
+        valid_libraries = {
+            lib_name: folders for lib_name, folders in library_folders.items()
+            if folders
+        }
+        
+        if not valid_libraries:
+            echo_error("没有找到任何配置了文件夹路径的库")
+            return 1
+        
+        # 显示源文件夹信息
+        echo_info("\n" + "="*70)
+        echo_info("准备移动下载文件夹到 Jellyfin")
+        echo_info("="*70)
+        echo_info(f"📁 源文件夹: {source_path}\n")
+        
+        # 显示库列表
+        echo_info("可用的 Jellyfin 库:")
+        libraries_list = list(valid_libraries.items())
+        for i, (lib_name, folders) in enumerate(libraries_list, 1):
+            echo_info(f"  {i}. ", nl=False)
+            click.secho(f"{lib_name}", fg='green', bold=True, nl=False)
+            click.echo()
+            for folder in folders:
+                echo_info(f"     📁 {folder}")
+        
+        # 让用户选择库
+        while True:
+            try:
+                lib_choice = click.prompt("\n请选择库", type=click.IntRange(1, len(libraries_list)))
+                selected_lib_name, selected_folders = libraries_list[lib_choice - 1]
+                click.secho(f"✓ 已选择库: {selected_lib_name}\n", fg='green', bold=True)
+                break
+            except click.BadParameter:
+                echo_error(f"请输入 1 到 {len(libraries_list)} 之间的数字")
+        
+        # 如果库有多个文件夹，让用户选择
+        if len(selected_folders) > 1:
+            echo_info(f"库 '{selected_lib_name}' 有多个文件夹:")
+            for i, folder in enumerate(selected_folders, 1):
+                echo_info(f"  {i}. 📁 {folder}")
+            
+            while True:
+                try:
+                    folder_choice = click.prompt("请选择文件夹", type=click.IntRange(1, len(selected_folders)))
+                    target_folder = selected_folders[folder_choice - 1]
+                    click.secho(f"✓ 已选择文件夹: {target_folder}\n", fg='green', bold=True)
+                    break
+                except click.BadParameter:
+                    echo_error(f"请输入 1 到 {len(selected_folders)} 之间的数字")
+        else:
+            target_folder = selected_folders[0]
+            click.secho(f"✓ 已选择文件夹: {target_folder}\n", fg='green', bold=True)
+        
+        # 显示最终的移动确认
+        target_location = os.path.join(target_folder, source_folder_name)
+        
+        echo_info("="*70)
+        echo_info("移动确认:")
+        echo_info("="*70)
+        echo_info(f"📁 源位置: {source_path}")
+        echo_info(f"📁 目标位置: {target_location}\n")
+        
+        confirm = click.confirm("确认移动？", default=True)
+        
+        if not confirm:
+            echo_warning("已取消移动")
+            return
+        
+        # 执行文件夹移动
+        if helper.move_to_library(source_path, target_folder):
+            click.secho(f"\n✓ 文件夹移动成功!\n", fg='green', bold=True)
+            echo_success(f"源位置: {source_path}")
+            echo_success(f"目标位置: {target_location}")
+            
+            # 询问是否刷新元数据
+            refresh = click.confirm("\n是否刷新 Jellyfin 库的元数据？", default=True)
+            if refresh:
+                if helper.refresh_library(selected_lib_name):
+                    click.secho("✓ 元数据刷新成功!\n", fg='green', bold=True)
+                else:
+                    echo_error("元数据刷新失败")
+                    return 1
+        else:
+            echo_error("文件夹移动失败")
+            return 1
+            
+    except Exception as e:
+        echo_error(f"操作失败: {e}")
+        logger.exception("移动文件夹时出错")
+        return 1
+
