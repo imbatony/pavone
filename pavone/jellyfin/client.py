@@ -238,6 +238,47 @@ class JellyfinClientWrapper:
             self.logger.error(f"获取库列表失败: {e}")
             raise JellyfinAPIError(f"获取库列表失败: {e}")
 
+    def get_library_physical_locations(self) -> Dict[str, List[str]]:
+        """
+        获取所有库的物理文件夹位置
+
+        Returns:
+            {库名: 物理路径列表} 的字典
+
+        Raises:
+            JellyfinAPIError: API 调用失败
+        """
+        try:
+            result = self.client.jellyfin.media_folders()
+            locations = {}
+
+            for item in result.get("Items", []):
+                lib_name = item.get("Name", "")
+                lib_type = item.get("CollectionType", "")
+                
+                # 排除 playlists 类型的库（内建库）
+                if lib_type == "playlists":
+                    continue
+                
+                # 获取物理位置
+                paths = item.get("PhysicalLocations", [])
+                if paths:
+                    locations[lib_name] = paths
+                else:
+                    # 如果 PhysicalLocations 为空，尝试从 CollectionFolders 获取
+                    collection_folders = item.get("CollectionFolders", [])
+                    if collection_folders:
+                        folder_paths = [f.get("Path", "") for f in collection_folders if f.get("Path")]
+                        if folder_paths:
+                            locations[lib_name] = folder_paths
+
+            self.logger.debug(f"获取到库物理位置: {locations}")
+            return locations
+
+        except Exception as e:
+            self.logger.error(f"获取库物理位置失败: {e}")
+            raise JellyfinAPIError(f"获取库物理位置失败: {e}")
+
     def _get_library_item_count(self, library_id: str) -> int:
         """
         获取库中的项目数

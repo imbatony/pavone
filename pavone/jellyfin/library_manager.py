@@ -167,12 +167,19 @@ class LibraryManager:
             {库名: 文件夹路径列表} 的字典
         """
         try:
+            # 首先尝试从 API 直接获取物理位置
+            locations = self.client.get_library_physical_locations()
+            
+            if locations:
+                self.logger.info(f"从 API 获取到 {len(locations)} 个库的物理位置")
+                return locations
+            
+            # 如果 API 返回为空，则回退到从库项获取路径
+            self.logger.info("API 返回的物理位置为空，尝试从库项获取路径")
             libraries = self.client.get_libraries()
             result = {}
 
             for lib in libraries:
-                # 从库的元数据中获取文件夹路径
-                # 这通常需要从 API 响应中提取 CollectionFolders 或类似字段
                 folders = []
 
                 # 尝试从库项中获取路径

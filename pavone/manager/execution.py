@@ -320,7 +320,8 @@ class ExecutionManager:
                 target_folder = selected_folders[0] if selected_folders else None
 
             if not target_folder:
-                self.logger.warning("未选择有效的目标文件夹")
+                click.secho(f"\n❌ 错误: 库 '{selected_lib_name}' 未配置文件夹路径", fg='red', bold=True)
+                click.secho("请在 Jellyfin 服务器中检查库的配置。", fg='yellow')
                 return
 
             # 执行文件移动
