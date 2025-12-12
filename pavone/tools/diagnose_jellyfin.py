@@ -119,7 +119,24 @@ def diagnose_jellyfin() -> None:
             return
         
         # 步骤 6: 检查原始 API 响应
-        print_section("[6/6] 检查原始 API 响应...")
+        print_section("[6/6] 检查原始 API 响应（virtual_folders）...")
+        try:
+            vf_result = client.client.jellyfin.virtual_folders()
+            if vf_result and isinstance(vf_result, list):
+                print(f"✓ virtual_folders API 返回 {len(vf_result)} 个虚拟文件夹:")
+                for idx, vf in enumerate(vf_result, 1):
+                    print(f"\n  虚拟文件夹 #{idx}: {vf.get('Name')}")
+                    print(f"    - Locations: {vf.get('Locations')}")
+                    print(f"    - 所有字段: {list(vf.keys())}")
+            else:
+                print(f"⚠ virtual_folders API 返回类型: {type(vf_result)}")
+                if isinstance(vf_result, dict):
+                    print(f"  返回内容: {json.dumps(vf_result, indent=4, ensure_ascii=False)[:500]}")
+        except Exception as e:
+            print(f"⚠ virtual_folders API 检查失败: {e}")
+        
+        # 步骤 7: 检查 media_folders API
+        print_section("[7/7] 检查原始 API 响应（media_folders）...")
         try:
             result = client.client.jellyfin.media_folders()
             print(f"✓ media_folders API 返回 {len(result.get('Items', []))} 个项:")
@@ -131,14 +148,18 @@ def diagnose_jellyfin() -> None:
                 print(f"    - CollectionFolders: {item.get('CollectionFolders')}")
                 print(f"    - Folders: {item.get('Folders')}")
                 
+                # 列出所有字段
+                all_keys = [k for k in item.keys() if k not in ['PhysicalLocations', 'CollectionFolders', 'Folders', 'CollectionType', 'Name']]
+                if all_keys:
+                    print(f"    - 其他字段: {all_keys}")
+                
                 # 如果都为空，显示警告
                 if not any([
                     item.get('PhysicalLocations'),
                     item.get('CollectionFolders'),
                     item.get('Folders'),
                 ]):
-                    print(f"    ⚠ 警告: 此库未配置任何文件夹路径!")
-                    print(f"    请在 Jellyfin 中检查库 '{item.get('Name')}' 的设置")
+                    print(f"    ℹ 信息: 此库的文件夹路径通过 virtual_folders API 获取")
                 
         except Exception as e:
             print(f"⚠ 检查原始响应失败: {e}")
