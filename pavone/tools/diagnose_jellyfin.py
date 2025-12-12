@@ -21,7 +21,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from pavone.config.settings import Config
+from pavone.config.settings import get_config
 from pavone.jellyfin.client import JellyfinClientWrapper
 from pavone.jellyfin.library_manager import LibraryManager
 
@@ -48,7 +48,7 @@ def diagnose_jellyfin() -> None:
         # 步骤 1: 加载配置
         print_section("[1/6] 加载配置...")
         try:
-            config = Config()
+            config = get_config()
             jf_config = config.jellyfin
             print(f"✓ 配置加载成功")
             print(f"  - 服务器: {jf_config.server_url}")
@@ -56,6 +56,7 @@ def diagnose_jellyfin() -> None:
             print(f"  - 验证 SSL: {jf_config.verify_ssl}")
         except Exception as e:
             print(f"❌ 配置加载失败: {e}")
+            print(f"   请检查配置文件是否存在和有效")
             return
         
         # 步骤 2: 创建客户端
