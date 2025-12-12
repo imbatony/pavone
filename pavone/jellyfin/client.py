@@ -505,9 +505,9 @@ class JellyfinClientWrapper:
 
     def refresh_library(self, library_id: Optional[str] = None) -> bool:
         """
-        刷新库
+        增量刷新库元数据
         
-        默认使用增量刷新（仅扫描库目录中的更改）
+        扫描库目录中的新增和修改文件，仅更新新项和修改项的元数据
 
         Args:
             library_id: 库 ID（如果为 None 则刷新所有库）
@@ -520,28 +520,37 @@ class JellyfinClientWrapper:
         """
         try:
             if library_id:
-                # 增量刷新特定库（仅扫描库目录中的更改，不扫描媒体库中的现有项）
-                # 使用 RefreshLibrary 而不是 RefreshItem 进行增量扫描
-                self.client.jellyfin.post(
-                    f"/Library/Media/{library_id}/Refresh",
-                    data={
-                        "Recursive": True,  # 递归扫描
-                        "ReplaceAllMetadata": False,  # 不替换所有元数据，仅更新新项和修改项
-                        "ReplaceAllImages": False  # 不替换所有图像
-                    }
-                )
-                self.logger.info(f"增量刷新库 {library_id}")
-            else:
-                # 刷新所有库（增量模式）
-                self.client.jellyfin.post(
-                    "/Library/Refresh",
-                    data={
+                # 增量刷新特定库
+                # 使用 jellyfin 库的 _post 方法调用 API，传递增量刷新参数
+                self.client.jellyfin._post(
+                    f"Items/{library_id}/Refresh",
+                    params={
                         "Recursive": True,
-                        "ReplaceAllMetadata": False,
-                        "ReplaceAllImages": False
+                        "ImageRefreshMode": "Default",
+                        "MetadataRefreshMode": "Default",
+                        "ReplaceAllImages": False,
+                        "RegenerateTrickplay": False,
+                        "ReplaceAllMetadata": False  # 关键：不替换所有元数据，进行增量更新
                     }
                 )
-                self.logger.info("增量刷新所有库")
+                self.logger.info(f"增量刷新库 {library_id} 成功")
+            else:
+                # 增量刷新所有库
+                libraries = self.get_libraries()
+                for lib in libraries:
+                    self.client.jellyfin._post(
+                        f"Items/{lib.id}/Refresh",
+                        params={
+                            "Recursive": True,
+                            "ImageRefreshMode": "Default",
+                            "MetadataRefreshMode": "Default",
+                            "ReplaceAllImages": False,
+                            "RegenerateTrickplay": False,
+                            "ReplaceAllMetadata": False
+                        }
+                    )
+                
+                self.logger.info("增量刷新所有库完成")
 
             return True
 

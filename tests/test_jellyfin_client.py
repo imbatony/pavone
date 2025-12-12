@@ -214,12 +214,12 @@ class TestJellyfinClientAPIMethods:
 
     def test_refresh_library(self, authenticated_client):
         """测试刷新库"""
-        authenticated_client.client.jellyfin.refresh_item = Mock()
+        authenticated_client.client.jellyfin._post = Mock(return_value={})
 
         result = authenticated_client.refresh_library("lib1")
 
         assert result is True
-        authenticated_client.client.jellyfin.refresh_item.assert_called_once()
+        authenticated_client.client.jellyfin._post.assert_called_once()
 
 
 class TestJellyfinClientParseItem:

@@ -7,13 +7,35 @@ Jellyfin 下载集成助手
 import logging
 import os
 import shutil
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from ..config.configs import JellyfinConfig
+from ..utils import FormatUtils
 from .client import JellyfinClientWrapper
 from .library_manager import LibraryManager
 from ..models import OperationItem, ItemMetadata
+
+
+@dataclass
+class VideoQualityInfo:
+    """视频质量信息"""
+    path: str
+    size: str
+    resolution: str
+    bitrate: str
+    codec: str
+    added_date: str
+    runtime: str
+
+
+@dataclass
+class DuplicateCheckResult:
+    """重复检查结果"""
+    exists: bool
+    item: Optional[object] = None
+    quality_info: Optional[VideoQualityInfo] = None
 
 
 class JellyfinDownloadHelper:
@@ -53,7 +75,7 @@ class JellyfinDownloadHelper:
         """
         return self.client is not None and self.library_manager is not None
 
-    def check_duplicate(self, video_title: str, video_code: Optional[str] = None) -> Optional[Dict]:
+    def check_duplicate(self, video_title: str, video_code: Optional[str] = None) -> Optional[DuplicateCheckResult]:
         """
         检查 Jellyfin 中是否已有该视频
 
@@ -62,18 +84,7 @@ class JellyfinDownloadHelper:
             video_code: 视频番号（可选）
 
         Returns:
-            {
-                'exists': bool,
-                'item': JellyfinItem,
-                'quality_info': {
-                    'path': str,
-                    'size': int,
-                    'resolution': str,
-                    'bitrate': int,
-                    'codec': str,
-                    'added_date': str
-                }
-            }
+            DuplicateCheckResult 对象，包含存在标志、项目和质量信息
             如果未找到则返回 None
         """
         if not self.is_available():
@@ -127,11 +138,11 @@ class JellyfinDownloadHelper:
 
             self.logger.info(f"在 Jellyfin 中找到重复项: {item.name}")
 
-            return {
-                "exists": True,
-                "item": item,
-                "quality_info": quality_info,
-            }
+            return DuplicateCheckResult(
+                exists=True,
+                item=item,
+                quality_info=quality_info
+            )
 
         except Exception as e:
             self.logger.warning(f"检查重复时出错: {e}")
@@ -139,7 +150,7 @@ class JellyfinDownloadHelper:
             self.logger.debug(traceback.format_exc())
             return None
 
-    def _extract_quality_info(self, item) -> Dict:
+    def _extract_quality_info(self, item) -> VideoQualityInfo:
         """
         从项中提取质量信息
 
@@ -147,7 +158,7 @@ class JellyfinDownloadHelper:
             item: JellyfinItem 对象
 
         Returns:
-            质量信息字典
+            VideoQualityInfo 对象
         """
         metadata = ItemMetadata(item.metadata or {})
 
@@ -174,48 +185,32 @@ class JellyfinDownloadHelper:
             except Exception:
                 pass
 
-        return {
-            "path": item.path or "未知",
-            "size": self._format_size(file_size),
-            "resolution": resolution,
-            "bitrate": self._format_bitrate(bitrate) if bitrate else "未知",
-            "codec": codec if codec else "未知",
-            "added_date": metadata.added_date or "未知",
-            "runtime": f"{metadata.runtime_minutes} 分钟",
-        }
+        return VideoQualityInfo(
+            path=item.path or "未知",
+            size=FormatUtils.format_size(file_size),
+            resolution=resolution,
+            bitrate=FormatUtils.format_bitrate(bitrate) if bitrate else "未知",
+            codec=codec if codec else "未知",
+            added_date=metadata.added_date or "未知",
+            runtime=f"{metadata.runtime_minutes} 分钟"
+        )
 
-    @staticmethod
-    def _format_size(bytes_size: int) -> str:
-        """格式化文件大小"""
-        for unit in ["B", "KB", "MB", "GB"]:
-            if bytes_size < 1024:
-                return f"{bytes_size:.2f} {unit}"
-            bytes_size /= 1024
-        return f"{bytes_size:.2f} TB"
-
-    @staticmethod
-    def _format_bitrate(bitrate: int) -> str:
-        """格式化比特率"""
-        if bitrate == 0:
-            return "未知"
-        return f"{bitrate // 1000000} Mbps"
-
-    def display_existing_video_quality(self, quality_info: Dict) -> None:
+    def display_existing_video_quality(self, quality_info: VideoQualityInfo) -> None:
         """
         显示已有视频的质量信息
 
         Args:
-            quality_info: 质量信息字典
+            quality_info: VideoQualityInfo 对象
         """
         print("\n视频质量信息:")
         print("-" * 60)
-        print(f"路径: {quality_info.get('path')}")
-        print(f"大小: {quality_info.get('size')}")
-        print(f"分辨率: {quality_info.get('resolution')}")
-        print(f"比特率: {quality_info.get('bitrate')}")
-        print(f"编码: {quality_info.get('codec')}")
-        print(f"时长: {quality_info.get('runtime')}")
-        print(f"添加时间: {quality_info.get('added_date')}")
+        print(f"路径: {quality_info.path}")
+        print(f"大小: {quality_info.size}")
+        print(f"分辨率: {quality_info.resolution}")
+        print(f"比特率: {quality_info.bitrate}")
+        print(f"编码: {quality_info.codec}")
+        print(f"时长: {quality_info.runtime}")
+        print(f"添加时间: {quality_info.added_date}")
 
     def get_library_folders(self) -> Dict[str, List[str]]:
         """

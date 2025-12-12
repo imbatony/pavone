@@ -502,18 +502,18 @@ def duplicate_check(keyword):
         
         duplicate_info = helper.check_duplicate(video_title, video_code)
         
-        if duplicate_info and duplicate_info.get("exists"):
-            echo_success(f"找到重复项: {duplicate_info['item'].name}\n")
+        if duplicate_info and duplicate_info.exists:
+            echo_success(f"找到重复项: {duplicate_info.item.name}\n")
             
-            quality_info = duplicate_info["quality_info"]
+            quality_info = duplicate_info.quality_info
             echo_info("【视频质量信息】")
-            print(pad_text("路径", 12) + " " + str(quality_info.get('path', '未知'))[:60])
-            print(pad_text("大小", 12) + " " + str(quality_info.get('size', '未知')))
-            print(pad_text("分辨率", 12) + " " + str(quality_info.get('resolution', '未知')))
-            print(pad_text("比特率", 12) + " " + str(quality_info.get('bitrate', '未知')))
-            print(pad_text("编码", 12) + " " + str(quality_info.get('codec', '未知')))
-            print(pad_text("时长", 12) + " " + str(quality_info.get('runtime', '未知')))
-            print(pad_text("添加时间", 12) + " " + str(quality_info.get('added_date', '未知')))
+            print(pad_text("路径", 12) + " " + str(quality_info.path)[:60])
+            print(pad_text("大小", 12) + " " + str(quality_info.size))
+            print(pad_text("分辨率", 12) + " " + str(quality_info.resolution))
+            print(pad_text("比特率", 12) + " " + str(quality_info.bitrate))
+            print(pad_text("编码", 12) + " " + str(quality_info.codec))
+            print(pad_text("时长", 12) + " " + str(quality_info.runtime))
+            print(pad_text("添加时间", 12) + " " + str(quality_info.added_date))
             
         else:
             echo_warning(f"未找到与 '{keyword}' 相关的视频")

@@ -155,17 +155,17 @@ class ExecutionManager:
 
             duplicate_info = self.jellyfin_helper.check_duplicate(video_title, video_code)
 
-            if duplicate_info and duplicate_info.get("exists"):
+            if duplicate_info and duplicate_info.exists:
                 # 用黄色显示警告信息
                 click.secho(f"\n! 警告: 视频已在 Jellyfin 中存在", fg='yellow', bold=True)
-                click.secho(f"  项目: {duplicate_info['item'].name}\n", fg='yellow')
+                click.secho(f"  项目: {duplicate_info.item.name}\n", fg='yellow')
                 
                 # 显示质量信息
-                self.jellyfin_helper.display_existing_video_quality(duplicate_info["quality_info"])
+                self.jellyfin_helper.display_existing_video_quality(duplicate_info.quality_info)
                 
                 # 比较质量
                 new_quality = item.get_quality_info()
-                existing_quality = duplicate_info["quality_info"].get("resolution", "未知")
+                existing_quality = duplicate_info.quality_info.resolution
                 
                 # 智能建议
                 suggestion = self._compare_quality_and_suggest(new_quality, existing_quality)
