@@ -102,6 +102,8 @@ class JellyfinDownloadHelper:
             self.logger.info(f"搜索: {search_key}")
             
             # 直接使用 API 搜索
+            if self.client is None:
+                return None
             items = self.client.search_items(search_key, limit=10)
             
             if not items:
@@ -129,6 +131,8 @@ class JellyfinDownloadHelper:
 
             # 获取完整的项信息以获得更详细的元数据
             try:
+                if self.client is None:
+                    return DuplicateCheckResult(exists=True, item=item)
                 item = self.client.get_item(item.id)
             except Exception as e:
                 self.logger.debug(f"获取完整项信息失败，使用基本信息: {e}")
@@ -233,6 +237,8 @@ class JellyfinDownloadHelper:
                 return {}
 
         try:
+            if self.library_manager is None:
+                return {}
             folders = self.library_manager.get_library_folders()
             self.logger.info(f"成功获取 {len(folders)} 个库的文件夹信息")
             return folders
@@ -307,7 +313,7 @@ class JellyfinDownloadHelper:
         Returns:
             成功返回 True
         """
-        if not self.is_available():
+        if not self.is_available() or self.client is None:
             return False
 
         try:
@@ -324,6 +330,8 @@ class JellyfinDownloadHelper:
                 return False
 
             self.logger.info(f"增量刷新库元数据: {library_name}")
+            if self.library_manager is None:
+                return False
             self.library_manager.refresh_library_metadata(target_lib.id)
             return True
 
