@@ -241,9 +241,11 @@ class ExecutionManager:
     def _handle_jellyfin_post_download(self, item: OperationItem) -> None:
         """
         下载完成后处理 Jellyfin 集成
+        
+        移动整个下载文件夹到 Jellyfin 库（而不是单个文件）
 
         Args:
-            item: 操作项
+            item: 操作项（根项）
         """
         try:
             target_path = item.get_target_path()
@@ -251,9 +253,25 @@ class ExecutionManager:
                 self.logger.warning("无法获取下载文件的目标路径")
                 return
 
+            # 获取源文件夹（下载的所有文件都在这个文件夹下）
+            source_folder = os.path.dirname(target_path)
+            if not os.path.isdir(source_folder):
+                self.logger.warning(f"源文件夹不存在: {source_folder}")
+                return
+            
+            source_folder_name = os.path.basename(source_folder)
+            
+            # 显示待移动的源文件夹信息
+            click.secho("\n" + "="*60, fg='cyan')
+            click.secho("准备移动下载文件夹到 Jellyfin", fg='cyan', bold=True)
+            click.secho("="*60, fg='cyan')
+            click.secho("📁 源文件夹:", fg='yellow', bold=True)
+            click.secho(f"   {source_folder}", fg='yellow')
+            click.echo()
+
             # 询问是否移动文件到 Jellyfin 库
             try:
-                choice = input("是否将文件移动到 Jellyfin 库中? (y/n): ").strip().lower()
+                choice = input("是否将此文件夹移动到 Jellyfin 库中? (y/n): ").strip().lower()
             except KeyboardInterrupt:
                 print("\n已取消")
                 raise
@@ -340,35 +358,59 @@ class ExecutionManager:
                     click.secho(f"\n❌ 错误: 库 '{selected_lib_name}' 的文件夹为空", fg='red', bold=True)
                     return
 
-            # 最终确认
+            # 最终确认 - 显示源和目标
             if not target_folder:
                 click.secho(f"\n❌ 未选择有效的目标文件夹", fg='red', bold=True)
                 return
 
-            # 执行文件移动
-            if self.jellyfin_helper.move_to_library(target_path, target_folder):
-                self.logger.info("文件移动成功")
+            target_location = os.path.join(target_folder, source_folder_name)
+            
+            click.secho("\n" + "="*60, fg='yellow')
+            click.secho("移动确认:", fg='yellow', bold=True)
+            click.secho("="*60, fg='yellow')
+            click.secho("📁 源位置:", fg='yellow', bold=True)
+            click.secho(f"   {source_folder}", fg='yellow')
+            click.secho("\n📁 目标位置:", fg='yellow', bold=True)
+            click.secho(f"   {target_location}", fg='yellow')
+            click.echo()
+            
+            try:
+                confirm = input("确认移动? (y/n): ").strip().lower()
+            except KeyboardInterrupt:
+                print("\n已取消")
+                raise
+            
+            if confirm not in ("y", "yes", "是"):
+                click.secho("已取消移动", fg='yellow')
+                return
+
+            # 执行文件夹移动
+            if self.jellyfin_helper.move_to_library(source_folder, target_folder):
+                click.secho("\n✓ 文件夹移动成功!", fg='green', bold=True)
+                self.logger.info(f"文件夹移动成功: {source_folder} -> {target_location}")
 
                 # 询问是否刷新元数据
                 try:
-                    refresh_choice = input("是否刷新 Jellyfin 库的元数据? (y/n): ").strip().lower()
+                    refresh_choice = input("\n是否刷新 Jellyfin 库的元数据? (y/n): ").strip().lower()
                 except KeyboardInterrupt:
                     print("\n已取消")
                     raise
                 if refresh_choice in ("y", "yes", "是"):
                     if self.jellyfin_helper.refresh_library(selected_lib_name):
+                        click.secho("✓ 元数据刷新成功!", fg='green', bold=True)
                         self.logger.info("元数据刷新成功")
                     else:
+                        click.secho("❌ 元数据刷新失败", fg='red', bold=True)
                         self.logger.warning("元数据刷新失败")
             else:
-                self.logger.error("文件移动失败")
+                click.secho("\n❌ 文件夹移动失败", fg='red', bold=True)
+                self.logger.error("文件夹移动失败")
 
         except KeyboardInterrupt:
             print("\n已取消")
             raise
         except Exception as e:
             self.logger.warning(f"Jellyfin 后下载处理失败: {e}")
-
     def _get_operator_for_item(self, item: OperationItem) -> Operator:
         """
         跟据操作项获取合适的执行器
@@ -403,16 +445,18 @@ class ExecutionManager:
         Args:
             selected_item: 用户选择的选项
             silent: 是否静默模式（不显示进度）
+            parent: 父项（用于递归调用）
 
         Returns:
             是否成功
         """
 
         success = True
+        is_root_item = parent is None  # 判断是否是根项
 
-        # 在下载前检查 Jellyfin 中是否已有该视频（仅在非静默模式下提示用户）
+        # 在下载前检查 Jellyfin 中是否已有该视频（仅在非静默模式和根项时提示用户）
         if (self.jellyfin_helper and self.jellyfin_helper.is_available() and 
-            selected_item.opt_type == OperationType.DOWNLOAD and not silent):
+            selected_item.opt_type == OperationType.DOWNLOAD and not silent and is_root_item):
             if not self._handle_jellyfin_duplicate_check(selected_item):
                 return False
 
@@ -428,11 +472,10 @@ class ExecutionManager:
             self.logger.error(f"执行失败: {selected_item.get_description()}")
             return False
 
-        # 下载完成后处理 Jellyfin 集成
-        if self.jellyfin_helper and self.jellyfin_helper.is_available() and selected_item.opt_type == OperationType.DOWNLOAD:
-            self._handle_jellyfin_post_download(selected_item)
+        # 注意：不在这里处理 Jellyfin 移动，改为在所有子项完成后再处理
 
         if not selected_item.has_children():
+            # 如果没有子项，立即返回
             return success
 
         if not self.config.organize.auto_organize:
@@ -452,6 +495,12 @@ class ExecutionManager:
             if not self._execute_download(child, silent, selected_item):
                 self.logger.error(f"子选项执行失败: {child.get_description()}")
                 success = False
+        
+        # 所有子项完成后，如果是根项且下载成功，处理 Jellyfin 集成
+        if is_root_item and success and selected_item.opt_type == OperationType.DOWNLOAD:
+            if self.jellyfin_helper and self.jellyfin_helper.is_available():
+                self._handle_jellyfin_post_download(selected_item)
+        
         return success
 
     def _set_progress_callback(self, silent: bool, selected_item: OperationItem) -> None:
