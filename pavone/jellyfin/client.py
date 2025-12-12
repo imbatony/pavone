@@ -249,9 +249,27 @@ class JellyfinClientWrapper:
             JellyfinAPIError: API 调用失败
         """
         try:
-            result = self.client.jellyfin.media_folders()
             locations = {}
-
+            
+            # 方法 1: 尝试使用 virtual_folders API
+            try:
+                virtual_folders_result = self.client.jellyfin.virtual_folders()
+                if virtual_folders_result and isinstance(virtual_folders_result, list):
+                    for vf in virtual_folders_result:
+                        lib_name = vf.get("Name", "")
+                        locations_list = vf.get("Locations", [])
+                        if lib_name and locations_list:
+                            locations[lib_name] = locations_list
+                            self.logger.debug(f"从 virtual_folders 获取 {lib_name}: {locations_list}")
+            except Exception as e:
+                self.logger.debug(f"virtual_folders API 失败: {e}")
+            
+            # 如果 virtual_folders 成功返回了结果，则直接返回
+            if locations:
+                return locations
+            
+            # 方法 2: 尝试从 media_folders 获取 PhysicalLocations 或 CollectionFolders
+            result = self.client.jellyfin.media_folders()
             for item in result.get("Items", []):
                 lib_name = item.get("Name", "")
                 lib_type = item.get("CollectionType", "")
@@ -260,17 +278,29 @@ class JellyfinClientWrapper:
                 if lib_type == "playlists":
                     continue
                 
-                # 获取物理位置
+                # 尝试获取物理位置
                 paths = item.get("PhysicalLocations", [])
                 if paths:
                     locations[lib_name] = paths
-                else:
-                    # 如果 PhysicalLocations 为空，尝试从 CollectionFolders 获取
-                    collection_folders = item.get("CollectionFolders", [])
-                    if collection_folders:
-                        folder_paths = [f.get("Path", "") for f in collection_folders if f.get("Path")]
-                        if folder_paths:
-                            locations[lib_name] = folder_paths
+                    self.logger.debug(f"从 media_folders PhysicalLocations 获取 {lib_name}: {paths}")
+                    continue
+                
+                # 尝试从 CollectionFolders 获取
+                collection_folders = item.get("CollectionFolders", [])
+                if collection_folders:
+                    folder_paths = [f.get("Path", "") for f in collection_folders if f.get("Path")]
+                    if folder_paths:
+                        locations[lib_name] = folder_paths
+                        self.logger.debug(f"从 media_folders CollectionFolders 获取 {lib_name}: {folder_paths}")
+                        continue
+                
+                # 尝试从 Folders 获取
+                folders = item.get("Folders", [])
+                if folders:
+                    folder_paths = [f.get("Path", "") for f in folders if f.get("Path")]
+                    if folder_paths:
+                        locations[lib_name] = folder_paths
+                        self.logger.debug(f"从 media_folders Folders 获取 {lib_name}: {folder_paths}")
 
             self.logger.debug(f"获取到库物理位置: {locations}")
             return locations

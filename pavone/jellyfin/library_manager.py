@@ -183,12 +183,20 @@ class LibraryManager:
                 folders = []
 
                 # 尝试从库项中获取路径
-                items = self.client.get_library_items([lib.id], limit=1)
+                # 获取多个项目来增加找到路径的可能性
+                items = self.client.get_library_items([lib.id], limit=10)
+                
                 if items:
-                    # 从第一个项获取父路径
-                    if items[0].path:
-                        parent_path = str(Path(items[0].path).parent)
-                        folders.append(parent_path)
+                    # 从所有项中收集唯一的父路径
+                    parent_paths = set()
+                    for item in items:
+                        if item.path:
+                            parent_path = str(Path(item.path).parent)
+                            parent_paths.add(parent_path)
+                    
+                    if parent_paths:
+                        folders = list(parent_paths)
+                        self.logger.debug(f"从库项获取 {lib.name} 的路径: {folders}")
 
                 if folders:
                     result[lib.name] = folders
