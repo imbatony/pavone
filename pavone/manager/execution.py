@@ -267,47 +267,55 @@ class ExecutionManager:
                 return
 
             # 显示库列表
-            self.logger.info("可用的 Jellyfin 库:")
+            click.secho("\n可用的 Jellyfin 库:", fg='cyan', bold=True)
             libraries_list = list(library_folders.items())
             for i, (lib_name, folders) in enumerate(libraries_list, 1):
-                self.logger.info(f"  {i}. {lib_name}")
+                click.secho(f"  {i}. ", fg='cyan', nl=False)
+                click.secho(f"{lib_name}", fg='green', bold=True, nl=False)
+                click.echo()
                 for folder in folders:
-                    self.logger.info(f"     -> {folder}")
+                    click.echo(f"     📁 {folder}")
 
             # 让用户选择库
             while True:
                 try:
-                    lib_choice = int(input(f"选择库 (1-{len(libraries_list)}): ").strip())
-                    if 1 <= lib_choice <= len(libraries_list):
-                        selected_lib_name, selected_folders = libraries_list[lib_choice - 1]
+                    lib_choice = input(f"\n请选择库 (1-{len(libraries_list)}): ").strip()
+                    lib_choice_num = int(lib_choice)
+                    if 1 <= lib_choice_num <= len(libraries_list):
+                        selected_lib_name, selected_folders = libraries_list[lib_choice_num - 1]
+                        click.secho(f"✓ 已选择库: ", fg='green', nl=False)
+                        click.secho(f"{selected_lib_name}", fg='green', bold=True)
                         break
                     else:
-                        print(f"请输入 1 到 {len(libraries_list)} 之间的数字")
+                        click.secho(f"❌ 请输入 1 到 {len(libraries_list)} 之间的数字", fg='red')
                 except KeyboardInterrupt:
                     print("\n已取消")
                     raise
                 except ValueError:
-                    print("输入无效，请输入数字")
+                    click.secho(f"❌ 输入无效，请输入数字", fg='red')
 
             # 如果库有多个文件夹，让用户选择
             if len(selected_folders) > 1:
-                self.logger.info(f"库 '{selected_lib_name}' 有多个文件夹:")
+                click.secho(f"\n库 '{selected_lib_name}' 有多个文件夹:", fg='cyan', bold=True)
                 for i, folder in enumerate(selected_folders, 1):
-                    self.logger.info(f"  {i}. {folder}")
+                    click.echo(f"  {i}. 📁 {folder}")
 
                 while True:
                     try:
-                        folder_choice = int(input(f"选择文件夹 (1-{len(selected_folders)}): ").strip())
-                        if 1 <= folder_choice <= len(selected_folders):
-                            target_folder = selected_folders[folder_choice - 1]
+                        folder_choice = input(f"\n请选择文件夹 (1-{len(selected_folders)}): ").strip()
+                        folder_choice_num = int(folder_choice)
+                        if 1 <= folder_choice_num <= len(selected_folders):
+                            target_folder = selected_folders[folder_choice_num - 1]
+                            click.secho(f"✓ 已选择文件夹: ", fg='green', nl=False)
+                            click.secho(f"{target_folder}", fg='green', bold=True)
                             break
                         else:
-                            print(f"请输入 1 到 {len(selected_folders)} 之间的数字")
+                            click.secho(f"❌ 请输入 1 到 {len(selected_folders)} 之间的数字", fg='red')
                     except KeyboardInterrupt:
                         print("\n已取消")
                         raise
                     except ValueError:
-                        print("输入无效，请输入数字")
+                        click.secho(f"❌ 输入无效，请输入数字", fg='red')
             else:
                 target_folder = selected_folders[0] if selected_folders else None
 
