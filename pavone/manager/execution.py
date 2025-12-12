@@ -264,11 +264,24 @@ class ExecutionManager:
             library_folders = self.jellyfin_helper.get_library_folders()
             if not library_folders:
                 self.logger.warning("无法获取 Jellyfin 库信息")
+                click.secho("\n❌ 无法获取 Jellyfin 库信息，请检查服务器连接。", fg='red', bold=True)
+                return
+
+            # 过滤出有有效文件夹路径的库
+            valid_libraries = {
+                lib_name: folders for lib_name, folders in library_folders.items()
+                if folders  # 只保留非空的文件夹列表
+            }
+            
+            if not valid_libraries:
+                click.secho("\n❌ 没有找到任何配置了文件夹路径的库", fg='red', bold=True)
+                click.secho(f"已检查的库: {list(library_folders.keys())}", fg='yellow')
+                click.secho("请在 Jellyfin 服务器中检查库的配置。", fg='yellow')
                 return
 
             # 显示库列表
             click.secho("\n可用的 Jellyfin 库:", fg='cyan', bold=True)
-            libraries_list = list(library_folders.items())
+            libraries_list = list(valid_libraries.items())
             for i, (lib_name, folders) in enumerate(libraries_list, 1):
                 click.secho(f"  {i}. ", fg='cyan', nl=False)
                 click.secho(f"{lib_name}", fg='green', bold=True, nl=False)
@@ -317,11 +330,19 @@ class ExecutionManager:
                     except ValueError:
                         click.secho(f"❌ 输入无效，请输入数字", fg='red')
             else:
-                target_folder = selected_folders[0] if selected_folders else None
+                # 单个文件夹的情况
+                if selected_folders:
+                    target_folder = selected_folders[0]
+                    click.secho(f"✓ 已选择文件夹: ", fg='green', nl=False)
+                    click.secho(f"{target_folder}", fg='green', bold=True)
+                else:
+                    # 这种情况不应该发生，因为我们已经过滤出了有效的库
+                    click.secho(f"\n❌ 错误: 库 '{selected_lib_name}' 的文件夹为空", fg='red', bold=True)
+                    return
 
+            # 最终确认
             if not target_folder:
-                click.secho(f"\n❌ 错误: 库 '{selected_lib_name}' 未配置文件夹路径", fg='red', bold=True)
-                click.secho("请在 Jellyfin 服务器中检查库的配置。", fg='yellow')
+                click.secho(f"\n❌ 未选择有效的目标文件夹", fg='red', bold=True)
                 return
 
             # 执行文件移动
