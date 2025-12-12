@@ -506,6 +506,8 @@ class JellyfinClientWrapper:
     def refresh_library(self, library_id: Optional[str] = None) -> bool:
         """
         刷新库
+        
+        默认使用增量刷新（仅扫描库目录中的更改）
 
         Args:
             library_id: 库 ID（如果为 None 则刷新所有库）
@@ -518,13 +520,28 @@ class JellyfinClientWrapper:
         """
         try:
             if library_id:
-                # 刷新特定库
-                self.client.jellyfin.refresh_item(library_id)
-                self.logger.info(f"刷新库 {library_id}")
+                # 增量刷新特定库（仅扫描库目录中的更改，不扫描媒体库中的现有项）
+                # 使用 RefreshLibrary 而不是 RefreshItem 进行增量扫描
+                self.client.jellyfin.post(
+                    f"/Library/Media/{library_id}/Refresh",
+                    data={
+                        "Recursive": True,  # 递归扫描
+                        "ReplaceAllMetadata": False,  # 不替换所有元数据，仅更新新项和修改项
+                        "ReplaceAllImages": False  # 不替换所有图像
+                    }
+                )
+                self.logger.info(f"增量刷新库 {library_id}")
             else:
-                # 刷新所有库
-                self.client.jellyfin.refresh_library()
-                self.logger.info("刷新所有库")
+                # 刷新所有库（增量模式）
+                self.client.jellyfin.post(
+                    "/Library/Refresh",
+                    data={
+                        "Recursive": True,
+                        "ReplaceAllMetadata": False,
+                        "ReplaceAllImages": False
+                    }
+                )
+                self.logger.info("增量刷新所有库")
 
             return True
 

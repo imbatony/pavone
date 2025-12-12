@@ -302,7 +302,9 @@ class JellyfinDownloadHelper:
 
     def refresh_library(self, library_name: str) -> bool:
         """
-        刷新 Jellyfin 库的元数据
+        增量刷新 Jellyfin 库的元数据
+        
+        仅扫描库目录中的新增或修改文件，不进行全量扫描
 
         Args:
             library_name: 库名称
@@ -326,7 +328,7 @@ class JellyfinDownloadHelper:
                 self.logger.warning(f"未找到库: {library_name}")
                 return False
 
-            self.logger.info(f"刷新库元数据: {library_name}")
+            self.logger.info(f"增量刷新库元数据: {library_name}")
             self.library_manager.refresh_library_metadata(target_lib.id)
             return True
 

@@ -583,11 +583,11 @@ def move(source_path):
         echo_info("可用的 Jellyfin 库:")
         libraries_list = list(valid_libraries.items())
         for i, (lib_name, folders) in enumerate(libraries_list, 1):
-            echo_info(f"  {i}. ", nl=False)
-            click.secho(f"{lib_name}", fg='green', bold=True, nl=False)
-            click.echo()
+            click.echo(f"  {i}. ", nl=False)
+            click.secho(f"{lib_name}", fg='green', bold=True)
             for folder in folders:
                 echo_info(f"     📁 {folder}")
+
         
         # 让用户选择库
         while True:
@@ -638,11 +638,11 @@ def move(source_path):
             echo_success(f"源位置: {source_path}")
             echo_success(f"目标位置: {target_location}")
             
-            # 询问是否刷新元数据
-            refresh = click.confirm("\n是否刷新 Jellyfin 库的元数据？", default=True)
+            # 询问是否增量刷新元数据
+            refresh = click.confirm("\n是否增量刷新 Jellyfin 库的元数据？", default=True)
             if refresh:
                 if helper.refresh_library(selected_lib_name):
-                    click.secho("✓ 元数据刷新成功!\n", fg='green', bold=True)
+                    click.secho("✓ 元数据增量刷新成功!\n", fg='green', bold=True)
                 else:
                     echo_error("元数据刷新失败")
                     return 1

@@ -391,14 +391,14 @@ class ExecutionManager:
 
                 # 询问是否刷新元数据
                 try:
-                    refresh_choice = input("\n是否刷新 Jellyfin 库的元数据? (y/n): ").strip().lower()
+                    refresh_choice = input("\n是否增量刷新 Jellyfin 库的元数据? (y/n): ").strip().lower()
                 except KeyboardInterrupt:
                     print("\n已取消")
                     raise
                 if refresh_choice in ("y", "yes", "是"):
                     if self.jellyfin_helper.refresh_library(selected_lib_name):
-                        click.secho("✓ 元数据刷新成功!", fg='green', bold=True)
-                        self.logger.info("元数据刷新成功")
+                        click.secho("✓ 元数据增量刷新成功!", fg='green', bold=True)
+                        self.logger.info("元数据增量刷新成功")
                     else:
                         click.secho("❌ 元数据刷新失败", fg='red', bold=True)
                         self.logger.warning("元数据刷新失败")

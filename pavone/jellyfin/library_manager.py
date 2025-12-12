@@ -211,7 +211,9 @@ class LibraryManager:
 
     def refresh_library_metadata(self, library_id: str) -> bool:
         """
-        刷新库的元数据
+        增量刷新库的元数据
+        
+        仅扫描库目录中的新增或修改文件
 
         Args:
             library_id: 库 ID
@@ -221,7 +223,7 @@ class LibraryManager:
         """
         try:
             self.client.refresh_library(library_id)
-            self.logger.info(f"刷新库 {library_id} 的元数据成功")
+            self.logger.info(f"增量刷新库 {library_id} 的元数据成功")
             # 清除缓存
             self._cache.clear()
             return True
