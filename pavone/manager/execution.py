@@ -158,21 +158,21 @@ class ExecutionManager:
             if duplicate_info and duplicate_info.exists:
                 # 用黄色显示警告信息
                 click.secho(f"\n! 警告: 视频已在 Jellyfin 中存在", fg='yellow', bold=True)
-                click.secho(f"  项目: {duplicate_info.item.name}\n", fg='yellow')
+                if duplicate_info.item:
+                    click.secho(f"  项目: {duplicate_info.item.name}\n", fg='yellow')
                 
                 # 显示质量信息
-                self.jellyfin_helper.display_existing_video_quality(duplicate_info.quality_info)
+                if duplicate_info.quality_info:
+                    self.jellyfin_helper.display_existing_video_quality(duplicate_info.quality_info)
                 
-                # 比较质量
-                new_quality = item.get_quality_info()
-                existing_quality = duplicate_info.quality_info.resolution
+                    # 比较质量
+                    new_quality = item.get_quality_info()
+                    existing_quality = duplicate_info.quality_info.resolution
                 
-                # 智能建议
-                suggestion = self._compare_quality_and_suggest(new_quality, existing_quality)
-                if suggestion:
-                    click.echo(f"\n{suggestion}\n")
-
-                # 询问用户是否继续
+                    # 智能建议
+                    suggestion = self._compare_quality_and_suggest(new_quality, existing_quality)
+                    if suggestion:
+                        click.echo(f"\n{suggestion}\n")                # 询问用户是否继续
                 while True:
                     try:
                         choice = input("是否继续下载? (y/n/s - 是/否/跳过其他): ").strip().lower()
@@ -279,6 +279,10 @@ class ExecutionManager:
                 return
 
             # 获取库列表
+            if self.jellyfin_helper is None:
+                self.logger.warning("Jellyfin helper 未初始化")
+                click.secho("\n❌ Jellyfin helper 未初始化，无法继续操作。", fg='red', bold=True)
+                return
             library_folders = self.jellyfin_helper.get_library_folders()
             if not library_folders:
                 self.logger.warning("无法获取 Jellyfin 库信息")
@@ -385,6 +389,9 @@ class ExecutionManager:
                 return
 
             # 执行文件夹移动
+            if self.jellyfin_helper is None:
+                click.secho("\n❌ Jellyfin helper 未初始化", fg='red', bold=True)
+                return
             if self.jellyfin_helper.move_to_library(source_folder, target_folder):
                 click.secho("\n✓ 文件夹移动成功!", fg='green', bold=True)
                 self.logger.info(f"文件夹移动成功: {source_folder} -> {target_location}")
@@ -396,7 +403,7 @@ class ExecutionManager:
                     print("\n已取消")
                     raise
                 if refresh_choice in ("y", "yes", "是"):
-                    if self.jellyfin_helper.refresh_library(selected_lib_name):
+                    if self.jellyfin_helper and self.jellyfin_helper.refresh_library(selected_lib_name):
                         click.secho("✓ 元数据增量刷新成功!", fg='green', bold=True)
                         self.logger.info("元数据增量刷新成功")
                     else:

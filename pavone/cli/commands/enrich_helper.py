@@ -529,7 +529,7 @@ class JellyfinMetadataUpdater:
             'premiere_date': 'PremiereDate',
             'runtime': 'RunTimeTicks',  # 需要转换为ticks
             'director': 'Director',  # 需要特殊处理
-            'studio': 'Studio',  # 需要特殊处理
+            'studio': 'Studios',  # 需要特殊处理，转换为对象数组
             'actors': 'Actors',  # 需要特殊处理
             'genres': 'Genres',
             'tags': 'Tags',
@@ -537,7 +537,7 @@ class JellyfinMetadataUpdater:
             'official_rating': 'OfficialRating',
             'plot': 'Overview',
             'serial': 'SeriesName',
-            'year': 'Year',
+            'year': 'ProductionYear',  # Jellyfin使用ProductionYear而不是Year
         }
         
         for internal_field, jellyfin_field in field_mapping.items():
@@ -558,9 +558,14 @@ class JellyfinMetadataUpdater:
                 # 导演列表
                 jellyfin_updates['Director'] = ', '.join(value)
             
-            elif internal_field == 'studio' and isinstance(value, list):
-                # 制作公司列表
-                jellyfin_updates['Studio'] = ', '.join(value)
+            elif internal_field == 'studio':
+                # 制作公司：Jellyfin使用Studios数组，每个元素是 {'Name': 'studio_name'} 格式
+                if isinstance(value, list):
+                    # 如果已经是列表，转换为Jellyfin格式
+                    jellyfin_updates['Studios'] = [{'Name': s} for s in value]
+                elif isinstance(value, str) and value:
+                    # 如果是字符串，转换为单元素数组
+                    jellyfin_updates['Studios'] = [{'Name': value}]
             
             elif internal_field == 'actors' and isinstance(value, list):
                 # 演员列表

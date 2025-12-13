@@ -23,7 +23,7 @@ from .extractors import (
     MP4DirectExtractor,
     AV01Extractor,
 )
-from .metadata import MetadataPlugin
+from .metadata import MetadataPlugin, MissavMetadata, AV01Metadata
 from .search import MissavSearch, SearchPlugin
 
 
@@ -73,6 +73,8 @@ class PluginManager:
                 "JTableExtractor": JTableExtractor,
                 "MissavSearch": MissavSearch,
                 "AV01Extractor": AV01Extractor,
+                "MissavMetadata": MissavMetadata,
+                "AV01Metadata": AV01Metadata,
             }
 
             loaded_plugins: list[str] = []

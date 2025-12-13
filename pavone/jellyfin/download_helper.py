@@ -15,7 +15,8 @@ from ..config.configs import JellyfinConfig
 from ..utils import FormatUtils
 from .client import JellyfinClientWrapper
 from .library_manager import LibraryManager
-from ..models import OperationItem, ItemMetadata
+from .models import JellyfinItem
+from ..models import ItemMetadata
 
 
 @dataclass
@@ -34,7 +35,7 @@ class VideoQualityInfo:
 class DuplicateCheckResult:
     """重复检查结果"""
     exists: bool
-    item: Optional[object] = None
+    item: Optional[JellyfinItem] = None
     quality_info: Optional[VideoQualityInfo] = None
 
 

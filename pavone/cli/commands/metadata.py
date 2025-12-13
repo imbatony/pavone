@@ -7,7 +7,7 @@ from tabulate import tabulate
 
 from ...config.settings import get_config
 from ...models import BaseMetadata, ItemMetadata
-from ...plugins.metadata import MissavMetadata
+from ...plugins.manager import get_plugin_manager
 from ...jellyfin.client import JellyfinClientWrapper
 from .utils import echo_error, echo_info, echo_success, echo_warning
 from .enrich_helper import MetadataComparison, ImageManager, JellyfinMetadataUpdater
@@ -59,6 +59,8 @@ def format_metadata_output(metadata: BaseMetadata) -> None:
     
     # 基础字段
     lines.append(format_field("标题", metadata.title))
+    if hasattr(metadata, "original_title") and metadata.original_title:
+        lines.append(format_field("原标题", metadata.original_title))
     lines.append(format_field("代码", metadata.code))
     lines.append(format_field("网站", metadata.site))
     lines.append(format_field("URL", metadata.url))
@@ -130,15 +132,19 @@ def show(identifier: str):
         pavone metadata show SDMT-415
     """
     try:
-        # 创建metadata提取器
-        metadata_extractor = MissavMetadata()
+        # 获取插件管理器
+        plugin_manager = get_plugin_manager()
+        plugin_manager.load_plugins()
         
-        # 检查是否能处理该identifier
-        if not metadata_extractor.can_extract(identifier):
+        # 查找合适的元数据提取器
+        metadata_extractor = plugin_manager.get_metadata_extractor(identifier)
+        
+        if not metadata_extractor:
             echo_error(f"无法处理该identifier: {identifier}")
-            echo_info("支持的格式:")
-            echo_info("  - URL: https://missav.ai/ja/xxxxx-xxx")
-            echo_info("  - 视频代码: XXXXX-XXX")
+            echo_info("没有找到能处理该identifier的元数据插件")
+            echo_info("支持的插件:")
+            for plugin in plugin_manager.metadata_plugins:
+                echo_info(f"  - {plugin.name}: {plugin.description}")
             return 1
         
         # 提取元数据
@@ -193,12 +199,16 @@ def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[st
             echo_info("请先运行: pavone jellyfin config")
             return 1
         
-        # 创建metadata提取器
-        metadata_extractor = MissavMetadata()
+        # 获取插件管理器
+        plugin_manager = get_plugin_manager()
+        plugin_manager.load_plugins()
         
-        # 检查是否能处理该identifier
-        if not metadata_extractor.can_extract(identifier):
+        # 查找合适的元数据提取器
+        metadata_extractor = plugin_manager.get_metadata_extractor(identifier)
+        
+        if not metadata_extractor:
             echo_error(f"无法处理该identifier: {identifier}")
+            echo_info("没有找到能处理该identifier的元数据插件")
             return 1
         
         # 提取元数据
