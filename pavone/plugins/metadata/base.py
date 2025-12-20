@@ -11,7 +11,7 @@ from ..base import BasePlugin
 
 class MetadataPlugin(BasePlugin):
     """元数据提取器插件基类
-    
+
     元数据提取器插件负责从指定的identifier中提取元数据，
     包括视频代码、标题、演员、导演、发行日期等信息。
     """
@@ -24,7 +24,13 @@ class MetadataPlugin(BasePlugin):
         author: Optional[str] = "",
         priority: Optional[int] = 50,
     ):
-        super().__init__(name=name, version=version, description=description, author=author, priority=priority)
+        super().__init__(
+            name=name,
+            version=version,
+            description=description,
+            author=author,
+            priority=priority,
+        )
 
     def initialize(self) -> bool:
         """初始化插件"""
@@ -40,10 +46,10 @@ class MetadataPlugin(BasePlugin):
     @abstractmethod
     def can_extract(self, identifier: str) -> bool:
         """检查是否能处理该identifier
-        
+
         Args:
             identifier: 可以是URL、视频代码等标识符
-            
+
         Returns:
             如果能处理返回True，否则返回False
         """
@@ -52,10 +58,10 @@ class MetadataPlugin(BasePlugin):
     @abstractmethod
     def extract_metadata(self, identifier: str) -> Optional[BaseMetadata]:
         """从给定的identifier提取元数据
-        
+
         Args:
             identifier: 可以是URL、视频代码等标识符
-            
+
         Returns:
             提取到的元数据对象，如果失败返回None
         """

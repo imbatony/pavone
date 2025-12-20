@@ -46,7 +46,7 @@ class MissavMetadata(MetadataPlugin):
 
     def can_extract(self, identifier: str) -> bool:
         """检查是否能处理给定的identifier
-        
+
         支持两种格式：
         1. URL: https://missav.ai/ja/xxxxx-xxx
         2. 视频代码: XXXXX-XXX 或 xxxxx-xxx (字母-数字 或 数字-数字 格式)
@@ -63,7 +63,7 @@ class MissavMetadata(MetadataPlugin):
                 return any(parsed_url.netloc.lower() == domain.lower() for domain in self.supported_domains)
             except Exception:
                 return False
-        
+
         # 检查是否为视频代码（严格的格式检查）
         # 格式：纯字母部分 + 连字符 + 数字部分
         # 例如: SDMT-415, ABC-123, sdmt-415
@@ -80,15 +80,15 @@ class MissavMetadata(MetadataPlugin):
             else:
                 # 没有连字符，纯字母代码（不支持）
                 return False
-        
+
         return False
 
     def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
         """从给定的identifier提取元数据
-        
+
         Args:
             identifier: 可以是URL (https://missav.ai/...) 或视频代码 (XXXXX-XXX)
-            
+
         Returns:
             提取到的MovieMetadata对象，如果失败返回None
         """
@@ -102,7 +102,7 @@ class MissavMetadata(MetadataPlugin):
                 # 实际应用中可以集成搜索功能来获取URL
                 self.logger.warning(f"代码格式identifier暂不直接支持: {identifier}，请使用URL")
                 return None
-            
+
             # 获取页面内容
             response = self.fetch(url, timeout=30, verify_ssl=False)
             html_content = response.text
@@ -123,12 +123,12 @@ class MissavMetadata(MetadataPlugin):
             cover_image = self._extract_cover_image(html_content)
             description = self._extract_description(html_content)
             tagline = self._extract_tagline(html_content)
-            
+
             release_year = int(release_date.split("-")[0]) if release_date else datetime.now().year
-            
+
             # 创建identifier
             identifier_str = StringUtils.create_identifier(site=SITE_NAME, code=video_code, url=url)
-            
+
             # 创建MovieMetadata对象
             metadata = MovieMetadata(
                 title=title_with_code,  # 完整标题包含代码前缀
@@ -150,7 +150,7 @@ class MissavMetadata(MetadataPlugin):
                 tagline=tagline,
                 year=release_year,
             )
-            
+
             self.logger.info(f"成功提取元数据: {video_code} - {original_title}")
             return metadata
 
@@ -320,7 +320,7 @@ class MissavMetadata(MetadataPlugin):
                 # 清理标签，去除空格和多余字符，并去重
                 cleaned = [tag.strip() for tag in keywords if tag.strip()]
                 return list(dict.fromkeys(cleaned))  # 保持顺序的去重
-            
+
             return []
 
         except Exception as e:

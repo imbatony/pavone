@@ -12,9 +12,9 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
-from pavone.config.settings import get_config
-from pavone.jellyfin.client import JellyfinClientWrapper
-from pavone.jellyfin.library_manager import LibraryManager
+from pavone.config.settings import get_config  # noqa: E402
+from pavone.jellyfin.client import JellyfinClientWrapper  # noqa: E402
+from pavone.jellyfin.library_manager import LibraryManager  # noqa: E402
 
 
 def print_header(text: str) -> None:
@@ -30,38 +30,38 @@ def print_section(text: str) -> None:
 
 def diagnose_jellyfin() -> None:
     """诊断 Jellyfin 配置"""
-    
+
     print_header("Jellyfin 库诊断工具")
-    
+
     try:
         # 步骤 1: 加载配置
         print_section("[1/6] 加载配置...")
         try:
             config = get_config()
             jf_config = config.jellyfin
-            print(f"✓ 配置加载成功")
+            print("✓ 配置加载成功")
             print(f"  - 服务器: {jf_config.server_url}")
             print(f"  - 已启用: {jf_config.enabled}")
             print(f"  - 验证 SSL: {jf_config.verify_ssl}")
         except Exception as e:
             print(f"❌ 配置加载失败: {e}")
-            print(f"   请检查配置文件是否存在和有效")
+            print("   请检查配置文件是否存在和有效")
             return
-        
+
         # 步骤 2: 创建客户端
         print_section("[2/6] 连接到 Jellyfin 服务器...")
         try:
             client = JellyfinClientWrapper(jf_config)
             client.authenticate()
-            print(f"✓ 连接成功")
+            print("✓ 连接成功")
         except Exception as e:
             print(f"❌ 连接失败: {e}")
-            print(f"   请检查:")
-            print(f"   - Jellyfin 服务器是否正在运行")
+            print("   请检查:")
+            print("   - Jellyfin 服务器是否正在运行")
             print(f"   - server_url 是否正确 ({jf_config.server_url})")
-            print(f"   - API Key 或用户名/密码是否正确")
+            print("   - API Key 或用户名/密码是否正确")
             return
-        
+
         # 步骤 3: 获取库列表
         print_section("[3/6] 获取库列表...")
         try:
@@ -72,7 +72,7 @@ def diagnose_jellyfin() -> None:
         except Exception as e:
             print(f"❌ 获取库列表失败: {e}")
             return
-        
+
         # 步骤 4: 尝试获取物理位置
         print_section("[4/6] 获取库的物理位置...")
         try:
@@ -84,17 +84,17 @@ def diagnose_jellyfin() -> None:
                     for path in paths:
                         print(f"      📁 {path}")
             else:
-                print(f"⚠ 没有从 API 获取到物理位置信息")
+                print("⚠ 没有从 API 获取到物理位置信息")
         except Exception as e:
             print(f"❌ 获取物理位置失败: {e}")
-        
+
         # 步骤 5: 从库管理器获取文件夹
         print_section("[5/6] 从库管理器获取库文件夹...")
         try:
             manager = LibraryManager(client)
             folders = manager.get_library_folders()
-            
-            print(f"✓ 获取结果:")
+
+            print("✓ 获取结果:")
             for lib_name, paths in folders.items():
                 if paths:
                     print(f"  - {lib_name}:")
@@ -102,11 +102,11 @@ def diagnose_jellyfin() -> None:
                         print(f"      ✓ {path}")
                 else:
                     print(f"  - {lib_name}:")
-                    print(f"      ❌ [未找到文件夹路径]")
+                    print("      ❌ [未找到文件夹路径]")
         except Exception as e:
             print(f"❌ 从库管理器获取失败: {e}")
             return
-        
+
         # 步骤 6: 检查原始 API 响应
         print_section("[6/6] 检查原始 API 响应（virtual_folders）...")
         try:
@@ -123,39 +123,53 @@ def diagnose_jellyfin() -> None:
                     print(f"  返回内容: {json.dumps(vf_result, indent=4, ensure_ascii=False)[:500]}")
         except Exception as e:
             print(f"⚠ virtual_folders API 检查失败: {e}")
-        
+
         # 步骤 7: 检查 media_folders API
         print_section("[7/7] 检查原始 API 响应（media_folders）...")
         try:
             result = client.client.jellyfin.media_folders()
             print(f"✓ media_folders API 返回 {len(result.get('Items', []))} 个项:")
-            
-            for idx, item in enumerate(result.get('Items', []), 1):
+
+            for idx, item in enumerate(result.get("Items", []), 1):
                 print(f"\n  库 #{idx}: {item.get('Name')}")
                 print(f"    - CollectionType: {item.get('CollectionType')}")
                 print(f"    - PhysicalLocations: {item.get('PhysicalLocations')}")
                 print(f"    - CollectionFolders: {item.get('CollectionFolders')}")
                 print(f"    - Folders: {item.get('Folders')}")
-                
+
                 # 列出所有字段
-                all_keys = [k for k in item.keys() if k not in ['PhysicalLocations', 'CollectionFolders', 'Folders', 'CollectionType', 'Name']]
+                all_keys = [
+                    k
+                    for k in item.keys()
+                    if k
+                    not in [
+                        "PhysicalLocations",
+                        "CollectionFolders",
+                        "Folders",
+                        "CollectionType",
+                        "Name",
+                    ]
+                ]
                 if all_keys:
                     print(f"    - 其他字段: {all_keys}")
-                
+
                 # 如果都为空，显示警告
-                if not any([
-                    item.get('PhysicalLocations'),
-                    item.get('CollectionFolders'),
-                    item.get('Folders'),
-                ]):
-                    print(f"    ℹ 信息: 此库的文件夹路径通过 virtual_folders API 获取")
-                
+                if not any(
+                    [
+                        item.get("PhysicalLocations"),
+                        item.get("CollectionFolders"),
+                        item.get("Folders"),
+                    ]
+                ):
+                    print("    ℹ 信息: 此库的文件夹路径通过 virtual_folders API 获取")
+
         except Exception as e:
             print(f"⚠ 检查原始响应失败: {e}")
-        
+
         # 总结
         print_header("诊断完成")
-        print("""
+        print(
+            """
 问题排查指南:
 
 1. 如果获取库列表成功，但没有文件夹路径:
@@ -171,16 +185,18 @@ def diagnose_jellyfin() -> None:
 3. 如果有其他问题:
    - 查看完整的日志输出（启用 DEBUG 日志）
    - 检查 Jellyfin 服务器的日志
-        """)
-        
+        """
+        )
+
     except KeyboardInterrupt:
         print("\n\n⚠ 诊断被中断")
         sys.exit(0)
     except Exception as e:
         print(f"\n❌ 诊断出错: {e}")
         import traceback
+
         traceback.print_exc()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     diagnose_jellyfin()

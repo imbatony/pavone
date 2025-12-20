@@ -4,8 +4,7 @@ MissAV提取器测试
 
 import os
 import unittest
-from typing import List
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import Mock, patch
 
 from pavone.models.constants import Quality
 from pavone.models.operation import OperationItem
@@ -85,7 +84,10 @@ class TestMissAVExtractor(unittest.TestCase):
         """测试标题和代码提取"""
         title, code = self.extractor._extract_title_and_code(self.test_html_content)
         self.assertEqual(code, "SDAB-183")
-        self.assertEqual(title, "ボーイッシュ女子が男子の格好で初中出し 男装コスで生チ○ポ3本番！ 早見なな")
+        self.assertEqual(
+            title,
+            "ボーイッシュ女子が男子の格好で初中出し 男装コスで生チ○ポ3本番！ 早見なな",
+        )
 
     def test_extract_title_and_code_no_match(self):
         """测试标题和代码提取失败的情况"""

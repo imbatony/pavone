@@ -1,10 +1,7 @@
-﻿from abc import abstractmethod
-from typing import Dict, List, Optional
-
-import requests
+from abc import abstractmethod
+from typing import List, Optional
 
 from ...models import OperationItem
-from ...utils.http_utils import HttpUtils
 from ..base import BasePlugin
 
 
@@ -23,7 +20,13 @@ class ExtractorPlugin(BasePlugin):
         author: Optional[str] = "",
         priority: Optional[int] = 50,
     ):
-        super().__init__(name=name, version=version, description=description, author=author, priority=priority)
+        super().__init__(
+            name=name,
+            version=version,
+            description=description,
+            author=author,
+            priority=priority,
+        )
 
     def initialize(self) -> bool:
         """初始化插件"""

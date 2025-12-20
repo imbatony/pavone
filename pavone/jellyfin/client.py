@@ -103,7 +103,7 @@ class JellyfinClientWrapper:
     def _authenticate_with_api_key(self) -> None:
         """使用 API Key 进行认证"""
         try:
-            result = self.client.authenticate(
+            self.client.authenticate(
                 {
                     "Servers": [
                         {
@@ -114,29 +114,29 @@ class JellyfinClientWrapper:
                 },
                 discover=False,
             )
-            
+
             # 从认证结果中获取用户 ID
             try:
                 # 尝试从 ConnectionManager 的凭证中获取用户 ID
                 creds = self.client.get_credentials()
-                if creds and 'Servers' in creds and len(creds['Servers']) > 0:
-                    server_creds = creds['Servers'][0]
-                    if 'UserId' in server_creds:
-                        self.user_id = server_creds['UserId']
-                        self.client.config.data['auth.user_id'] = self.user_id
+                if creds and "Servers" in creds and len(creds["Servers"]) > 0:
+                    server_creds = creds["Servers"][0]
+                    if "UserId" in server_creds:
+                        self.user_id = server_creds["UserId"]
+                        self.client.config.data["auth.user_id"] = self.user_id
                         self.logger.debug(f"从认证结果获取用户 ID: {self.user_id}")
-                
+
                 # 如果仍未获得用户 ID，调用 API 获取当前用户信息
                 if not self.user_id:
                     users = self.client.jellyfin.get_users()
                     if isinstance(users, list) and len(users) > 0:
-                        self.user_id = users[0].get('Id')
-                        self.client.config.data['auth.user_id'] = self.user_id
+                        self.user_id = users[0].get("Id")
+                        self.client.config.data["auth.user_id"] = self.user_id
                         self.logger.debug(f"从 API 获取用户 ID: {self.user_id}")
-                    
+
             except Exception as e:
                 self.logger.warning(f"无法获取用户 ID: {e}")
-            
+
             self.logger.debug("使用 API Key 认证成功")
         except Exception as e:
             raise JellyfinAuthenticationError(f"API Key 认证失败: {e}")
@@ -148,18 +148,16 @@ class JellyfinClientWrapper:
             self.client.auth.connect_to_address(self.config.server_url)
 
             # 使用用户名密码登录
-            self.client.auth.login(
-                self.config.server_url, self.config.username, self.config.password
-            )
+            self.client.auth.login(self.config.server_url, self.config.username, self.config.password)
 
             # 获取用户 ID 用于后续 API 调用
             try:
                 creds = self.client.get_credentials()
-                if creds and 'Servers' in creds and len(creds['Servers']) > 0:
-                    server_creds = creds['Servers'][0]
-                    if 'UserId' in server_creds:
-                        self.user_id = server_creds['UserId']
-                        self.client.config.data['auth.user_id'] = self.user_id
+                if creds and "Servers" in creds and len(creds["Servers"]) > 0:
+                    server_creds = creds["Servers"][0]
+                    if "UserId" in server_creds:
+                        self.user_id = server_creds["UserId"]
+                        self.client.config.data["auth.user_id"] = self.user_id
                         self.logger.debug(f"从认证结果获取用户 ID: {self.user_id}")
             except Exception as e:
                 self.logger.warning(f"无法从认证结果获取用户 ID: {e}")
@@ -214,15 +212,15 @@ class JellyfinClientWrapper:
                 lib_id = item.get("Id", "")
                 lib_name = item.get("Name", "")
                 lib_type = item.get("CollectionType", "")
-                
+
                 # 排除 playlists 类型的库（内建库）
                 if lib_type == "playlists":
                     self.logger.debug(f"跳过内建库: {lib_name}")
                     continue
-                
+
                 # 获取库中的项目数
                 item_count = self._get_library_item_count(lib_id)
-                
+
                 lib_info = LibraryInfo(
                     name=lib_name,
                     id=lib_id,
@@ -250,7 +248,7 @@ class JellyfinClientWrapper:
         """
         try:
             locations = {}
-            
+
             # 方法 1: 尝试使用 virtual_folders API
             try:
                 virtual_folders_result = self.client.jellyfin.virtual_folders()
@@ -263,28 +261,28 @@ class JellyfinClientWrapper:
                             self.logger.debug(f"从 virtual_folders 获取 {lib_name}: {locations_list}")
             except Exception as e:
                 self.logger.debug(f"virtual_folders API 失败: {e}")
-            
+
             # 如果 virtual_folders 成功返回了结果，则直接返回
             if locations:
                 return locations
-            
+
             # 方法 2: 尝试从 media_folders 获取 PhysicalLocations 或 CollectionFolders
             result = self.client.jellyfin.media_folders()
             for item in result.get("Items", []):
                 lib_name = item.get("Name", "")
                 lib_type = item.get("CollectionType", "")
-                
+
                 # 排除 playlists 类型的库（内建库）
                 if lib_type == "playlists":
                     continue
-                
+
                 # 尝试获取物理位置
                 paths = item.get("PhysicalLocations", [])
                 if paths:
                     locations[lib_name] = paths
                     self.logger.debug(f"从 media_folders PhysicalLocations 获取 {lib_name}: {paths}")
                     continue
-                
+
                 # 尝试从 CollectionFolders 获取
                 collection_folders = item.get("CollectionFolders", [])
                 if collection_folders:
@@ -293,7 +291,7 @@ class JellyfinClientWrapper:
                         locations[lib_name] = folder_paths
                         self.logger.debug(f"从 media_folders CollectionFolders 获取 {lib_name}: {folder_paths}")
                         continue
-                
+
                 # 尝试从 Folders 获取
                 folders = item.get("Folders", [])
                 if folders:
@@ -324,11 +322,11 @@ class JellyfinClientWrapper:
             result = self.client.jellyfin.user_items(
                 handler="",
                 params={
-                    'ParentId': library_id,
-                    'Recursive': True,
-                }
+                    "ParentId": library_id,
+                    "Recursive": True,
+                },
             )
-            count = result.get('TotalRecordCount', 0)
+            count = result.get("TotalRecordCount", 0)
             self.logger.debug(f"库 {library_id} 包含 {count} 个项目")
             return count
         except Exception as e:
@@ -336,7 +334,10 @@ class JellyfinClientWrapper:
             return 0
 
     def get_library_items(
-        self, library_ids: Optional[List[str]] = None, limit: int = 100, start_index: int = 0
+        self,
+        library_ids: Optional[List[str]] = None,
+        limit: int = 100,
+        start_index: int = 0,
     ) -> List[JellyfinItem]:
         """
         获取库中的所有项
@@ -366,13 +367,13 @@ class JellyfinClientWrapper:
                     result = self.client.jellyfin.user_items(
                         handler="",
                         params={
-                            'ParentId': lib_id,
-                            'Filters': 'IsNotFolder',
-                            'IncludeItemTypes': 'Movie,Video',
-                            'Limit': limit,
-                            'StartIndex': start_index,
-                            'Recursive': True,
-                        }
+                            "ParentId": lib_id,
+                            "Filters": "IsNotFolder",
+                            "IncludeItemTypes": "Movie,Video",
+                            "Limit": limit,
+                            "StartIndex": start_index,
+                            "Recursive": True,
+                        },
                     )
 
                     for item_data in result.get("Items", []):
@@ -392,9 +393,7 @@ class JellyfinClientWrapper:
             self.logger.error(f"获取库项失败: {e}")
             raise JellyfinAPIError(f"获取库项失败: {e}")
 
-    def search_items(
-        self, keyword: str, limit: int = 20, media_type: str = "Videos"
-    ) -> List[JellyfinItem]:
+    def search_items(self, keyword: str, limit: int = 20, media_type: str = "Videos") -> List[JellyfinItem]:
         """
         搜索视频项
 
@@ -413,14 +412,15 @@ class JellyfinClientWrapper:
             self.logger.info(f"搜索: '{keyword}' (限制: {limit})")
 
             # 临时设置用户 ID 来进行搜索（某些 API 需要它）
+            old_user_id = None
             if self.user_id:
-                old_user_id = self.client.config.data.get('auth.user_id')
-                self.client.config.data['auth.user_id'] = self.user_id
+                old_user_id = self.client.config.data.get("auth.user_id")
+                self.client.config.data["auth.user_id"] = self.user_id
 
             result = self.client.jellyfin.search_media_items(term=keyword, media=media_type, limit=limit)
 
             if self.user_id:
-                self.client.config.data['auth.user_id'] = old_user_id
+                self.client.config.data["auth.user_id"] = old_user_id
 
             items = []
             for item_data in result.get("Items", []):
@@ -495,7 +495,19 @@ class JellyfinClientWrapper:
             JellyfinAPIError: API 调用失败
         """
         try:
-            self.client.jellyfin.item_played(item_id)
+            # 如果提供了 user_id，临时切换
+            old_user_id = None
+            target_user_id = user_id or self.user_id
+
+            if target_user_id:
+                old_user_id = self.client.config.data.get("auth.user_id")
+                self.client.config.data["auth.user_id"] = target_user_id
+
+            self.client.jellyfin.item_played(item_id, watched=True)
+
+            if target_user_id:
+                self.client.config.data["auth.user_id"] = old_user_id
+
             self.logger.debug(f"标记项 {item_id} 为已观看")
             return True
 
@@ -506,7 +518,7 @@ class JellyfinClientWrapper:
     def refresh_library(self, library_id: Optional[str] = None) -> bool:
         """
         增量刷新库元数据
-        
+
         扫描库目录中的新增和修改文件，仅更新新项和修改项的元数据
 
         Args:
@@ -530,8 +542,8 @@ class JellyfinClientWrapper:
                         "MetadataRefreshMode": "Default",
                         "ReplaceAllImages": False,
                         "RegenerateTrickplay": False,
-                        "ReplaceAllMetadata": False  # 关键：不替换所有元数据，进行增量更新
-                    }
+                        "ReplaceAllMetadata": False,  # 关键：不替换所有元数据，进行增量更新
+                    },
                 )
                 self.logger.info(f"增量刷新库 {library_id} 成功")
             else:
@@ -546,10 +558,10 @@ class JellyfinClientWrapper:
                             "MetadataRefreshMode": "Default",
                             "ReplaceAllImages": False,
                             "RegenerateTrickplay": False,
-                            "ReplaceAllMetadata": False
-                        }
+                            "ReplaceAllMetadata": False,
+                        },
                     )
-                
+
                 self.logger.info("增量刷新所有库完成")
 
             return True

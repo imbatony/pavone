@@ -54,7 +54,17 @@ class GeoData:
     @classmethod
     def from_dict(cls, data: dict) -> "GeoData":
         """从字典创建 GeoData 实例"""
-        required_fields = {"token", "expires", "ip", "asn", "isp", "continent", "country", "ttl", "url"}
+        required_fields = {
+            "token",
+            "expires",
+            "ip",
+            "asn",
+            "isp",
+            "continent",
+            "country",
+            "ttl",
+            "url",
+        }
         missing_fields = required_fields - set(data.keys())
 
         if missing_fields:
@@ -273,7 +283,7 @@ class AV01Metadata(MetadataPlugin):
 
     def can_extract(self, identifier: str) -> bool:
         """检查是否能处理给定的identifier
-        
+
         支持两种格式：
         1. URL: https://av01.tv/jp/video/184522/fc2-ppv-4799119
         2. 视频代码: FC2-PPV-4799119 或类似格式
@@ -289,7 +299,7 @@ class AV01Metadata(MetadataPlugin):
                 return any(parsed_url.netloc.lower() == domain.lower() for domain in self.supported_domains)
             except Exception:
                 return False
-        
+
         # 检查是否为视频代码
         # AV01支持的代码格式比较灵活，基本上符合标准番号格式的都可以
         identifier_stripped = identifier.strip()
@@ -300,15 +310,15 @@ class AV01Metadata(MetadataPlugin):
                 parts = identifier_stripped.split("-", 1)
                 if len(parts) >= 2 and len(parts[0]) > 0 and parts[0][0].isalpha():
                     return True
-        
+
         return False
 
     def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
         """从给定的identifier提取元数据
-        
+
         Args:
             identifier: 可以是URL或视频代码
-            
+
         Returns:
             提取到的MovieMetadata对象，如果失败返回None
         """
@@ -316,7 +326,7 @@ class AV01Metadata(MetadataPlugin):
             # 1. 提取视频ID
             video_id = None
             url = identifier
-            
+
             if identifier.startswith("http"):
                 # 从URL提取视频ID
                 video_id = self._extract_video_id(identifier)
@@ -514,11 +524,11 @@ class AV01Metadata(MetadataPlugin):
 
     def _extract_video_id(self, url: str) -> Optional[str]:
         """从URL提取视频ID
-        
+
         URL格式示例:
         - https://www.av01.media/jp/video/184522/fc2-ppv-4799119
         - https://av01.media/en/video/123456/some-title
-        
+
         视频ID是 /video/ 后面的数字
         """
         try:

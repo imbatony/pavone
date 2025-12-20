@@ -2,17 +2,17 @@
 Jellyfin 客户端单元测试
 """
 
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
 
 from pavone.config.configs import JellyfinConfig
 from pavone.jellyfin import (
-    JellyfinClientWrapper,
-    JellyfinAuthenticationError,
-    JellyfinConnectionError,
     JellyfinAPIError,
+    JellyfinAuthenticationError,
+    JellyfinClientWrapper,
 )
-from pavone.jellyfin.models import JellyfinItem, LibraryInfo
+from pavone.jellyfin.models import JellyfinItem
 
 
 @pytest.fixture
@@ -155,9 +155,7 @@ class TestJellyfinClientAPIMethods:
 
     def test_get_libraries_error(self, authenticated_client):
         """测试获取库列表时出错"""
-        authenticated_client.client.jellyfin.media_folders = Mock(
-            side_effect=Exception("API Error")
-        )
+        authenticated_client.client.jellyfin.media_folders = Mock(side_effect=Exception("API Error"))
 
         with pytest.raises(JellyfinAPIError):
             authenticated_client.get_libraries()
@@ -176,9 +174,7 @@ class TestJellyfinClientAPIMethods:
             ]
         }
 
-        authenticated_client.client.jellyfin.search_media_items = Mock(
-            return_value=mock_response
-        )
+        authenticated_client.client.jellyfin.search_media_items = Mock(return_value=mock_response)
 
         items = authenticated_client.search_items("test")
 

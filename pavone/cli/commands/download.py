@@ -9,7 +9,13 @@ import click
 from ...config.settings import get_config
 from ...manager.execution import create_exe_manager
 from ...plugins.manager import get_plugin_manager
-from .utils import echo_error, echo_info, echo_success, read_urls_from_file, read_urls_from_input
+from .utils import (
+    echo_error,
+    echo_info,
+    echo_success,
+    read_urls_from_file,
+    read_urls_from_input,
+)
 
 
 @click.command()

@@ -10,7 +10,7 @@ from typing import Dict, List, Optional, Tuple
 
 from .client import JellyfinClientWrapper
 from .exceptions import JellyfinLibraryError
-from .models import JellyfinItem, LibraryInfo
+from .models import JellyfinItem
 
 
 class LibraryManager:
@@ -86,7 +86,10 @@ class LibraryManager:
             raise JellyfinLibraryError(f"扫描库失败: {e}")
 
     def find_item_by_title(
-        self, title: str, threshold: float = 0.8, library_names: Optional[List[str]] = None
+        self,
+        title: str,
+        threshold: float = 0.8,
+        library_names: Optional[List[str]] = None,
     ) -> Optional[JellyfinItem]:
         """
         按标题查找项（模糊匹配）
@@ -102,7 +105,6 @@ class LibraryManager:
         try:
             from difflib import SequenceMatcher
 
-            libraries_to_scan = library_names or self.get_monitored_libraries()
             scanned = self.scan_library()
 
             best_match: Optional[Tuple[JellyfinItem, float]] = None
@@ -120,9 +122,7 @@ class LibraryManager:
                             best_match = (item, ratio)
 
             if best_match:
-                self.logger.info(
-                    f"找到匹配项: {best_match[0].name} (相似度: {best_match[1]:.2%})"
-                )
+                self.logger.info(f"找到匹配项: {best_match[0].name} (相似度: {best_match[1]:.2%})")
                 return best_match[0]
 
             self.logger.debug(f"未找到与 '{title}' 相匹配的项")
@@ -169,11 +169,11 @@ class LibraryManager:
         try:
             # 首先尝试从 API 直接获取物理位置
             locations = self.client.get_library_physical_locations()
-            
+
             if locations:
                 self.logger.info(f"从 API 获取到 {len(locations)} 个库的物理位置")
                 return locations
-            
+
             # 如果 API 返回为空，则回退到从库项获取路径
             self.logger.info("API 返回的物理位置为空，尝试从库项获取路径")
             libraries = self.client.get_libraries()
@@ -185,7 +185,7 @@ class LibraryManager:
                 # 尝试从库项中获取路径
                 # 获取多个项目来增加找到路径的可能性
                 items = self.client.get_library_items([lib.id], limit=10)
-                
+
                 if items:
                     # 从所有项中收集唯一的父路径
                     parent_paths = set()
@@ -193,7 +193,7 @@ class LibraryManager:
                         if item.path:
                             parent_path = str(Path(item.path).parent)
                             parent_paths.add(parent_path)
-                    
+
                     if parent_paths:
                         folders = list(parent_paths)
                         self.logger.debug(f"从库项获取 {lib.name} 的路径: {folders}")
@@ -212,7 +212,7 @@ class LibraryManager:
     def refresh_library_metadata(self, library_id: str) -> bool:
         """
         增量刷新库的元数据
-        
+
         仅扫描库目录中的新增或修改文件
 
         Args:

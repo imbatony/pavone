@@ -21,7 +21,6 @@ carib_regrex = r"(\d{6})[-_](\d{3})(?:-carib)?"
 
 
 class CodeExtractUtils:
-
     @staticmethod
     def extract_code_from_text(original_text: str) -> Optional[str]:
         """

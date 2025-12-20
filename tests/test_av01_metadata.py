@@ -3,7 +3,12 @@
 """
 
 import pytest
-from pavone.plugins.metadata.av01_metadata import AV01Metadata, AV01VideoMetadata, GeoData
+
+from pavone.plugins.metadata.av01_metadata import (
+    AV01Metadata,
+    AV01VideoMetadata,
+    GeoData,
+)
 
 
 class TestAV01Metadata:
@@ -209,7 +214,7 @@ class TestAV01VideoMetadata:
             published_time="2025-01-01",
             original_language="ja",
             cover=True,
-            tags=[{"name": "Tag 1"}, "Tag 2"],
+            tags=[{"name": "Tag 1"}, {"name": "Tag 2"}],
         )
 
         tags = metadata.get_tag_names()

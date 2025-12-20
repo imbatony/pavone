@@ -11,13 +11,13 @@ Jellyfin 集成测试
 """
 
 import pytest
+
 from pavone.config.configs import JellyfinConfig
 from pavone.jellyfin import (
-    JellyfinClientWrapper,
     JellyfinAPIError,
     JellyfinAuthenticationError,
+    JellyfinClientWrapper,
 )
-
 
 # 测试配置
 JELLYFIN_SERVER_URL = "http://127.0.0.1:8096"
@@ -189,7 +189,7 @@ class TestJellyfinIntegrationItemOperations:
                 item_detail = jellyfin_client.get_item(item_id)
 
                 assert item_detail.id == item_id
-                print(f"[OK] 获取项详情成功:")
+                print("[OK] 获取项详情成功:")
                 print(f"  - ID: {item_detail.id}")
                 print(f"  - 名称: {item_detail.name}")
                 print(f"  - 类型: {item_detail.type}")
@@ -301,33 +301,33 @@ class TestJellyfinVideoSearch:
     def test_find_fc2_3751072_video(self, jellyfin_client):
         """测试是否能在 Jellyfin 中找到 FC2-3751072 视频"""
         search_term = "FC2-3751072"
-        
+
         print(f"\n[测试] 搜索标题包含 '{search_term}' 的视频...")
-        
+
         # 搜索
         items = jellyfin_client.search_items(search_term, limit=20)
-        
+
         if items:
             print(f"[结果] 找到 {len(items)} 个搜索结果:")
             for item in items:
                 print(f"  - {item.name} (ID: {item.id}, 类型: {item.type})")
                 if search_term.lower() in item.name.lower():
                     print(f"  [OK] 匹配! 标题中包含 '{search_term}'")
-            
+
             # 验证至少有一个结果包含搜索词
             matching_items = [item for item in items if search_term.lower() in item.name.lower()]
             assert len(matching_items) > 0, f"未找到标题包含 '{search_term}' 的视频"
             print(f"\n[成功] 验证通过: 找到 {len(matching_items)} 个包含 '{search_term}' 的视频")
         else:
             print(f"[警告] 搜索 '{search_term}' 未返回结果，尝试获取所有库项...")
-            
+
             # 如果搜索失败，尝试从库中获取所有项目
             all_items = jellyfin_client.get_library_items(limit=100)
             print(f"[信息] 从库中获取到 {len(all_items)} 个项目")
-            
+
             # 在所有项目中查找
             matching_items = [item for item in all_items if search_term.lower() in item.name.lower()]
-            
+
             if matching_items:
                 print(f"[结果] 在库项目中找到 {len(matching_items)} 个匹配:")
                 for item in matching_items:
@@ -336,7 +336,7 @@ class TestJellyfinVideoSearch:
             else:
                 print(f"[警告] 在库中也未找到标题包含 '{search_term}' 的视频")
                 # 显示前 10 个项目作为参考
-                print(f"[参考] 库中的前 10 个项目:")
+                print("[参考] 库中的前 10 个项目:")
                 for item in all_items[:10]:
                     print(f"  - {item.name}")
 
@@ -345,7 +345,8 @@ class TestJellyfinVideoSearch:
 def pytest_configure(config):
     """注册自定义标记"""
     config.addinivalue_line(
-        "markers", "integration: marks tests as integration tests that require a running Jellyfin server"
+        "markers",
+        "integration: marks tests as integration tests that require a running Jellyfin server",
     )
 
 

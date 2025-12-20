@@ -1,6 +1,12 @@
 from .constants import CommonExtraKeys, ItemSubType, ItemType, OperationType, Quality
 from .jellyfin_item import ItemMetadata
-from .metadata import BaseMetadata, ClipMetadata, DocumentaryMetadata, MovieMetadata, TVShowMetadata
+from .metadata import (
+    BaseMetadata,
+    ClipMetadata,
+    DocumentaryMetadata,
+    MovieMetadata,
+    TVShowMetadata,
+)
 from .operation import (
     OperationItem,
     create_backdrop_item,

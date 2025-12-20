@@ -14,7 +14,7 @@ import re
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 from urllib.parse import urlparse
 
 from ...models import (
@@ -76,7 +76,17 @@ class GeoData:
         Raises:
             ValueError: 当缺少必需字段时
         """
-        required_fields = {"token", "expires", "ip", "asn", "isp", "continent", "country", "ttl", "url"}
+        required_fields = {
+            "token",
+            "expires",
+            "ip",
+            "asn",
+            "isp",
+            "continent",
+            "country",
+            "ttl",
+            "url",
+        }
         missing_fields = required_fields - set(data.keys())
 
         if missing_fields:
@@ -595,7 +605,15 @@ class AV01Extractor(ExtractorPlugin):
                 # 使用已解析的质量，如果无法识别再猜测
                 quality = (
                     quality_key
-                    if quality_key in [Quality.UHD, Quality.QHD, Quality.FHD, Quality.HD, Quality.SD, Quality.LOW]
+                    if quality_key
+                    in [
+                        Quality.UHD,
+                        Quality.QHD,
+                        Quality.FHD,
+                        Quality.HD,
+                        Quality.SD,
+                        Quality.LOW,
+                    ]
                     else Quality.guess(video_url)
                 )
                 download_item = create_stream_item(

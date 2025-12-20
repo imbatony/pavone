@@ -51,7 +51,7 @@ def config():
     click.echo(f"文件日志: {'是' if config.logging.file_enabled else '否'}")
     if config.logging.file_enabled:
         click.echo(f"日志文件: {config.logging.file_path}")
-        click.echo(f"最大文件大小: {config.logging.max_file_size // (1024*1024)}MB")
+        click.echo(f"最大文件大小: {config.logging.max_file_size // (1024 * 1024)}MB")
         click.echo(f"备份文件数: {config.logging.backup_count}")
 
     click.echo("\n=== 插件配置 ===")

@@ -40,7 +40,12 @@ class M3U8Downloader(BaseDownloader):
             requests.RequestException: 下载失败时抛出异常
         """
         try:
-            response = self._session.get(url, headers=headers, proxies=self.proxies, timeout=self.download_config.timeout)
+            response = self._session.get(
+                url,
+                headers=headers,
+                proxies=self.proxies,
+                timeout=self.download_config.timeout,
+            )
             response.raise_for_status()
             return response.text
         except Exception as e:
@@ -87,7 +92,12 @@ class M3U8Downloader(BaseDownloader):
             Tuple[int, bytes]: (段索引, 段数据)
         """
         try:
-            response = self._session.get(url, headers=headers, proxies=self.proxies, timeout=self.download_config.timeout)
+            response = self._session.get(
+                url,
+                headers=headers,
+                proxies=self.proxies,
+                timeout=self.download_config.timeout,
+            )
             response.raise_for_status()
             return segment_index, response.content
         except Exception as e:
@@ -185,7 +195,11 @@ class M3U8Downloader(BaseDownloader):
                             downloaded_segments[segment_index] = segment_file
                             # 更新进度
 
-                            progress_info = ProgressInfo(total_size=0, downloaded=total_downloaded_bytes, speed=speed)
+                            progress_info = ProgressInfo(
+                                total_size=0,
+                                downloaded=total_downloaded_bytes,
+                                speed=speed,
+                            )
                             progress_callback(progress_info)
 
                         return True

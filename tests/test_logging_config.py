@@ -17,7 +17,11 @@ class TestLoggingConfig(unittest.TestCase):
     def setUp(self):
         """测试准备"""
         self.temp_dir = tempfile.mkdtemp("logging_test")
-        self.config = LoggingConfig(level="DEBUG", file_enabled=True, file_path=os.path.join(self.temp_dir, "test.log"))
+        self.config = LoggingConfig(
+            level="DEBUG",
+            file_enabled=True,
+            file_path=os.path.join(self.temp_dir, "test.log"),
+        )
         self.log_manager = LogManager(self.config)
 
     def tearDown(self):

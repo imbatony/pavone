@@ -15,7 +15,10 @@ class TestHTTPDownloader(unittest.TestCase):
 
     def setUp(self):
         self.temp_dir = tempfile.mkdtemp()
-        self.config = Config(download=DownloadConfig(output_dir=self.temp_dir), proxy=ProxyConfig(enabled=False))  # 禁用代理
+        self.config = Config(
+            download=DownloadConfig(output_dir=self.temp_dir),
+            proxy=ProxyConfig(enabled=False),
+        )  # 禁用代理
         self.downloader = HTTPDownloader(self.config)
 
     def tearDown(self):

@@ -2,12 +2,10 @@
 Jellyfin 搜索插件单元测试
 """
 
-import pytest
 from unittest.mock import MagicMock, patch
 
-from pavone.config.configs import JellyfinConfig
-from pavone.plugins.search import JellyfinSearch
 from pavone.models import SearchResult
+from pavone.plugins.search import JellyfinSearch
 
 
 class TestJellyfinSearchPluginInit:

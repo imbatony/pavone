@@ -15,15 +15,15 @@ from ..config.settings import config_manager
 from ..models import SearchResult
 from .base import BasePlugin
 from .extractors import (
+    AV01Extractor,
     ExtractorPlugin,
     JTableExtractor,
     M3U8DirectExtractor,
     MemojavExtractor,
     MissAVExtractor,
     MP4DirectExtractor,
-    AV01Extractor,
 )
-from .metadata import MetadataPlugin, MissavMetadata, AV01Metadata
+from .metadata import AV01Metadata, MetadataPlugin, MissavMetadata
 from .search import MissavSearch, SearchPlugin
 
 
@@ -145,7 +145,6 @@ class PluginManager:
         for name, obj in inspect.getmembers(module, inspect.isclass):
             # 检查是否是插件类
             if self._is_plugin_class(obj) and obj.__module__ == module.__name__ and not inspect.isabstract(obj):
-
                 # 检查插件是否被禁用
                 plugin_name = getattr(obj, "name", name)
                 if config_manager.is_plugin_disabled(plugin_name):
@@ -159,7 +158,8 @@ class PluginManager:
                     # 应用配置中的优先级设置
                     if hasattr(plugin_instance, "set_priority"):
                         priority = config_manager.get_plugin_priority(
-                            plugin_instance.name, getattr(plugin_instance, "priority", 50)
+                            plugin_instance.name,
+                            getattr(plugin_instance, "priority", 50),
                         )
                         plugin_instance.set_priority(priority)
 

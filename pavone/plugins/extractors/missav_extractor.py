@@ -254,7 +254,6 @@ class MissAVExtractor(ExtractorPlugin):
         default_title = "MissAV Video"
         default_code = self._extract_uuid(html) or "Unknown"
         try:
-
             title_match = re.search(r'<meta property="og:title" content="([^"]+)"', html)
             if title_match:
                 matched = title_match.group(1).strip()
