@@ -8,10 +8,17 @@ from typing import Callable
 class ProgressInfo:
     """下载进度信息"""
 
-    def __init__(self, total_size: int = 0, downloaded: int = 0, speed: float = 0.0):
+    def __init__(
+        self, 
+        total_size: int = 0, 
+        downloaded: int = 0, 
+        speed: float = 0.0,
+        status_message: str = "",
+    ):
         self.total_size = total_size  # 总大小（字节）
         self.downloaded = downloaded  # 已下载大小（字节）
         self.speed = speed  # 下载速度（字节/秒）
+        self.status_message = status_message  # 状态消息（用于显示当前操作状态）
 
     @property
     def percentage(self) -> float:

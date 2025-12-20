@@ -2,6 +2,7 @@
 M3U8视频下载器实现
 """
 
+import hashlib
 import os
 import threading
 import time
@@ -24,6 +25,21 @@ class M3U8Downloader(BaseDownloader):
         super().__init__(config)
         self._session = requests.Session()
         self._lock = threading.Lock()
+
+    def _generate_m3u8_hash(self, content: str) -> str:
+        """
+        根据M3U8播放列表内容生成hash值
+
+        Args:
+            content: M3U8文件内容
+
+        Returns:
+            str: hash值（前16位）
+        """
+        # 移除空白行和注释行，只对实际的段URL进行hash，确保相同内容产生相同hash
+        lines = [line.strip() for line in content.strip().split("\n") if line.strip() and not line.strip().startswith("#")]
+        normalized_content = "\n".join(lines)
+        return hashlib.sha256(normalized_content.encode()).hexdigest()[:16]
 
     def _download_m3u8_playlist(self, url: str, headers: Dict[str, str]) -> str:
         """
@@ -78,6 +94,24 @@ class M3U8Downloader(BaseDownloader):
                 segment_urls.append(urljoin(base_url, line))
 
         return segment_urls
+
+    def _check_segment_exists(self, segment_path: str) -> bool:
+        """
+        检查分段文件是否已存在且完整
+
+        Args:
+            segment_path: 分段文件路径
+
+        Returns:
+            bool: 文件是否存在且大小>0
+        """
+        if not os.path.exists(segment_path):
+            return False
+        # 检查文件大小，确保不是空文件
+        try:
+            return os.path.getsize(segment_path) > 0
+        except OSError:
+            return False
 
     def _download_segment(self, url: str, headers: Dict[str, str], segment_index: int) -> Tuple[int, bytes]:
         """
@@ -152,15 +186,16 @@ class M3U8Downloader(BaseDownloader):
             # 获取输出文件路径
             output_file = target_path  # 创建临时目录存储视频段
             # 使用配置的缓存目录或基于输出文件创建临时目录
+            # 根据m3u8内容生成hash，用于缓存目录名（实现断点续传）
+            m3u8_hash = self._generate_m3u8_hash(m3u8_content)
             cache_dir = self.download_config.cache_dir
             if cache_dir:
-                # 创建唯一的临时目录路径以避免冲突
-                import uuid
-
-                temp_dir = os.path.join(cache_dir, f"m3u8_{uuid.uuid4().hex}")
+                # 使用hash作为目录名，相同内容的m3u8会使用同一个缓存目录
+                temp_dir = os.path.join(cache_dir, f"m3u8_{m3u8_hash}")
             else:
-                temp_dir = output_file + "_segments"
+                temp_dir = output_file + f"_segments_{m3u8_hash}"
             os.makedirs(temp_dir, exist_ok=True)
+            self.logger.info(f"Using cache directory: {temp_dir}")
 
             # 下载所有视频段
             downloaded_segments: dict[int, str] = {}
@@ -170,8 +205,59 @@ class M3U8Downloader(BaseDownloader):
             # 开始时间
             download_start_time = time.time()
 
+            # 检查已存在的分段（断点续传）
+            existing_segments = 0
+            for i in range(total_segments):
+                segment_file = os.path.join(temp_dir, f"segment_{i:06d}.ts")
+                if self._check_segment_exists(segment_file):
+                    downloaded_segments[i] = segment_file
+                    existing_segments += 1
+                    try:
+                        segment_size = os.path.getsize(segment_file)
+                        total_downloaded_bytes += segment_size
+                    except OSError:
+                        pass
+
+            if existing_segments > 0:
+                self.logger.info(f"Found {existing_segments} existing segments, resuming download...")
+                successful_downloads = existing_segments
+                # 显示断点续传状态
+                progress_callback(ProgressInfo(
+                    total_size=0,
+                    downloaded=total_downloaded_bytes,
+                    speed=0.0,
+                    status_message=f"发现 {existing_segments} 个已存在的分段，正在恢复下载..."
+                ))
+            else:
+                # 显示开始下载状态
+                progress_callback(ProgressInfo(
+                    total_size=0,
+                    downloaded=0,
+                    speed=0.0,
+                    status_message=f"开始下载 {total_segments} 个视频分段..."
+                ))
+
             def download_with_progress(segment_info: Tuple[int, str]) -> bool:
+                nonlocal total_downloaded_bytes
+                nonlocal successful_downloads
+                
                 index, url = segment_info
+
+                # 检查分段是否已存在（断点续传）
+                segment_file = os.path.join(temp_dir, f"segment_{index:06d}.ts")
+                if self._check_segment_exists(segment_file):
+                    # 分段已存在，跳过下载
+                    with self._lock:
+                        # 更新进度（已存在的分段在初始化时已统计）
+                        elapsed_time = time.time() - download_start_time
+                        speed = total_downloaded_bytes / elapsed_time if elapsed_time > 0 else 0.0
+                        progress_info = ProgressInfo(
+                            total_size=0,
+                            downloaded=total_downloaded_bytes,
+                            speed=speed,
+                        )
+                        progress_callback(progress_info)
+                    return True
 
                 # 使用配置的重试次数进行重试
                 for attempt in range(self.download_config.retry_times + 1):
@@ -179,12 +265,9 @@ class M3U8Downloader(BaseDownloader):
                         segment_index, segment_data = self._download_segment(url, headers, index)
                         # 更新总字节数
                         with self._lock:
-                            nonlocal total_downloaded_bytes
-                            nonlocal successful_downloads
                             successful_downloads += 1
                             total_downloaded_bytes += len(segment_data)
                         # 将段数据写入临时文件
-                        segment_file = os.path.join(temp_dir, f"segment_{segment_index:06d}.ts")
                         with open(segment_file, "wb") as f:
                             f.write(segment_data)
 
@@ -236,6 +319,14 @@ class M3U8Downloader(BaseDownloader):
                 # 可以选择重试失败的段
                 return False  # 合并所有视频段，优先使用ffmpeg
             self.logger.info("Merging video segments...")
+            
+            # 显示合并状态
+            progress_callback(ProgressInfo(
+                total_size=0,
+                downloaded=total_downloaded_bytes,
+                speed=0.0,
+                status_message=f"正在合并 {total_segments} 个视频分段..."
+            ))
 
             def _merge_using_ffmpeg(segment_files: list[str], output_path: str) -> bool:
                 """使用ffmpeg合并视频段"""
@@ -298,6 +389,13 @@ class M3U8Downloader(BaseDownloader):
                 import shutil
 
                 if shutil.which("ffmpeg"):
+                    # 显示正在使用ffmpeg合并的状态
+                    progress_callback(ProgressInfo(
+                        total_size=0,
+                        downloaded=total_downloaded_bytes,
+                        speed=0.0,
+                        status_message="正在使用 ffmpeg 合并视频分段..."
+                    ))
                     ffmpeg_success = _merge_using_ffmpeg(segment_files, output_file)
             except Exception as e:
                 self.logger.warning(f"Error checking for ffmpeg: {e}")
@@ -305,11 +403,23 @@ class M3U8Downloader(BaseDownloader):
             # 如果ffmpeg失败或不可用，则使用传统方法合并
             if not ffmpeg_success:
                 self.logger.info("Falling back to direct file merging...")
+                progress_callback(ProgressInfo(
+                    total_size=0,
+                    downloaded=total_downloaded_bytes,
+                    speed=0.0,
+                    status_message="正在直接合并视频文件..."
+                ))
                 with open(output_file, "wb") as output:
                     for segment_file in segment_files:
                         with open(segment_file, "rb") as f:
                             output.write(f.read())
             # 清理临时文件
+            progress_callback(ProgressInfo(
+                total_size=0,
+                downloaded=total_downloaded_bytes,
+                speed=0.0,
+                status_message="正在清理临时文件..."
+            ))
             try:
                 for segment_file in downloaded_segments.values():
                     if os.path.exists(segment_file):
@@ -321,7 +431,12 @@ class M3U8Downloader(BaseDownloader):
             self.logger.info(f"M3U8 video downloaded successfully: {output_file}")
 
             # 最终进度更新
-            progress_info = ProgressInfo(total_size=total_segments, downloaded=total_segments, speed=0.0)
+            progress_info = ProgressInfo(
+                total_size=total_segments, 
+                downloaded=total_segments, 
+                speed=0.0,
+                status_message="✅ 下载完成！"
+            )
             progress_callback(progress_info)
 
             return True
