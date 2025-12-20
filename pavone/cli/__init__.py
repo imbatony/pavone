@@ -24,6 +24,7 @@ from .commands.search import search
 @click.pass_context
 def main(ctx: click.Context, verbose: bool) -> None:
     """PAVOne - 一个集下载,整理等多功能的插件化的AV管理工具"""
+    ctx.obj = {}
     ctx.obj["verbose"] = verbose
     if verbose:
         click.echo("Verbose mode is enabled.")
