@@ -270,12 +270,7 @@ class ExecutionManager:
             click.echo()
 
             # 询问是否移动文件到 Jellyfin 库
-            try:
-                choice = input("是否将此文件夹移动到 Jellyfin 库中? (y/n): ").strip().lower()
-            except KeyboardInterrupt:
-                print("\n已取消")
-                raise
-            if choice not in ("y", "yes", "是"):
+            if not click.confirm("是否将此文件夹移动到 Jellyfin 库中?", default=True):
                 return
 
             # 获取库列表
@@ -378,13 +373,7 @@ class ExecutionManager:
             click.secho(f"   {target_location}", fg='yellow')
             click.echo()
             
-            try:
-                confirm = input("确认移动? (y/n): ").strip().lower()
-            except KeyboardInterrupt:
-                print("\n已取消")
-                raise
-            
-            if confirm not in ("y", "yes", "是"):
+            if not click.confirm("确认移动?", default=True):
                 click.secho("已取消移动", fg='yellow')
                 return
 
@@ -397,12 +386,7 @@ class ExecutionManager:
                 self.logger.info(f"文件夹移动成功: {source_folder} -> {target_location}")
 
                 # 询问是否刷新元数据
-                try:
-                    refresh_choice = input("\n是否增量刷新 Jellyfin 库的元数据? (y/n): ").strip().lower()
-                except KeyboardInterrupt:
-                    print("\n已取消")
-                    raise
-                if refresh_choice in ("y", "yes", "是"):
+                if click.confirm("\n是否增量刷新 Jellyfin 库的元数据?", default=True):
                     if self.jellyfin_helper and self.jellyfin_helper.refresh_library(selected_lib_name):
                         click.secho("✓ 元数据增量刷新成功!", fg='green', bold=True)
                         self.logger.info("元数据增量刷新成功")
