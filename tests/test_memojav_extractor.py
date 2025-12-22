@@ -134,7 +134,14 @@ class TestMemojavExtractor(unittest.TestCase):
     @patch("pavone.plugins.extractors.memojav.MemojavExtractor._extract_m3u8")
     @patch("pavone.plugins.extractors.memojav.MemojavExtractor._extract_cover")
     @patch("pavone.plugins.extractors.memojav.MemojavExtractor.get_vid_from_url")
-    def test_extract_success(self, mock_get_vid, mock_extract_cover, mock_extract_m3u8, mock_extract_title, mock_fetch):
+    def test_extract_success(
+        self,
+        mock_get_vid,
+        mock_extract_cover,
+        mock_extract_m3u8,
+        mock_extract_title,
+        mock_fetch,
+    ):
         """测试成功提取视频信息"""
         # 设置mock返回值
         mock_get_vid.return_value = "FNS-052"

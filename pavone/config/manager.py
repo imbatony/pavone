@@ -7,7 +7,15 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Optional
 
-from .configs import Config, DownloadConfig, JellyfinConfig, OrganizeConfig, PluginConfig, ProxyConfig, SearchConfig
+from .configs import (
+    Config,
+    DownloadConfig,
+    JellyfinConfig,
+    OrganizeConfig,
+    PluginConfig,
+    ProxyConfig,
+    SearchConfig,
+)
 from .logging_config import LoggingConfig, get_log_manager, init_log_manager
 from .validator import ConfigValidator
 

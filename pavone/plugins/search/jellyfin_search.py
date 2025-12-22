@@ -4,10 +4,10 @@ Jellyfin 搜索插件
 在 Jellyfin 库中搜索视频
 """
 
-from typing import List
+from typing import List, Optional
 
 from ...config.logging_config import get_logger
-from ...jellyfin import JellyfinClientWrapper, JellyfinDownloadHelper, LibraryManager
+from ...jellyfin import JellyfinClientWrapper, LibraryManager
 from ...models import SearchResult
 from .base import SearchPlugin
 
@@ -30,9 +30,15 @@ class JellyfinSearch(SearchPlugin):
         description: str = PLUGIN_DESCRIPTION,
         author: str = PLUGIN_AUTHOR,
     ):
-        super().__init__(site=SITE_NAME, name=name, version=version, description=description, author=author)
-        self.client: JellyfinClientWrapper = None
-        self.library_manager: LibraryManager = None
+        super().__init__(
+            site=SITE_NAME,
+            name=name,
+            version=version,
+            description=description,
+            author=author,
+        )
+        self.client: Optional[JellyfinClientWrapper] = None
+        self.library_manager: Optional[LibraryManager] = None
         self.logger = get_logger(__name__)
 
     def initialize(self) -> bool:

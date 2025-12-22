@@ -8,7 +8,6 @@ from pavone.config.configs import DownloadConfig, ProxyConfig
 
 
 class HttpUtils:
-
     @staticmethod
     def fetch(
         download_config: DownloadConfig,
@@ -67,7 +66,11 @@ class HttpUtils:
             try:
                 # 发起请求
                 response = requests.get(
-                    url, headers=headers, proxies=proxies, timeout=timeout, verify=verify_ssl  # SSL验证设置
+                    url,
+                    headers=headers,
+                    proxies=proxies,
+                    timeout=timeout,
+                    verify=verify_ssl,  # SSL验证设置
                 )
                 response.raise_for_status()
 

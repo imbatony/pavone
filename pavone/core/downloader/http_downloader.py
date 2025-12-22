@@ -30,7 +30,12 @@ class HTTPDownloader(BaseDownloader):
             Tuple[bool, int]: (是否支持Range请求, 文件大小)
         """
         try:
-            response = requests.head(url, timeout=self.download_config.timeout, headers=headers, proxies=self.proxies)
+            response = requests.head(
+                url,
+                timeout=self.download_config.timeout,
+                headers=headers,
+                proxies=self.proxies,
+            )
             response.raise_for_status()
 
             # 检查是否支持Range请求
@@ -47,7 +52,13 @@ class HTTPDownloader(BaseDownloader):
             return False, 0
 
     def _download_chunk(
-        self, url: str, headers: Dict[str, str], start: int, end: int, filepath: str, chunk_index: int
+        self,
+        url: str,
+        headers: Dict[str, str],
+        start: int,
+        end: int,
+        filepath: str,
+        chunk_index: int,
     ) -> Tuple[bool, int]:
         """
         下载文件块
@@ -62,7 +73,11 @@ class HTTPDownloader(BaseDownloader):
 
             proxies = self.get_proxies()
             response = requests.get(
-                url, headers=range_headers, stream=True, timeout=self.download_config.timeout, proxies=proxies
+                url,
+                headers=range_headers,
+                stream=True,
+                timeout=self.download_config.timeout,
+                proxies=proxies,
             )
             response.raise_for_status()
             # 写入临时文件
@@ -157,12 +172,20 @@ class HTTPDownloader(BaseDownloader):
             return False
 
     def _download_single_threaded(
-        self, url: str, headers: Dict[str, str], filepath: str, progress_callback: Optional[ProgressCallback] = None
+        self,
+        url: str,
+        headers: Dict[str, str],
+        filepath: str,
+        progress_callback: Optional[ProgressCallback] = None,
     ) -> bool:
         """单线程下载"""
         try:
             response = requests.get(
-                url, stream=True, timeout=self.download_config.timeout, headers=headers, proxies=self.proxies
+                url,
+                stream=True,
+                timeout=self.download_config.timeout,
+                headers=headers,
+                proxies=self.proxies,
             )
             response.raise_for_status()
 

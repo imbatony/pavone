@@ -128,7 +128,7 @@ def test_full_extraction():
 
     extractor = AV01Extractor()
 
-    print(f"\n提取器信息:")
+    print("\n提取器信息:")
     print(f"  名称: {extractor.name}")
     print(f"  版本: {extractor.version}")
     print(f"  描述: {extractor.description}")
@@ -205,7 +205,7 @@ def test_full_extraction():
                         try:
                             metadata = child._extra.get(MetadataExtraKeys.METADATA_OBJ)
                             if metadata:
-                                print(f"\n      【元数据详情】")
+                                print("\n      【元数据详情】")
                                 print(f"      番号: {metadata.code}")
                                 print(f"      标识符: {metadata.identifier}")
 

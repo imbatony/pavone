@@ -22,9 +22,10 @@ from .commands.search import search
 @click.option("--verbose", "-v", is_flag=True, help="Enables verbose mode.")
 @click.version_option(version=__version__)
 @click.pass_context
-def main(ctx, verbose):
+def main(ctx: click.Context, verbose: bool) -> None:
     """PAVOne - 一个集下载,整理等多功能的插件化的AV管理工具"""
-    ctx.verbose = verbose
+    ctx.obj = {}
+    ctx.obj["verbose"] = verbose
     if verbose:
         click.echo("Verbose mode is enabled.")
         # 设置日志级别为DEBUG

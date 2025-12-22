@@ -5,7 +5,13 @@ import click
 
 from ..config.logging_config import get_logger
 from ..config.settings import Config
-from ..core import DummyOperator, HTTPDownloader, M3U8Downloader, MetadataSaver, Operator
+from ..core import (
+    DummyOperator,
+    HTTPDownloader,
+    M3U8Downloader,
+    MetadataSaver,
+    Operator,
+)
 from ..models import ItemType, OperationItem, OperationType
 from ..plugins.manager import PluginManager, get_plugin_manager
 from .progress import create_console_progress_callback, create_silent_progress_callback
@@ -135,44 +141,45 @@ class ExecutionManager:
             if not self.jellyfin_helper:
                 self.logger.debug("Jellyfin helper 未初始化")
                 return True
-            
+
             if not self.jellyfin_helper.is_available():
                 self.logger.debug("Jellyfin 不可用")
                 return True
-            
+
             video_title = item.get_description()
             video_code = item.get_code()  # 尝试获取代码而不是文件名前缀
-            
+
             # 如果代码为空，尝试从标题中提取番号
             if not video_code:
                 # 尝试从标题开头提取番号（通常格式为：CODE-XXXX）
                 import re
-                match = re.match(r'^([A-Z0-9]+-\d+)', video_title)
+
+                match = re.match(r"^([A-Z0-9]+-\d+)", video_title)
                 if match:
                     video_code = match.group(1)
-            
+
             self.logger.info(f"检查 Jellyfin 重复: {video_title} (代码: {video_code})")
 
             duplicate_info = self.jellyfin_helper.check_duplicate(video_title, video_code)
 
             if duplicate_info and duplicate_info.exists:
                 # 用黄色显示警告信息
-                click.secho(f"\n! 警告: 视频已在 Jellyfin 中存在", fg='yellow', bold=True)
+                click.secho("\n! 警告: 视频已在 Jellyfin 中存在", fg="yellow", bold=True)
                 if duplicate_info.item:
-                    click.secho(f"  项目: {duplicate_info.item.name}\n", fg='yellow')
-                
+                    click.secho(f"  项目: {duplicate_info.item.name}\n", fg="yellow")
+
                 # 显示质量信息
                 if duplicate_info.quality_info:
                     self.jellyfin_helper.display_existing_video_quality(duplicate_info.quality_info)
-                
+
                     # 比较质量
                     new_quality = item.get_quality_info()
                     existing_quality = duplicate_info.quality_info.resolution
-                
+
                     # 智能建议
                     suggestion = self._compare_quality_and_suggest(new_quality, existing_quality)
                     if suggestion:
-                        click.echo(f"\n{suggestion}\n")                # 询问用户是否继续
+                        click.echo(f"\n{suggestion}\n")  # 询问用户是否继续
                 while True:
                     try:
                         choice = input("是否继续下载? (y/n/s - 是/否/跳过其他): ").strip().lower()
@@ -213,21 +220,22 @@ class ExecutionManager:
         try:
             # 从新质量中提取分辨率数字
             import re
-            new_match = re.search(r'(\d+)p', str(new_quality))
+
+            new_match = re.search(r"(\d+)p", str(new_quality))
             new_res = int(new_match.group(1)) if new_match else 0
-            
+
             # 从现有分辨率中提取高度
-            existing_match = re.search(r'x(\d+)', str(existing_quality))
+            existing_match = re.search(r"x(\d+)", str(existing_quality))
             existing_res = int(existing_match.group(1)) if existing_match else 0
-            
+
             if new_res <= 0 or existing_res <= 0:
                 return ""
-            
+
             # 比较并给出建议
             if new_res < existing_res:
                 click.secho(
                     f"建议: 新下载的质量 ({new_quality}) 低于现有视频 ({existing_quality})，建议不下载。",
-                    fg='red'
+                    fg="red",
                 )
                 return ""
             elif new_res == existing_res:
@@ -241,7 +249,7 @@ class ExecutionManager:
     def _handle_jellyfin_post_download(self, item: OperationItem) -> None:
         """
         下载完成后处理 Jellyfin 集成
-        
+
         移动整个下载文件夹到 Jellyfin 库（而不是单个文件）
 
         Args:
@@ -258,15 +266,15 @@ class ExecutionManager:
             if not os.path.isdir(source_folder):
                 self.logger.warning(f"源文件夹不存在: {source_folder}")
                 return
-            
+
             source_folder_name = os.path.basename(source_folder)
-            
+
             # 显示待移动的源文件夹信息
-            click.secho("\n" + "="*60, fg='cyan')
-            click.secho("准备移动下载文件夹到 Jellyfin", fg='cyan', bold=True)
-            click.secho("="*60, fg='cyan')
-            click.secho("📁 源文件夹:", fg='yellow', bold=True)
-            click.secho(f"   {source_folder}", fg='yellow')
+            click.secho("\n" + "=" * 60, fg="cyan")
+            click.secho("准备移动下载文件夹到 Jellyfin", fg="cyan", bold=True)
+            click.secho("=" * 60, fg="cyan")
+            click.secho("📁 源文件夹:", fg="yellow", bold=True)
+            click.secho(f"   {source_folder}", fg="yellow")
             click.echo()
 
             # 询问是否移动文件到 Jellyfin 库
@@ -276,32 +284,35 @@ class ExecutionManager:
             # 获取库列表
             if self.jellyfin_helper is None:
                 self.logger.warning("Jellyfin helper 未初始化")
-                click.secho("\n❌ Jellyfin helper 未初始化，无法继续操作。", fg='red', bold=True)
+                click.secho("\n❌ Jellyfin helper 未初始化，无法继续操作。", fg="red", bold=True)
                 return
             library_folders = self.jellyfin_helper.get_library_folders()
             if not library_folders:
                 self.logger.warning("无法获取 Jellyfin 库信息")
-                click.secho("\n❌ 无法获取 Jellyfin 库信息，请检查服务器连接。", fg='red', bold=True)
+                click.secho(
+                    "\n❌ 无法获取 Jellyfin 库信息，请检查服务器连接。",
+                    fg="red",
+                    bold=True,
+                )
                 return
 
             # 过滤出有有效文件夹路径的库
             valid_libraries = {
-                lib_name: folders for lib_name, folders in library_folders.items()
-                if folders  # 只保留非空的文件夹列表
+                lib_name: folders for lib_name, folders in library_folders.items() if folders  # 只保留非空的文件夹列表
             }
-            
+
             if not valid_libraries:
-                click.secho("\n❌ 没有找到任何配置了文件夹路径的库", fg='red', bold=True)
-                click.secho(f"已检查的库: {list(library_folders.keys())}", fg='yellow')
-                click.secho("请在 Jellyfin 服务器中检查库的配置。", fg='yellow')
+                click.secho("\n❌ 没有找到任何配置了文件夹路径的库", fg="red", bold=True)
+                click.secho(f"已检查的库: {list(library_folders.keys())}", fg="yellow")
+                click.secho("请在 Jellyfin 服务器中检查库的配置。", fg="yellow")
                 return
 
             # 显示库列表
-            click.secho("\n可用的 Jellyfin 库:", fg='cyan', bold=True)
+            click.secho("\n可用的 Jellyfin 库:", fg="cyan", bold=True)
             libraries_list = list(valid_libraries.items())
             for i, (lib_name, folders) in enumerate(libraries_list, 1):
-                click.secho(f"  {i}. ", fg='cyan', nl=False)
-                click.secho(f"{lib_name}", fg='green', bold=True, nl=False)
+                click.secho(f"  {i}. ", fg="cyan", nl=False)
+                click.secho(f"{lib_name}", fg="green", bold=True, nl=False)
                 click.echo()
                 for folder in folders:
                     click.echo(f"     📁 {folder}")
@@ -313,20 +324,20 @@ class ExecutionManager:
                     lib_choice_num = int(lib_choice)
                     if 1 <= lib_choice_num <= len(libraries_list):
                         selected_lib_name, selected_folders = libraries_list[lib_choice_num - 1]
-                        click.secho(f"✓ 已选择库: ", fg='green', nl=False)
-                        click.secho(f"{selected_lib_name}", fg='green', bold=True)
+                        click.secho("✓ 已选择库: ", fg="green", nl=False)
+                        click.secho(f"{selected_lib_name}", fg="green", bold=True)
                         break
                     else:
-                        click.secho(f"❌ 请输入 1 到 {len(libraries_list)} 之间的数字", fg='red')
+                        click.secho(f"❌ 请输入 1 到 {len(libraries_list)} 之间的数字", fg="red")
                 except KeyboardInterrupt:
                     print("\n已取消")
                     raise
                 except ValueError:
-                    click.secho(f"❌ 输入无效，请输入数字", fg='red')
+                    click.secho("❌ 输入无效，请输入数字", fg="red")
 
             # 如果库有多个文件夹，让用户选择
             if len(selected_folders) > 1:
-                click.secho(f"\n库 '{selected_lib_name}' 有多个文件夹:", fg='cyan', bold=True)
+                click.secho(f"\n库 '{selected_lib_name}' 有多个文件夹:", fg="cyan", bold=True)
                 for i, folder in enumerate(selected_folders, 1):
                     click.echo(f"  {i}. 📁 {folder}")
 
@@ -336,41 +347,48 @@ class ExecutionManager:
                         folder_choice_num = int(folder_choice)
                         if 1 <= folder_choice_num <= len(selected_folders):
                             target_folder = selected_folders[folder_choice_num - 1]
-                            click.secho(f"✓ 已选择文件夹: ", fg='green', nl=False)
-                            click.secho(f"{target_folder}", fg='green', bold=True)
+                            click.secho("✓ 已选择文件夹: ", fg="green", nl=False)
+                            click.secho(f"{target_folder}", fg="green", bold=True)
                             break
                         else:
-                            click.secho(f"❌ 请输入 1 到 {len(selected_folders)} 之间的数字", fg='red')
+                            click.secho(
+                                f"❌ 请输入 1 到 {len(selected_folders)} 之间的数字",
+                                fg="red",
+                            )
                     except KeyboardInterrupt:
                         print("\n已取消")
                         raise
                     except ValueError:
-                        click.secho(f"❌ 输入无效，请输入数字", fg='red')
+                        click.secho("❌ 输入无效，请输入数字", fg="red")
             else:
                 # 单个文件夹的情况
                 if selected_folders:
                     target_folder = selected_folders[0]
-                    click.secho(f"✓ 已选择文件夹: ", fg='green', nl=False)
-                    click.secho(f"{target_folder}", fg='green', bold=True)
+                    click.secho("✓ 已选择文件夹: ", fg="green", nl=False)
+                    click.secho(f"{target_folder}", fg="green", bold=True)
                 else:
                     # 这种情况不应该发生，因为我们已经过滤出了有效的库
-                    click.secho(f"\n❌ 错误: 库 '{selected_lib_name}' 的文件夹为空", fg='red', bold=True)
+                    click.secho(
+                        f"\n❌ 错误: 库 '{selected_lib_name}' 的文件夹为空",
+                        fg="red",
+                        bold=True,
+                    )
                     return
 
             # 最终确认 - 显示源和目标
             if not target_folder:
-                click.secho(f"\n❌ 未选择有效的目标文件夹", fg='red', bold=True)
+                click.secho("\n❌ 未选择有效的目标文件夹", fg="red", bold=True)
                 return
 
             target_location = os.path.join(target_folder, source_folder_name)
-            
-            click.secho("\n" + "="*60, fg='yellow')
-            click.secho("移动确认:", fg='yellow', bold=True)
-            click.secho("="*60, fg='yellow')
-            click.secho("📁 源位置:", fg='yellow', bold=True)
-            click.secho(f"   {source_folder}", fg='yellow')
-            click.secho("\n📁 目标位置:", fg='yellow', bold=True)
-            click.secho(f"   {target_location}", fg='yellow')
+
+            click.secho("\n" + "=" * 60, fg="yellow")
+            click.secho("移动确认:", fg="yellow", bold=True)
+            click.secho("=" * 60, fg="yellow")
+            click.secho("📁 源位置:", fg="yellow", bold=True)
+            click.secho(f"   {source_folder}", fg="yellow")
+            click.secho("\n📁 目标位置:", fg="yellow", bold=True)
+            click.secho(f"   {target_location}", fg="yellow")
             click.echo()
             
             if not click.confirm("确认移动?", default=True):
@@ -379,22 +397,22 @@ class ExecutionManager:
 
             # 执行文件夹移动
             if self.jellyfin_helper is None:
-                click.secho("\n❌ Jellyfin helper 未初始化", fg='red', bold=True)
+                click.secho("\n❌ Jellyfin helper 未初始化", fg="red", bold=True)
                 return
             if self.jellyfin_helper.move_to_library(source_folder, target_folder):
-                click.secho("\n✓ 文件夹移动成功!", fg='green', bold=True)
+                click.secho("\n✓ 文件夹移动成功!", fg="green", bold=True)
                 self.logger.info(f"文件夹移动成功: {source_folder} -> {target_location}")
 
                 # 询问是否刷新元数据
                 if click.confirm("\n是否增量刷新 Jellyfin 库的元数据?", default=True):
                     if self.jellyfin_helper and self.jellyfin_helper.refresh_library(selected_lib_name):
-                        click.secho("✓ 元数据增量刷新成功!", fg='green', bold=True)
+                        click.secho("✓ 元数据增量刷新成功!", fg="green", bold=True)
                         self.logger.info("元数据增量刷新成功")
                     else:
-                        click.secho("❌ 元数据刷新失败", fg='red', bold=True)
+                        click.secho("❌ 元数据刷新失败", fg="red", bold=True)
                         self.logger.warning("元数据刷新失败")
             else:
-                click.secho("\n❌ 文件夹移动失败", fg='red', bold=True)
+                click.secho("\n❌ 文件夹移动失败", fg="red", bold=True)
                 self.logger.error("文件夹移动失败")
 
         except KeyboardInterrupt:
@@ -402,6 +420,7 @@ class ExecutionManager:
             raise
         except Exception as e:
             self.logger.warning(f"Jellyfin 后下载处理失败: {e}")
+
     def _get_operator_for_item(self, item: OperationItem) -> Operator:
         """
         跟据操作项获取合适的执行器
@@ -428,7 +447,10 @@ class ExecutionManager:
             return DummyOperator(self.config)
 
     def _execute_download(
-        self, selected_item: OperationItem, silent: bool = False, parent: Optional[OperationItem] = None
+        self,
+        selected_item: OperationItem,
+        silent: bool = False,
+        parent: Optional[OperationItem] = None,
     ) -> bool:
         """
         执行下载或处理操作
@@ -446,8 +468,13 @@ class ExecutionManager:
         is_root_item = parent is None  # 判断是否是根项
 
         # 在下载前检查 Jellyfin 中是否已有该视频（仅在非静默模式和根项时提示用户）
-        if (self.jellyfin_helper and self.jellyfin_helper.is_available() and 
-            selected_item.opt_type == OperationType.DOWNLOAD and not silent and is_root_item):
+        if (
+            self.jellyfin_helper
+            and self.jellyfin_helper.is_available()
+            and selected_item.opt_type == OperationType.DOWNLOAD
+            and not silent
+            and is_root_item
+        ):
             if not self._handle_jellyfin_duplicate_check(selected_item):
                 return False
 
@@ -486,12 +513,12 @@ class ExecutionManager:
             if not self._execute_download(child, silent, selected_item):
                 self.logger.error(f"子选项执行失败: {child.get_description()}")
                 success = False
-        
+
         # 所有子项完成后，如果是根项且下载成功，处理 Jellyfin 集成
         if is_root_item and success and selected_item.opt_type == OperationType.DOWNLOAD:
             if self.jellyfin_helper and self.jellyfin_helper.is_available():
                 self._handle_jellyfin_post_download(selected_item)
-        
+
         return success
 
     def _set_progress_callback(self, silent: bool, selected_item: OperationItem) -> None:
@@ -534,7 +561,10 @@ class ExecutionManager:
             item.set_target_path(target_path)
 
     def _get_target_path_for_item(
-        self, item: OperationItem, target_folder: Optional[str] = None, custom_filename_prefix: Optional[str] = None
+        self,
+        item: OperationItem,
+        target_folder: Optional[str] = None,
+        custom_filename_prefix: Optional[str] = None,
     ) -> Tuple[str, str]:
         """
         获取操作项的目标路径
@@ -592,7 +622,11 @@ class ExecutionManager:
         return (target_path, name_prefix)
 
     def download_from_url(
-        self, url: str, silent: bool = False, auto_select: bool = False, file_name: Optional[str] = None
+        self,
+        url: str,
+        silent: bool = False,
+        auto_select: bool = False,
+        file_name: Optional[str] = None,
     ) -> bool:
         """
         从URL下载内容

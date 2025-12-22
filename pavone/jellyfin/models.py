@@ -55,14 +55,14 @@ class JellyfinMetadata:
 
     title: str
     year: Optional[int] = None
-    genres: List[str] = None
+    genres: Optional[List[str]] = None
     overview: str = ""
     runtime_minutes: Optional[int] = None
     premiere_date: Optional[str] = None
     rating: Optional[float] = None
     studio: Optional[str] = None
-    directors: List[str] = None
-    actors: List[str] = None
+    directors: Optional[List[str]] = None
+    actors: Optional[List[str]] = None
 
     def __post_init__(self):
         """初始化默认值"""

@@ -25,7 +25,9 @@ def search(keyword: str):
 
         # 执行搜索
         results = plugin_manager.search(
-            keyword, limit=search_config.max_results_per_site, enable_sites=search_config.enabled_sites
+            keyword,
+            limit=search_config.max_results_per_site,
+            enable_sites=search_config.enabled_sites,
         )
 
         if not results:

@@ -78,7 +78,12 @@ class TestCodeExtractUtils(unittest.TestCase):
 
     def test_normal_code_extraction(self):
         """测试普通编号提取"""
-        test_cases = [("XVSR-060", "XVSR-060"), ("BT-140", "BT-140"), ("CWM-172", "CWM-172"), ("nin-003", "NIN-003")]
+        test_cases = [
+            ("XVSR-060", "XVSR-060"),
+            ("BT-140", "BT-140"),
+            ("CWM-172", "CWM-172"),
+            ("nin-003", "NIN-003"),
+        ]
 
         for text, expected_code in test_cases:
             with self.subTest(text=text, expected_code=expected_code):
@@ -88,7 +93,12 @@ class TestCodeExtractUtils(unittest.TestCase):
 
     def test_normal_code_without_separator_extraction(self):
         """测试无分隔符普通编号提取"""
-        test_cases = [("XVSR060", "XVSR-060"), ("BT140", "BT-140"), ("CWM172", "CWM-172"), ("nin003", "NIN-003")]
+        test_cases = [
+            ("XVSR060", "XVSR-060"),
+            ("BT140", "BT-140"),
+            ("CWM172", "CWM-172"),
+            ("nin003", "NIN-003"),
+        ]
 
         for text, expected_code in test_cases:
             with self.subTest(text=text, expected_code=expected_code):
@@ -98,7 +108,11 @@ class TestCodeExtractUtils(unittest.TestCase):
 
     def test_special_code_extraction(self):
         """测试特殊编号提取"""
-        test_cases = [("这是red100的测试", "RED100"), ("sky300电影", "SKY300"), ("ex001是什么", "EX001")]
+        test_cases = [
+            ("这是red100的测试", "RED100"),
+            ("sky300电影", "SKY300"),
+            ("ex001是什么", "EX001"),
+        ]
 
         for text, expected_code in test_cases:
             with self.subTest(text=text, expected_code=expected_code):
@@ -118,7 +132,11 @@ class TestCodeExtractUtils(unittest.TestCase):
 
     def test_domain_removal(self):
         """测试域名移除"""
-        test_cases = [("abc123.com XVSR-060", "XVSR-060"), ("test.net BT-140", "BT-140"), ("example.xyz CWM-172", "CWM-172")]
+        test_cases = [
+            ("abc123.com XVSR-060", "XVSR-060"),
+            ("test.net BT-140", "BT-140"),
+            ("example.xyz CWM-172", "CWM-172"),
+        ]
 
         for text, expected_code in test_cases:
             with self.subTest(text=text, expected_code=expected_code):

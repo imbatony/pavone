@@ -4,11 +4,11 @@ from abc import abstractmethod
 from datetime import datetime
 from typing import Optional
 
+from lxml.builder import E
+from lxml.etree import _Element, tostring
 from pydantic import BaseModel
 
 """与操作nfo文件相关的功能"""
-from lxml.builder import E
-from lxml.etree import _Element, tostring
 
 
 class MetadataType:
@@ -89,7 +89,6 @@ class BaseMetadata(BaseModel):
 
 
 class MovieMetadata(BaseMetadata):
-
     def __init__(self, **data):
         super().__init__(type=MetadataType.MOVIE, **data)
 

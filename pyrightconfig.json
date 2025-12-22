@@ -1,7 +1,6 @@
 {
     "include": [
-        "pavone",
-        "tests"
+        "pavone"
     ],
     "exclude": [
         "**/__pycache__",
@@ -9,11 +8,13 @@
         ".pytest_cache",
         "build",
         "dist",
-        "*.egg-info"
+        "*.egg-info",
+        "tests"
     ],
     "defineConstant": {
         "DEBUG": false
-    },    "stubPath": "typings",
+    },    
+    "stubPath": "typings",
     "venvPath": ".",
     "venv": "venv",
     "pythonVersion": "3.9",

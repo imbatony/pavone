@@ -12,16 +12,17 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from ..config.configs import JellyfinConfig
+from ..models import ItemMetadata
 from ..utils import FormatUtils
 from .client import JellyfinClientWrapper
 from .library_manager import LibraryManager
 from .models import JellyfinItem
-from ..models import ItemMetadata
 
 
 @dataclass
 class VideoQualityInfo:
     """视频质量信息"""
+
     path: str
     size: str
     resolution: str
@@ -34,6 +35,7 @@ class VideoQualityInfo:
 @dataclass
 class DuplicateCheckResult:
     """重复检查结果"""
+
     exists: bool
     item: Optional[JellyfinItem] = None
     quality_info: Optional[VideoQualityInfo] = None
@@ -95,22 +97,22 @@ class JellyfinDownloadHelper:
             # 优先按视频番号通过 API 搜索（更快）
             item = None
             search_key = video_code or video_title
-            
+
             if not search_key:
                 self.logger.warning("没有提供搜索关键词")
                 return None
-            
+
             self.logger.info(f"搜索: {search_key}")
-            
+
             # 直接使用 API 搜索
             if self.client is None:
                 return None
             items = self.client.search_items(search_key, limit=10)
-            
+
             if not items:
                 self.logger.info(f"未在 Jellyfin 中找到: {search_key}")
                 return None
-            
+
             # 如果提供了视频番号，优先查找完全匹配或包含番号的项
             if video_code:
                 for candidate in items:
@@ -120,7 +122,7 @@ class JellyfinDownloadHelper:
                         item = candidate
                         self.logger.info(f"按番号精确匹配: {item.name}")
                         break
-                
+
                 # 如果番号没有精确匹配，使用第一个结果
                 if not item:
                     item = items[0]
@@ -143,15 +145,12 @@ class JellyfinDownloadHelper:
 
             self.logger.info(f"在 Jellyfin 中找到重复项: {item.name}")
 
-            return DuplicateCheckResult(
-                exists=True,
-                item=item,
-                quality_info=quality_info
-            )
+            return DuplicateCheckResult(exists=True, item=item, quality_info=quality_info)
 
         except Exception as e:
             self.logger.warning(f"检查重复时出错: {e}")
             import traceback
+
             self.logger.debug(traceback.format_exc())
             return None
 
@@ -176,15 +175,16 @@ class JellyfinDownloadHelper:
         width = video_stream.get("Width") if video_stream else None
         height = video_stream.get("Height") if video_stream else None
         resolution = f"{width}x{height}" if width and height else "未知"
-        
+
         bitrate = video_stream.get("BitRate") if video_stream else metadata.video_bitrate or 0
         codec = video_stream.get("Codec") if video_stream else metadata.video_codec or "未知"
-        
+
         # 获取文件大小（字节）
         file_size = 0
         if item.path:
             try:
                 import os
+
                 if os.path.exists(item.path):
                     file_size = os.path.getsize(item.path)
             except Exception:
@@ -197,7 +197,7 @@ class JellyfinDownloadHelper:
             bitrate=FormatUtils.format_bitrate(bitrate) if bitrate else "未知",
             codec=codec if codec else "未知",
             added_date=metadata.added_date or "未知",
-            runtime=f"{metadata.runtime_minutes} 分钟"
+            runtime=f"{metadata.runtime_minutes} 分钟",
         )
 
     def display_existing_video_quality(self, quality_info: VideoQualityInfo) -> None:
@@ -305,7 +305,7 @@ class JellyfinDownloadHelper:
     def refresh_library(self, library_name: str) -> bool:
         """
         增量刷新 Jellyfin 库的元数据
-        
+
         仅扫描库目录中的新增或修改文件，不进行全量扫描
 
         Args:

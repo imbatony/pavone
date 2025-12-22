@@ -54,7 +54,11 @@ class BasePlugin(ABC):
         return self.priority
 
     def fetch(
-        self, url: str, headers: Optional[Dict[str, str]] = None, timeout: int = 10, verify_ssl: bool = True
+        self,
+        url: str,
+        headers: Optional[Dict[str, str]] = None,
+        timeout: int = 10,
+        verify_ssl: bool = True,
     ) -> requests.Response:
         return HttpUtils.fetch(
             download_config=self.config.download,

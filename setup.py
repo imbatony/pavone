@@ -17,7 +17,16 @@ setup(
         "Operating System :: OS Independent",
     ],
     python_requires=">=3.9",
-    install_requires=["requests", "beautifulsoup4", "click", "tqdm", "configparser", "pillow", "lxml", "pydantic"],
+    install_requires=[
+        "requests",
+        "beautifulsoup4",
+        "click",
+        "tqdm",
+        "configparser",
+        "pillow",
+        "lxml",
+        "pydantic",
+    ],
     entry_points={
         "console_scripts": [
             "pavone=pavone.cli:main",
