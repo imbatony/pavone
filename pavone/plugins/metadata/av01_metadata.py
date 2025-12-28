@@ -438,6 +438,7 @@ class AV01Metadata(MetadataPlugin):
                 cover=cover_image,
                 plot=description,
                 year=release_year,
+                official_rating="JP-18+",
             )
 
             self.logger.info(f"成功构建元数据: {video_code} - {title}")

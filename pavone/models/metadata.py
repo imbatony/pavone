@@ -112,10 +112,9 @@ class MovieMetadata(BaseMetadata):
     tags: Optional[list[str]] = None  # 标签列表
     tags_normalized: Optional[list[str]] = None  # 标准化标签列表
     rating: Optional[float] = None  # 评分（通常是0-10的评分系统）
-    official_rating: Optional[str] = None  # 官方分级（如PG, R, PG-13等，或地区分级）
+    official_rating: Optional[str] = None  # 家长分级（如 JP-18+, PG-13, R 等），在 NFO 中使用 <mpaa> 标签
     genres: Optional[list[str]] = None  # 类型列表
     genres_normalized: Optional[list[str]] = None  # 标准化类型列表
-    mpaa: Optional[str] = None  # 家长分级（如 PG-13, R 等）
     serial: Optional[str] = None  # 系列名称
     year: Optional[int] = None  # 发行年份
     trailer: Optional[str] = None  # 预告片链接
@@ -139,7 +138,7 @@ class MovieMetadata(BaseMetadata):
             nfo.append(E.rating(str(d.rating)))
 
         if d.official_rating:
-            nfo.append(E.certification(d.official_rating))
+            nfo.append(E.mpaa(d.official_rating))  # 家长分级使用 mpaa 标签
 
         if d.premiered:
             nfo.append(E.premiered(d.premiered))
@@ -156,9 +155,6 @@ class MovieMetadata(BaseMetadata):
 
         if d.runtime:
             nfo.append(E.runtime(str(d.runtime)))
-
-        if d.mpaa:
-            nfo.append(E.mpaa(d.mpaa))
 
         if d.director:
             nfo.append(E.director(d.director))

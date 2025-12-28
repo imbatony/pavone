@@ -119,7 +119,7 @@ class ItemMetadata:
 
     @property
     def official_rating(self) -> Optional[str]:
-        """官方分级（如PG, R, PG-13等，或地区分级）"""
+        """官方评分（如PG, R, PG-13等，或地区分级）"""
         return self._data.get("OfficialRating")
 
     @property

@@ -7,9 +7,10 @@
 - `base.py` - 包含 `ExtractorPlugin` 基类
 - `mp4_direct.py` - MP4 直接链接提取器
 - `m3u8_direct.py` - M3U8 直接链接提取器
-- `missav_extractor.py` - MissAV 网站专用提取器
 - `jtable.py` - JTable 网站专用提取器
 - `__init__.py` - 导出所有提取器插件类
+
+注：MissAV 统一插件现位于 `pavone/plugins/missav_plugin.py`，同时提供搜索、元数据提取和视频下载功能。
 
 ## 提取器插件基本概念
 
@@ -201,9 +202,9 @@ class MyCustomExtractor(ExtractorPlugin):
 
 处理M3U8流媒体链接的提取器，能够解析HLS流并提取片段。
 
-### 3. MissAVExtractor
+### 3. MissAVPlugin
 
-MissAV网站的专用提取器，能够从该网站获取视频资源和元数据。
+MissAV统一插件，同时实现搜索、元数据提取和视频下载三种功能。该插件整合了原有的 MissAVSearch、MissAVMetadata 和 MissAVExtractor 功能，最大程度复用代码，提供一站式 MissAV 网站支持。
 
 ### 4. JTableExtractor
 

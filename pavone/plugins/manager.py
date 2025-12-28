@@ -20,11 +20,16 @@ from .extractors import (
     JTableExtractor,
     M3U8DirectExtractor,
     MemojavExtractor,
-    MissAVExtractor,
     MP4DirectExtractor,
 )
-from .metadata import AV01Metadata, MetadataPlugin, MissavMetadata
-from .search import MissavSearch, SearchPlugin
+from .metadata import (
+    AV01Metadata,
+    MetadataPlugin,
+    PPVDataBankMetadata,
+    SupFC2Metadata,
+)
+from .missav_plugin import MissAVPlugin
+from .search import SearchPlugin
 
 
 class PluginManager:
@@ -68,13 +73,13 @@ class PluginManager:
             builtin_plugins: dict[str, type[BasePlugin]] = {
                 "MP4DirectExtractor": MP4DirectExtractor,
                 "M3U8DirectExtractor": M3U8DirectExtractor,
-                "MissAVExtractor": MissAVExtractor,
+                "MissAVPlugin": MissAVPlugin,
                 "MemojavExtractor": MemojavExtractor,
                 "JTableExtractor": JTableExtractor,
-                "MissavSearch": MissavSearch,
                 "AV01Extractor": AV01Extractor,
-                "MissavMetadata": MissavMetadata,
                 "AV01Metadata": AV01Metadata,
+                "PPVDataBankMetadata": PPVDataBankMetadata,
+                "SupFC2Metadata": SupFC2Metadata,
             }
 
             loaded_plugins: list[str] = []

@@ -128,7 +128,7 @@ class MetadataComparison:
         "runtime": "时长",
         "plot": "描述",
         "rating": "评分",
-        "official_rating": "分级",
+        "official_rating": "家长分级",
         "director": "导演",
         "actors": "演员",
         "studio": "制作公司",
@@ -532,9 +532,9 @@ class JellyfinMetadataUpdater:
             "code": "ExternalId",
             "premiere_date": "PremiereDate",
             "runtime": "RunTimeTicks",  # 需要转换为ticks
-            "director": "Director",  # 需要特殊处理
+            "director": "People",  # 需要特殊处理，添加到People数组
             "studio": "Studios",  # 需要特殊处理，转换为对象数组
-            "actors": "Actors",  # 需要特殊处理
+            "actors": "People",  # 需要特殊处理，添加到People数组
             "genres": "Genres",
             "tags": "Tags",
             "rating": "CommunityRating",
@@ -544,6 +544,9 @@ class JellyfinMetadataUpdater:
             "year": "ProductionYear",  # Jellyfin使用ProductionYear而不是Year
         }
 
+        # 收集需要合并到 People 数组的人员信息
+        people_list = []
+        
         for internal_field, jellyfin_field in field_mapping.items():
             if internal_field not in updates:
                 continue
@@ -558,9 +561,33 @@ class JellyfinMetadataUpdater:
                 # 转换分钟为ticks (1分钟 = 600000000 ticks)
                 jellyfin_updates["RunTimeTicks"] = value * 600000000
 
-            elif internal_field == "director" and isinstance(value, list):
-                # 导演列表
-                jellyfin_updates["Director"] = ", ".join(value)
+            elif internal_field == "director":
+                # 导演添加到 People 数组，Type="Director"
+                if isinstance(value, list):
+                    for director in value:
+                        if director:
+                            people_list.append({
+                                "Name": director,
+                                "Type": "Director",
+                                "Role": ""
+                            })
+                elif isinstance(value, str) and value:
+                    people_list.append({
+                        "Name": value,
+                        "Type": "Director",
+                        "Role": ""
+                    })
+
+            elif internal_field == "actors":
+                # 演员添加到 People 数组，Type="Actor"
+                if isinstance(value, list):
+                    for actor in value:
+                        if actor:
+                            people_list.append({
+                                "Name": actor,
+                                "Type": "Actor",
+                                "Role": ""
+                            })
 
             elif internal_field == "studio":
                 # 制作公司：Jellyfin使用Studios数组，每个元素是 {'Name': 'studio_name'} 格式
@@ -571,13 +598,13 @@ class JellyfinMetadataUpdater:
                     # 如果是字符串，转换为单元素数组
                     jellyfin_updates["Studios"] = [{"Name": value}]
 
-            elif internal_field == "actors" and isinstance(value, list):
-                # 演员列表
-                jellyfin_updates["Actors"] = value
-
             else:
                 # 直接映射
                 jellyfin_updates[jellyfin_field] = value
+
+        # 如果有人员信息，添加到更新字典
+        if people_list:
+            jellyfin_updates["People"] = people_list
 
         return jellyfin_updates
 

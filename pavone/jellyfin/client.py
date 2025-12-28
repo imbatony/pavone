@@ -589,5 +589,242 @@ class JellyfinClientWrapper:
             metadata=item_data,
         )
 
+    def upload_image(self, item_id: str, image_path: str, image_type: str = "Primary") -> bool:
+        """
+        上传图片到 Jellyfin 项目
+
+        Args:
+            item_id: 项目 ID
+            image_path: 本地图片文件路径
+            image_type: 图片类型 (Primary, Backdrop, Thumb 等)
+
+        Returns:
+            上传成功返回 True
+
+        Raises:
+            JellyfinAPIError: API 调用失败
+        """
+        try:
+            from pathlib import Path
+
+            import requests
+            from PIL import Image
+
+            image_file = Path(image_path)
+            if not image_file.exists():
+                raise FileNotFoundError(f"图片文件不存在: {image_path}")
+
+            # 如果是 webp 格式，转换为 jpeg
+            suffix = image_file.suffix.lower()
+            if suffix == ".webp":
+                self.logger.debug(f"检测到 webp 格式，转换为 jpeg: {image_path}")
+                img = Image.open(image_file)
+                # 转换为 RGB 模式（webp 可能是 RGBA）
+                if img.mode in ("RGBA", "LA", "P"):
+                    background = Image.new("RGB", img.size, (255, 255, 255))
+                    if img.mode == "P":
+                        img = img.convert("RGBA")
+                    background.paste(img, mask=img.split()[-1] if img.mode == "RGBA" else None)
+                    img = background
+                elif img.mode != "RGB":
+                    img = img.convert("RGB")
+                
+                # 保存为临时 jpeg 文件
+                temp_path = image_file.with_suffix(".jpg")
+                img.save(temp_path, "JPEG", quality=95)
+                image_file = temp_path
+                content_type = "image/jpeg"
+            else:
+                # 确定 MIME 类型
+                mime_types = {
+                    ".jpg": "image/jpeg",
+                    ".jpeg": "image/jpeg",
+                    ".png": "image/png",
+                    ".gif": "image/gif",
+                }
+                content_type = mime_types.get(suffix, "image/jpeg")
+
+            # 读取图片文件
+            with open(image_file, "rb") as f:
+                image_data = f.read()
+
+            # 获取访问令牌
+            access_token = self.config.api_key
+            if not access_token:
+                # 尝试从客户端凭证获取
+                creds = self.client.get_credentials()
+                if creds and "Servers" in creds and len(creds["Servers"]) > 0:
+                    access_token = creds["Servers"][0].get("AccessToken")
+
+            if not access_token:
+                raise JellyfinAPIError("无法获取访问令牌")
+
+            # 构建完整的 API URL
+            base_url = self.config.server_url.rstrip("/")
+            
+            # Jellyfin 10.8+ 使用这个端点上传图片
+            # 对于 Backdrop，可能需要索引
+            if image_type == "Backdrop":
+                endpoint = f"{base_url}/Items/{item_id}/Images/{image_type}/0"
+            else:
+                endpoint = f"{base_url}/Items/{item_id}/Images/{image_type}"
+            
+            # 准备请求头 - 参考实际请求案例，直接设置 Content-Type
+            headers = {
+                "X-Emby-Token": access_token,
+                "Content-Type": content_type,
+            }
+            
+            self.logger.debug(f"上传图片到: {endpoint}")
+            self.logger.debug(f"Content-Type: {content_type}")
+            self.logger.debug(f"图片大小: {len(image_data)} bytes")
+            
+            # 参考实际请求案例，直接 POST 二进制数据
+            response = requests.post(
+                endpoint,
+                data=image_data,
+                headers=headers,
+                verify=self.config.verify_ssl,
+                timeout=30,
+            )
+
+            # 检查响应
+            if response.status_code >= 400:
+                # 记录详细的错误信息
+                self.logger.error(f"上传图片失败，状态码: {response.status_code}")
+                self.logger.error(f"响应内容: {response.text}")
+                self.logger.error(f"请求 URL: {endpoint}")
+            
+            response.raise_for_status()
+
+            self.logger.debug(f"上传图片成功: {image_type} -> {item_id}")
+            return True
+
+        except Exception as e:
+            self.logger.error(f"上传图片失败: {e}")
+            raise JellyfinAPIError(f"上传图片失败: {e}")
+
+    def delete_image(self, item_id: str, image_type: str = "Primary") -> bool:
+        """
+        删除 Jellyfin 项目的图片
+
+        Args:
+            item_id: 项目 ID
+            image_type: 图片类型 (Primary, Backdrop, Thumb 等)
+
+        Returns:
+            删除成功返回 True
+
+        Raises:
+            JellyfinAPIError: API 调用失败
+        """
+        try:
+            import requests
+
+            # 构建完整的 API URL
+            base_url = self.config.server_url.rstrip("/")
+            endpoint = f"{base_url}/Items/{item_id}/Images/{image_type}"
+
+            # 获取访问令牌
+            access_token = self.config.api_key
+            if not access_token:
+                # 尝试从客户端凭证获取
+                creds = self.client.get_credentials()
+                if creds and "Servers" in creds and len(creds["Servers"]) > 0:
+                    access_token = creds["Servers"][0].get("AccessToken")
+
+            if not access_token:
+                raise JellyfinAPIError("无法获取访问令牌")
+
+            # 准备请求头
+            headers = {
+                "X-Emby-Token": access_token,
+            }
+
+            # 发送 DELETE 请求
+            response = requests.delete(
+                endpoint, headers=headers, verify=self.config.verify_ssl, timeout=30
+            )
+
+            # 检查响应
+            response.raise_for_status()
+
+            self.logger.debug(f"删除图片成功: {image_type} -> {item_id}")
+            return True
+        except Exception as e:
+            self.logger.warning(f"删除图片失败（可能不存在）: {e}")
+            return False
+
+    def download_remote_image(self, item_id: str, image_url: str, image_type: str = "Primary") -> bool:
+        """
+        让 Jellyfin 从远程 URL 下载图片
+
+        Args:
+            item_id: 项目 ID
+            image_url: 远程图片 URL
+            image_type: 图片类型 (Primary, Backdrop, Thumb 等)
+
+        Returns:
+            下载成功返回 True
+
+        Raises:
+            JellyfinAPIError: API 调用失败
+        """
+        try:
+            import requests
+
+            # 构建完整的 API URL
+            base_url = self.config.server_url.rstrip("/")
+            
+            # 使用 RemoteImages/Download 端点让 Jellyfin 下载图片
+            endpoint = f"{base_url}/Items/{item_id}/RemoteImages/Download"
+
+            # 获取访问令牌
+            access_token = self.config.api_key
+            if not access_token:
+                creds = self.client.get_credentials()
+                if creds and "Servers" in creds and len(creds["Servers"]) > 0:
+                    access_token = creds["Servers"][0].get("AccessToken")
+
+            if not access_token:
+                raise JellyfinAPIError("无法获取访问令牌")
+
+            # 准备请求参数
+            params = {
+                "Type": image_type,
+                "ImageUrl": image_url,
+            }
+
+            headers = {
+                "X-Emby-Token": access_token,
+            }
+
+            self.logger.debug(f"请求 Jellyfin 下载远程图片: {image_url}")
+            self.logger.debug(f"目标端点: {endpoint}")
+
+            # 发送 POST 请求
+            response = requests.post(
+                endpoint,
+                params=params,
+                headers=headers,
+                verify=self.config.verify_ssl,
+                timeout=30,
+            )
+
+            # 检查响应
+            if response.status_code >= 400:
+                self.logger.error(f"远程图片下载失败，状态码: {response.status_code}")
+                self.logger.error(f"响应内容: {response.text}")
+            
+            response.raise_for_status()
+
+            self.logger.debug(f"远程图片下载成功: {image_type} -> {item_id}")
+            return True
+
+        except Exception as e:
+            self.logger.error(f"远程图片下载失败: {e}")
+            raise JellyfinAPIError(f"远程图片下载失败: {e}")
+
     def __repr__(self) -> str:
         return f"JellyfinClientWrapper(server={self.config.server_url}, authenticated={self._authenticated})"
+

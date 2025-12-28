@@ -323,12 +323,66 @@ def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[st
             echo_info("已取消")
             return 0
 
+        # 询问是否替换图片
+        replace_images = False
+        cover_url = getattr(remote_metadata, "cover", None)
+        backdrop_url = getattr(remote_metadata, "backdrop", None)
+        
+        if cover_url or backdrop_url:
+            echo_info("\n发现远程图片资源:")
+            if cover_url:
+                echo_info(f"  📷 封面图 (Cover): {cover_url}")
+            if backdrop_url:
+                echo_info(f"  🖼️  背景图 (Backdrop): {backdrop_url}")
+            
+            echo_info("")
+            replace_images = click.confirm("是否下载并替换 Jellyfin 中的图片？", default=True)
+
         # 合并元数据
         merged_updates = MetadataComparison.merge_metadata(local_metadata, remote_metadata, comparison, force)
 
-        # TODO: 下载图片和上传到Jellyfin
-        echo_info("\n正在下载远程图片...")
-        # 图片处理逻辑在这里
+        # 下载图片和上传到Jellyfin
+        if replace_images:
+            echo_info("\n正在处理图片...")
+            
+            # 使用 Jellyfin 远程图片下载功能（让 Jellyfin 自己下载）
+            # 这样可以避免直接上传的权限问题
+            
+            # 下载并上传封面图
+            if cover_url:
+                try:
+                    echo_info(f"  设置封面图: {cover_url}")
+                    jf_client.download_remote_image(target_video_id, cover_url, "Primary")
+                    echo_success(f"  ✓ 封面图已更新")
+                except Exception as e:
+                    # 如果远程下载失败，尝试本地上传
+                    echo_warning(f"  远程下载失败，尝试本地上传...")
+                    try:
+                        cover_path = ImageManager.download_image(cover_url, "cover")
+                        if cover_path:
+                            jf_client.upload_image(target_video_id, str(cover_path), "Primary")
+                            echo_success(f"  ✓ 封面图已更新（本地上传）")
+                    except Exception as e2:
+                        echo_warning(f"  ✗ 封面图处理失败: {e2}")
+            
+            # 下载并上传背景图
+            if backdrop_url:
+                try:
+                    echo_info(f"  设置背景图: {backdrop_url}")
+                    jf_client.download_remote_image(target_video_id, backdrop_url, "Backdrop")
+                    echo_success(f"  ✓ 背景图已更新")
+                except Exception as e:
+                    # 如果远程下载失败，尝试本地上传
+                    echo_warning(f"  远程下载失败，尝试本地上传...")
+                    try:
+                        backdrop_path = ImageManager.download_image(backdrop_url, "backdrop")
+                        if backdrop_path:
+                            jf_client.upload_image(target_video_id, str(backdrop_path), "Backdrop")
+                            echo_success(f"  ✓ 背景图已更新（本地上传）")
+                    except Exception as e2:
+                        echo_warning(f"  ✗ 背景图处理失败: {e2}")
+        else:
+            echo_info("\n跳过图片下载")
 
         # 调用Jellyfin API更新元数据
         echo_info("正在应用元数据到Jellyfin...")

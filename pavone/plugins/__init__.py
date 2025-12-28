@@ -7,14 +7,15 @@ from .base import BasePlugin
 from .extractors import ExtractorPlugin
 from .manager import PluginManager, plugin_manager
 from .metadata import MetadataPlugin
-from .search import MissavSearch, SearchPlugin
+from .missav_plugin import MissAVPlugin
+from .search import SearchPlugin
 
 __all__ = [
     "BasePlugin",
     "ExtractorPlugin",
     "MetadataPlugin",
     "SearchPlugin",
-    "MissavSearch",
+    "MissAVPlugin",
     "PluginManager",
     "plugin_manager",
 ]

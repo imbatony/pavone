@@ -140,7 +140,7 @@ class CustomExtractor(ExtractorPlugin):
 
 PAVOne 提供以下内置提取器：
 - **DirectLinkExtractor** - 处理直接链接（.mp4, .m3u8 等）
-- **MissAVExtractor** - 处理 MissAV 网站（如果配置）
+- **MissAVPlugin** - MissAV 统一插件，支持搜索、元数据提取和视频下载
 
 ### 批量操作
 
