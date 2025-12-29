@@ -17,12 +17,12 @@
     "stubPath": "typings",
     "venvPath": ".",
     "venv": "venv",
-    "pythonVersion": "3.9",
+    "pythonVersion": "3.10",
     "pythonPlatform": "All",
     "executionEnvironments": [
         {
             "root": ".",
-            "pythonVersion": "3.9",
+            "pythonVersion": "3.10",
             "pythonPlatform": "All",
             "extraPaths": [
                 "."

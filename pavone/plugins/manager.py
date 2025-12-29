@@ -13,9 +13,9 @@ from typing import Any, Dict, List, Optional, Type
 
 from ..config.settings import config_manager
 from ..models import SearchResult
+from .av01_plugin import AV01Plugin
 from .base import BasePlugin
 from .extractors import (
-    AV01Extractor,
     ExtractorPlugin,
     JTableExtractor,
     M3U8DirectExtractor,
@@ -23,7 +23,6 @@ from .extractors import (
     MP4DirectExtractor,
 )
 from .metadata import (
-    AV01Metadata,
     MetadataPlugin,
     PPVDataBankMetadata,
     SupFC2Metadata,
@@ -76,8 +75,7 @@ class PluginManager:
                 "MissAVPlugin": MissAVPlugin,
                 "MemojavExtractor": MemojavExtractor,
                 "JTableExtractor": JTableExtractor,
-                "AV01Extractor": AV01Extractor,
-                "AV01Metadata": AV01Metadata,
+                "AV01Plugin": AV01Plugin,
                 "PPVDataBankMetadata": PPVDataBankMetadata,
                 "SupFC2Metadata": SupFC2Metadata,
             }
