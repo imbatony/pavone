@@ -35,7 +35,7 @@ class MetadataBuilder:
 
         Args:
             title: 标题文本
-            code: 视频代码（如果提供，会自动添加到标题前）
+            code: 视频代码（如果提供，会自动添加到标题前和设置code字段）
 
         Returns:
             self，支持链式调用
@@ -44,6 +44,7 @@ class MetadataBuilder:
             # 标题包含代码
             self._data["title"] = f"{code} {title}"
             self._data["original_title"] = title
+            self._data["code"] = code
         else:
             self._data["title"] = title
 
@@ -103,7 +104,7 @@ class MetadataBuilder:
 
     def set_identifier(self, site: str, code: str, url: str) -> "MetadataBuilder":
         """
-        生成并设置标准identifier
+        生成并设置标准identifier，同时设置site、code、url字段
 
         Args:
             site: 站点标识符
@@ -115,6 +116,9 @@ class MetadataBuilder:
         """
         identifier = StringUtils.create_identifier(site=site, code=code, url=url)
         self._data["identifier"] = identifier
+        self._data["site"] = site
+        self._data["code"] = code
+        self._data["url"] = url
         return self
 
     def set_release_date(self, release_date: Optional[str]) -> "MetadataBuilder":

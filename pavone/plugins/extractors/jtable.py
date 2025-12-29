@@ -74,7 +74,8 @@ class JTableExtractor(ExtractorPlugin):
             # 3. 创建元数据
             metadata = (
                 MetadataBuilder()
-                .set_title(title, code)
+                .set_title(title)  # title 已经不包含代码前缀
+                .set_code(code)  # 单独设置 code
                 .set_identifier(self.site_name, code, url)
                 .set_cover(cover)
                 .set_actors(actors)
@@ -90,6 +91,7 @@ class JTableExtractor(ExtractorPlugin):
             builder.add_stream(url=m3u8, quality=Quality.guess(title))
             if cover:
                 builder.set_cover(cover)
+                builder.set_landscape(cover)  # JTable 使用同一张图作为 landscape
             builder.set_metadata(metadata)
 
             return builder.build()
