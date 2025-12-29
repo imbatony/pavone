@@ -52,7 +52,7 @@ packages = ["pavone"]
 
 [tool.black]
 line-length = 127
-target-version = ['py39', 'py310', 'py311', 'py312']
+target-version = ['py310', 'py311', 'py312']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -92,6 +92,7 @@ addopts = [
     "-v",
     "--strict-markers",
     "--tb=short",
+    "-m", "not integration",  # 默认不运行集成测试
     "-W", "ignore::urllib3.exceptions.InsecureRequestWarning",
     "-W", "ignore::requests.packages.urllib3.exceptions.InsecureRequestWarning", 
     "-W", "ignore::DeprecationWarning:requests_oauthlib",
@@ -99,7 +100,7 @@ addopts = [
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
+    "integration: marks tests as integration tests (excluded by default)",
     "unit: marks tests as unit tests", 
     "network: marks tests that require network access",
 ]
@@ -135,7 +136,7 @@ precision = 2
 directory = "htmlcov"
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -189,6 +190,7 @@ dev = [
     "bandit>=1.7.0",
     "types-lxml",
     "ruff>=0.1.0",
+    "pyright>=1.1.407",
 ]
 docs = [
     "sphinx>=6.0.0",

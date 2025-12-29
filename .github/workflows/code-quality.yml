@@ -129,7 +129,7 @@ jobs:
       run: |
         echo "🎨 Checking code formatting with Black..."
         uv run black --check --diff pavone/ tests/ || {
-          echo "❌ Code formatting issues found. Run 'uv run black pavone/ tests/' to fix."
+          echo "❌ Code formatting issues found. Run './dev.ps1 format' to fix."
           exit 1
         }
         echo "✅ Black formatting check passed!"
@@ -138,17 +138,22 @@ jobs:
       run: |
         echo "📦 Checking import sorting with isort..."
         uv run isort --check-only --diff pavone/ tests/ || {
-          echo "❌ Import sorting issues found. Run 'uv run isort pavone/ tests/' to fix."
+          echo "❌ Import sorting issues found. Run './dev.ps1 format' to fix."
           exit 1
         }
         echo "✅ isort check passed!"
         
-    - name: Check code style with flake8
+    - name: Check code style with flake8 (Critical errors)
       run: |
-        echo "🔍 Checking code style with flake8..."
-        uv run flake8 pavone/ tests/ --count --select=E9,F63,F7,F82 --show-source --statistics
-        uv run flake8 pavone/ tests/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
-        echo "✅ flake8 check completed!"
+        echo "🔍 Checking for critical errors with flake8..."
+        uv run flake8 pavone/ tests/ --select=E9,F63,F7,F82
+        echo "✅ flake8 critical errors check passed!"
+        
+    - name: Check code quality with flake8
+      run: |
+        echo "📊 Running code quality checks with flake8..."
+        uv run flake8 pavone/ tests/ --exit-zero
+        echo "✅ flake8 code quality check completed!"
 
   test-m3u8-downloader:
     name: Test M3U8 Downloader

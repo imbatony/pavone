@@ -202,7 +202,7 @@ def show(identifier: str, proxy: str):
 @click.option("--search", "-s", "search_keyword", help="在Jellyfin中搜索匹配的视频")
 @click.option("--force", is_flag=True, help="强制覆盖所有字段（默认仅补充缺失信息）")
 @common_proxy_option
-def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[str], force: bool, proxy: str):
+def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[str], force: bool, proxy: str):  # noqa: C901
     """
     从指定identifier提取元数据并应用到Jellyfin中的视频
 

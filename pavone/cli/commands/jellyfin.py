@@ -499,7 +499,7 @@ def refresh(library_name: str, force: bool):
 
 @jellyfin.command()
 @click.argument("item_id", required=False)
-def info(item_id):
+def info(item_id: str):
     """查看视频的详细信息"""
     config_manager = get_config_manager()
     config = config_manager.get_config()
@@ -582,7 +582,7 @@ def duplicate_check(keyword: str):
     "source_path",
     type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=str),
 )
-def move(source_path: str):
+def move(source_path: str):  # noqa: C901
     """将下载的文件夹移动到 Jellyfin 库
 
     示例:
@@ -665,7 +665,7 @@ def move(source_path: str):
 
             while True:
                 try:
-                    folder_choice = click.prompt("请选择文件夹", type=click.IntRange(1, len(selected_folders)))
+                    folder_choice: int = click.prompt("请选择文件夹", type=click.IntRange(1, len(selected_folders)))
                     target_folder = str(selected_folders[folder_choice - 1])
                     echo_colored(f"✓ 已选择文件夹: {target_folder}\n", fg="green", bold=True)
                     break

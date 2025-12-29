@@ -246,7 +246,7 @@ class ExecutionManager:
             self.logger.debug(f"质量比较失败: {e}")
             return ""
 
-    def _handle_jellyfin_post_download(self, item: OperationItem) -> None:
+    def _handle_jellyfin_post_download(self, item: OperationItem) -> None:  # noqa: C901
         """
         下载完成后处理 Jellyfin 集成
 

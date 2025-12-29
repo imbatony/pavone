@@ -110,8 +110,6 @@ class TestSupFC2Metadata:
 
     def test_extract_metadata_url_mock(self):
         """测试从URL提取元数据（使用本地HTML文件模拟）"""
-        extractor = SupFC2Metadata()
-
         # 这里应该使用mock来避免实际的网络请求
         # 实际测试时可以使用pytest-mock或unittest.mock
         pass

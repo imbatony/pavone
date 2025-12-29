@@ -1,0 +1,29 @@
+[flake8]
+max-line-length = 127
+max-complexity = 20
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    env,
+    build,
+    dist,
+    *.egg-info,
+    .pytest_cache,
+    .mypy_cache,
+    migrations
+
+# 忽略与 black 冲突的规则
+# E203: whitespace before ':'
+# E501: line too long (handled by black)
+# W503: line break before binary operator
+ignore = E203,E501,W503
+    
+# 严格检查的错误类型
+select = E,F,W,C90
+
+# 每个文件的警告数量
+count = True
+statistics = True
+show-source = True

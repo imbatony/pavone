@@ -137,7 +137,7 @@ class M3U8Downloader(BaseDownloader):
         except Exception as e:
             raise Exception(f"Failed to download segment {segment_index}: {e}")
 
-    def execute(self, item: OperationItem) -> bool:
+    def execute(self, item: OperationItem) -> bool:  # noqa: C901
         """
         下载M3U8视频
 

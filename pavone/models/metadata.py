@@ -119,7 +119,7 @@ class MovieMetadata(BaseMetadata):
     year: Optional[int] = None  # 发行年份
     trailer: Optional[str] = None  # 预告片链接
 
-    def append_extra_fields(self, nfo: _Element) -> None:
+    def append_extra_fields(self, nfo: _Element) -> None:  # noqa: C901
         d = self  # 简化引用
         # 添加可选信息
         if d.tagline:

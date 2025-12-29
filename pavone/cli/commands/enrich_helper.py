@@ -13,7 +13,6 @@ import click
 import requests
 
 from ...jellyfin.client import JellyfinClientWrapper
-
 from ...models import BaseMetadata, ItemMetadata
 from .utils import echo_error, echo_info, echo_success, echo_warning
 
