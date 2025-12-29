@@ -1,18 +1,12 @@
 import re
 from datetime import datetime
 from typing import List, Optional, Tuple
-from urllib.parse import urlparse
 
-from ...models import (
-    MovieMetadata,
-    OperationItem,
-    Quality,
-    create_cover_item,
-    create_landscape_item,
-    create_metadata_item,
-    create_stream_item,
-)
+from ...models import OperationItem, Quality
 from ...utils import CodeExtractUtils, StringUtils
+from ...utils.html_metadata_utils import HTMLMetadataExtractor
+from ...utils.metadata_builder import MetadataBuilder
+from ...utils.operation_item_builder import OperationItemBuilder
 from .base import ExtractorPlugin
 
 # 定义插件名称和版本
@@ -48,15 +42,7 @@ class JTableExtractor(ExtractorPlugin):
 
     def can_handle(self, url: str) -> bool:
         """检查是否能处理给定的URL"""
-        try:
-            parsed_url = urlparse(url)
-            # 检查协议是否为HTTP或HTTPS
-            if parsed_url.scheme.lower() not in ("http", "https"):
-                return False
-            # 检查域名是否在支持列表中
-            return any(parsed_url.netloc.lower() == domain.lower() for domain in self.supported_domains)
-        except Exception:
-            return False
+        return self.can_handle_domain(url, self.supported_domains)
 
     def extract(self, url: str) -> List[OperationItem]:
         """从给定的URL提取下载选项"""
@@ -85,39 +71,30 @@ class JTableExtractor(ExtractorPlugin):
             # 2020-10-01 这种格式的日期
             year = release_date.year
 
-            # 3. 创建操作对象
-            m3u8_item = create_stream_item(
-                url=m3u8,
-                title=title,
-                code=code,
-                site=SITE_NAME,
-                quality=Quality.guess(title),
-                actors=actors,
-                year=year,
-                studio="",  # JTable 不提供制作公司信息
+            # 3. 创建元数据
+            metadata = (
+                MetadataBuilder()
+                .set_title(title)  # title 已经不包含代码前缀
+                .set_code(code)  # 单独设置 code
+                .set_identifier(self.site_name, code, url)
+                .set_cover(cover)
+                .set_actors(actors)
+                .set_release_date(release_date.strftime("%Y-%m-%d"))
+                .set_genres(genres)
+                .set_tags(tags)
+                .build()
             )
-            if cover:
-                cover_item = create_cover_item(url=cover, title=title)
-                landscape_item = create_landscape_item(url=cover, title=title)
-                m3u8_item.append_child(cover_item)
-                m3u8_item.append_child(landscape_item)
 
-            metadata = MovieMetadata(
-                identifier=f"{self.site_name}_{code}",
-                code=code,
-                title=title,
-                url=url,
-                site=self.site_name,
-                cover=cover,
-                actors=actors,
-                premiered=release_date.strftime("%Y-%m-%d"),
-                genres=genres,
-                tags=tags,
-                year=year,
-            )
-            metadata_item = create_metadata_item(title, metadata)
-            m3u8_item.append_child(metadata_item)
-            return [m3u8_item]
+            # 4. 创建操作对象
+            builder = OperationItemBuilder(SITE_NAME, title, code)
+            builder.set_actors(actors).set_year(year).set_studio("")
+            builder.add_stream(url=m3u8, quality=Quality.guess(title))
+            if cover:
+                builder.set_cover(cover)
+                builder.set_landscape(cover)  # JTable 使用同一张图作为 landscape
+            builder.set_metadata(metadata)
+
+            return builder.build()
 
         except Exception as e:
             self.logger.error(f"提取失败: {e}")
@@ -125,25 +102,18 @@ class JTableExtractor(ExtractorPlugin):
 
     def _extract_cover(self, html: str) -> Optional[str]:
         """从HTML中提取封面图片URL"""
-        pattern = r'<meta property="og:image" content="([^"]+)"'
-        match = re.search(pattern, html)
-        if match:
-            return match.group(1)
-        return None
+        return HTMLMetadataExtractor.extract_og_image(html)
 
     def _extract_code_title(self, html: str) -> Tuple[str, str]:
         """从HTML中提取视频标题和代码
 
         返回 (code, title)，其中 title 不包含代码前缀
         """
-        pattern = r'<meta property="og:title" content="([^"]+)"'
-        match = re.search(pattern, html)
         default_title = "Jable Video"
         default_code = StringUtils.sha_256_hash(default_title)
-        if not match:
+        title = HTMLMetadataExtractor.extract_og_title(html)
+        if not title:
             raise ValueError("未找到视频标题")
-
-        title = match.group(1)
         # 分离编号和标题
         title_parts = title.split(" ", 1)
         if len(title_parts) == 2:

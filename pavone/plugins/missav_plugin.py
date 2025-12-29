@@ -5,23 +5,15 @@ MissAV统一插件
 """
 
 import re
-from datetime import datetime
 from re import findall
 from typing import Any, Dict, List, Optional, Tuple
-from urllib.parse import urlparse
 
 from ..config.logging_config import get_logger
-from ..models import (
-    MovieMetadata,
-    OperationItem,
-    Quality,
-    SearchResult,
-    create_cover_item,
-    create_landscape_item,
-    create_metadata_item,
-    create_stream_item,
-)
-from ..utils import CodeExtractUtils, StringUtils
+from ..models import MovieMetadata, OperationItem, Quality, SearchResult
+from ..utils import CodeExtractUtils
+from ..utils.html_metadata_utils import HTMLMetadataExtractor
+from ..utils.metadata_builder import MetadataBuilder
+from ..utils.operation_item_builder import OperationItemBuilder
 from .base import BasePlugin
 
 # 定义插件名称和版本
@@ -91,7 +83,7 @@ class MissAVPlugin(BasePlugin):
             return results
         else:
             self.logger.error(
-                f"Failed to fetch search results for {keyword}. " f"Status code: {res.status_code if res else 'No response'}"
+                "Failed to fetch search results for " f"{keyword}. Status code: {res.status_code if res else 'No response'}"
             )
             return []
 
@@ -134,13 +126,7 @@ class MissAVPlugin(BasePlugin):
     def can_extract(self, identifier: str) -> bool:
         """检查是否能处理给定的identifier"""
         if identifier.startswith("http://") or identifier.startswith("https://"):
-            try:
-                parsed_url = urlparse(identifier)
-                if parsed_url.scheme.lower() not in ("http", "https"):
-                    return False
-                return any(parsed_url.netloc.lower() == domain.lower() for domain in self.supported_domains)
-            except Exception:
-                return False
+            return self.can_handle_domain(identifier, self.supported_domains)
 
         # 检查是否为视频代码
         identifier_stripped = identifier.strip()
@@ -171,33 +157,30 @@ class MissAVPlugin(BasePlugin):
             # 使用共享方法提取所有元数据
             metadata_dict = self._extract_all_metadata(html_content)
 
-            release_year = (
-                int(metadata_dict["release_date"].split("-")[0]) if metadata_dict["release_date"] else datetime.now().year
+            # 使用 MetadataBuilder 构建元数据
+            builder = MetadataBuilder()
+            metadata = (
+                builder.set_title(metadata_dict["original_title"], metadata_dict["video_code"])
+                .set_code(metadata_dict["video_code"])
+                .set_site(self.site_name)
+                .set_url(url)
+                .set_identifier(self.site_name, metadata_dict["video_code"], url)
+                .set_release_date(metadata_dict["release_date"])
+                .set_cover(metadata_dict["cover_image"])
+                .set_plot(metadata_dict["description"])
+                .set_actors(metadata_dict["actors"])
+                .set_director(metadata_dict["director"])
+                .set_runtime(metadata_dict["duration"])
+                .set_genres(metadata_dict["genres"])
+                .set_tags(metadata_dict["tags"])
+                .set_studio(metadata_dict["studio"])
+                .set_serial(metadata_dict["series"])
+                .build()
             )
 
-            identifier_str = StringUtils.create_identifier(site=self.site_name, code=metadata_dict["video_code"], url=url)
-
-            metadata = MovieMetadata(
-                title=metadata_dict["title_with_code"],
-                original_title=metadata_dict["original_title"],
-                identifier=identifier_str,
-                site=self.site_name,
-                url=url,
-                code=metadata_dict["video_code"],
-                actors=metadata_dict["actors"],
-                director=metadata_dict["director"],
-                runtime=metadata_dict["duration"],
-                premiered=metadata_dict["release_date"],
-                genres=metadata_dict["genres"],
-                tags=metadata_dict["tags"],
-                studio=metadata_dict["studio"],
-                serial=metadata_dict["series"],
-                cover=metadata_dict["cover_image"],
-                plot=metadata_dict["description"],
-                tagline=metadata_dict["tagline"],
-                year=release_year,
-                official_rating="JP-18+",
-            )
+            # 手动设置 MetadataBuilder 不支持的字段
+            metadata.tagline = metadata_dict["tagline"]
+            metadata.official_rating = "JP-18+"
 
             self.logger.info(f"成功提取元数据: {metadata_dict['video_code']} - {metadata_dict['original_title']}")
             return metadata
@@ -210,13 +193,7 @@ class MissAVPlugin(BasePlugin):
 
     def can_handle(self, url: str) -> bool:
         """检查是否能处理给定的URL"""
-        try:
-            parsed_url = urlparse(url)
-            if parsed_url.scheme.lower() not in ("http", "https"):
-                return False
-            return any(parsed_url.netloc.lower() == domain.lower() for domain in self.supported_domains)
-        except Exception:
-            return False
+        return self.can_handle_domain(url, self.supported_domains)
 
     def extract(self, url: str) -> List[OperationItem]:
         """从 MissAV 页面提取视频下载选项"""
@@ -236,71 +213,44 @@ class MissAVPlugin(BasePlugin):
             # 使用共享方法提取所有元数据
             metadata_dict = self._extract_all_metadata(html_content)
 
-            release_year = (
-                int(metadata_dict["release_date"].split("-")[0]) if metadata_dict["release_date"] else datetime.now().year
+            # 使用 MetadataBuilder 构建元数据
+            builder = MetadataBuilder()
+            metadata = (
+                builder.set_title(metadata_dict["original_title"], metadata_dict["video_code"])
+                .set_code(metadata_dict["video_code"])
+                .set_site(self.site_name)
+                .set_url(url)
+                .set_identifier(self.site_name, metadata_dict["video_code"], url)
+                .set_release_date(metadata_dict["release_date"])
+                .set_cover(metadata_dict["cover_image"])
+                .set_plot(metadata_dict["description"])
+                .set_actors(metadata_dict["actors"])
+                .set_director(metadata_dict["director"])
+                .set_runtime(metadata_dict["duration"])
+                .set_genres(metadata_dict["genres"])
+                .set_tags(metadata_dict["tags"])
+                .set_studio(metadata_dict["studio"])
+                .set_serial(metadata_dict["series"])
+                .build()
             )
 
-            # 创建封面和背景图片项
-            cover_item: Optional[OperationItem] = None
-            landscape_item: Optional[OperationItem] = None
-            if metadata_dict["cover_image"]:
-                cover_item = create_cover_item(url=metadata_dict["cover_image"], title=metadata_dict["original_title"])
-                landscape_item = create_landscape_item(url=metadata_dict["cover_image"], title=metadata_dict["original_title"])
+            # 手动设置 MetadataBuilder 不支持的字段
+            metadata.tagline = metadata_dict["tagline"]
+            metadata.official_rating = "JP-18+"
 
-            # 创建元数据对象
-            identifier = StringUtils.create_identifier(site=self.site_name, code=metadata_dict["video_code"], url=url)
-            metadata = MovieMetadata(
-                title=metadata_dict["title_with_code"],
-                identifier=identifier,
-                site=self.site_name,
-                url=url,
-                code=metadata_dict["video_code"],
-                actors=metadata_dict["actors"],
-                director=metadata_dict["director"],
-                runtime=metadata_dict["duration"],
-                premiered=metadata_dict["release_date"],
-                genres=metadata_dict["genres"],
-                tags=metadata_dict["tags"],
-                studio=metadata_dict["studio"],
-                serial=metadata_dict["series"],
-                cover=metadata_dict["cover_image"],
-                plot=metadata_dict["description"],
-                tagline=metadata_dict["tagline"],
-                year=release_year,
-                official_rating="JP-18+",
-            )
+            # 使用 OperationItemBuilder 构建下载项
+            op_builder = OperationItemBuilder(self.site_name, metadata_dict["original_title"], metadata_dict["video_code"])
+            op_builder.set_cover(metadata_dict["cover_image"]).set_landscape(metadata_dict["cover_image"]).set_metadata(
+                metadata
+            ).set_actors(metadata_dict["actors"]).set_studio(metadata_dict["studio"]).set_year(metadata.year)
 
-            metadata_item = create_metadata_item(
-                title=metadata_dict["original_title"],
-                meta_data=metadata,
-            )
-
-            # 生成下载选项
-            download_items: List[OperationItem] = []
+            # 添加所有质量的视频流
             for _, video_url in video_urls.items():
-                if not video_url:
-                    continue
+                if video_url:
+                    quality = Quality.guess(video_url)
+                    op_builder.add_stream(video_url, quality)
 
-                quality = Quality.guess(video_url)
-                download_item = create_stream_item(
-                    site=self.site_name,
-                    url=video_url,
-                    title=metadata_dict["original_title"],
-                    code=metadata_dict["video_code"],
-                    quality=quality,
-                    actors=metadata_dict["actors"],
-                    studio=metadata_dict["studio"],
-                    year=release_year,
-                )
-
-                if cover_item:
-                    download_item.append_child(cover_item)
-                if landscape_item:
-                    download_item.append_child(landscape_item)
-                download_item.append_child(metadata_item)
-                download_items.append(download_item)
-
-            return download_items
+            return op_builder.build()
 
         except Exception as e:
             self.logger.error(f"获取页面失败: {e}")
@@ -330,7 +280,7 @@ class MissAVPlugin(BasePlugin):
             self.logger.debug(f"处理大师链接内容: {m3u8_content[:100]}...")
 
             lines = m3u8_content.splitlines()
-            sub_urls = {}
+            sub_urls: Dict[str, str] = {}
             for line in lines:
                 line = line.strip()
                 if line and not line.startswith("#"):
@@ -556,30 +506,15 @@ class MissAVPlugin(BasePlugin):
 
     def _extract_cover_image(self, html: str) -> Optional[str]:
         """从HTML中提取封面图片链接"""
-        try:
-            cover_match = re.search(r'<meta property="og:image" content="([^"]+)"', html)
-            return cover_match.group(1) if cover_match else None
-        except Exception as e:
-            self.logger.debug(f"提取封面图片异常: {str(e)}")
-            return None
+        return HTMLMetadataExtractor.extract_og_image(html)
 
     def _extract_description(self, html: str) -> Optional[str]:
         """从HTML中提取视频描述"""
-        try:
-            description_match = re.search(r'<meta property="og:description" content="([^"]+)"', html)
-            return description_match.group(1) if description_match else None
-        except Exception as e:
-            self.logger.debug(f"提取描述异常: {str(e)}")
-            return None
+        return HTMLMetadataExtractor.extract_og_description(html)
 
     def _extract_tagline(self, html: str) -> Optional[str]:
         """从HTML中提取视频标语"""
-        try:
-            tagline_match = re.search(r'<meta property="og:title" content="([^"]+)"', html)
-            return tagline_match.group(1) if tagline_match else None
-        except Exception as e:
-            self.logger.debug(f"提取标语异常: {str(e)}")
-            return None
+        return HTMLMetadataExtractor.extract_og_title(html)
 
 
 def register_plugin():

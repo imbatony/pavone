@@ -23,7 +23,7 @@ class BaseDownloader(Operator):
         if not self.proxy_config.enabled:
             return None
 
-        proxies = {}
+        proxies: Dict[str, str] = {}
         if self.proxy_config.http_proxy:
             proxies["http"] = self.proxy_config.http_proxy
         if self.proxy_config.https_proxy:

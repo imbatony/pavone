@@ -5,7 +5,7 @@ HTTP下载器实现
 import os
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from typing import Dict, Optional, Tuple
 
 import requests
@@ -142,7 +142,7 @@ class HTTPDownloader(BaseDownloader):
         progress_callback: Optional[ProgressCallback] = item.get_progress_callback()
         if not progress_callback:
 
-            def dummy_progress_callback(x):
+            def dummy_progress_callback(x: ProgressInfo) -> None:
                 pass
 
             progress_callback = dummy_progress_callback
@@ -229,7 +229,7 @@ class HTTPDownloader(BaseDownloader):
             chunk_size = file_size // num_threads
 
             # 创建下载任务
-            download_tasks = []
+            download_tasks: list[Tuple[int, int, int]] = []
             for i in range(num_threads):
                 start = i * chunk_size
                 end = (i + 1) * chunk_size - 1 if i < num_threads - 1 else file_size - 1
@@ -252,7 +252,7 @@ class HTTPDownloader(BaseDownloader):
 
             # 使用线程池下载
             with ThreadPoolExecutor(max_workers=num_threads) as executor:
-                future_to_index = {}
+                future_to_index: Dict[Future[Tuple[bool, int]], int] = {}
 
                 for start, end, index in download_tasks:
                     future = executor.submit(self._download_chunk, url, headers, start, end, filepath, index)
@@ -261,7 +261,7 @@ class HTTPDownloader(BaseDownloader):
                 for future in as_completed(future_to_index):
                     index = future_to_index[future]
                     try:
-                        success, chunk_downloaded = future.result()
+                        success, chunk_downloaded = future.result()  # type: ignore[misc]
                         if success:
                             downloaded_chunks[index] = chunk_downloaded
                             update_progress()

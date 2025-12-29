@@ -3,34 +3,87 @@ CLI Utilities - 共享的辅助函数
 """
 
 import functools
-from typing import List, Optional
+from typing import Any, Callable, List, Optional, TypeVar, cast
 
 import click
 
+from ...config.configs import Config
 
-def common_proxy_option(func):
+F = TypeVar("F", bound=Callable[..., Any])
+
+
+def common_proxy_option(func: F) -> F:
     """添加通用的 proxy 选项装饰器"""
 
     @click.option("--proxy", type=str, help="HTTP代理地址 (格式: http://proxy:port)")
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         return func(*args, **kwargs)
 
-    return wrapper
+    return cast(F, wrapper)
 
 
-def common_header_option(func):
+def common_header_option(func: F) -> F:
     """添加通用的 header 选项装饰器"""
 
     @click.option("--header", multiple=True, help='自定义HTTP头部 (可多次使用, 格式: "Key: Value")')
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         return func(*args, **kwargs)
 
-    return wrapper
+    return cast(F, wrapper)
 
 
-def apply_proxy_config(proxy: Optional[str], config):
+def common_download_options(func: F) -> F:
+    """添加通用的下载选项装饰器（线程数、重试、超时）"""
+
+    @click.option("--threads", "-t", type=click.IntRange(1, 16), help="下载线程数 (1-16)")
+    @click.option("--retry", "-r", type=click.IntRange(0, 10), help="失败重试次数 (0-10)")
+    @click.option("--timeout", type=click.IntRange(5, 300), help="连接超时时间(秒)")
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        return func(*args, **kwargs)
+
+    return cast(F, wrapper)
+
+
+def common_output_options(func: F) -> F:
+    """添加通用的输出选项装饰器（输出目录、自动整理）"""
+
+    @click.option("--output-dir", "-o", type=click.Path(), help="指定输出目录")
+    @click.option("--organize", is_flag=True, help="下载后自动整理文件")
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        return func(*args, **kwargs)
+
+    return cast(F, wrapper)
+
+
+def common_interaction_options(func: F) -> F:
+    """添加通用的交互选项装饰器（自动选择、静默模式）"""
+
+    @click.option("--auto-select", "-a", is_flag=True, help="自动选择第一个下载选项，无需手动选择")
+    @click.option("--silent", "-s", is_flag=True, help="静默模式，不显示下载进度")
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        return func(*args, **kwargs)
+
+    return cast(F, wrapper)
+
+
+def common_network_options(func: F) -> F:
+    """添加通用的网络选项装饰器（代理、头部、超时）"""
+
+    @common_proxy_option
+    @common_header_option
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        return func(*args, **kwargs)
+
+    return cast(F, wrapper)
+
+
+def apply_proxy_config(proxy: Optional[str], config: Config) -> Optional[str]:
     """应用代理配置
 
     Args:
@@ -50,7 +103,7 @@ def apply_proxy_config(proxy: Optional[str], config):
     echo_info(f"使用代理: {proxy}")
 
     # 设置下载配置中的代理
-    proxy_config = config.proxy
+    proxy_config = config.proxy  # type: ignore[attr-defined]
     proxy_config.enabled = True
     if proxy.startswith("http://"):
         proxy_config.http_proxy = proxy
@@ -145,7 +198,7 @@ def prompt_int_range(message: str, min_val: int, max_val: int, default: Optional
     return click.prompt(message, type=click.IntRange(min_val, max_val), default=default)
 
 
-def prompt_text(message: str, default: Optional[str] = None, type=str) -> str:
+def prompt_text(message: str, default: Optional[str] = None, type: type[str] = str) -> str:
     """提示用户输入文本"""
     return click.prompt(message, default=default, type=type)
 
@@ -157,7 +210,7 @@ def prompt_int(message: str, default: Optional[int] = None) -> int:
 
 def read_urls_from_file(file_path: str) -> List[str]:
     """从文件读取URL列表"""
-    urls = []
+    urls: List[str] = []
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             for line in f:
@@ -171,7 +224,7 @@ def read_urls_from_file(file_path: str) -> List[str]:
 
 def read_urls_from_input() -> List[str]:
     """从用户输入读取URL列表"""
-    urls = []
+    urls: List[str] = []
     echo_info("请输入URL列表，每行一个URL，输入空行结束:")
     while True:
         try:

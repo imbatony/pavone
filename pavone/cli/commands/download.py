@@ -11,8 +11,10 @@ from ...manager.execution import create_exe_manager
 from ...plugins.manager import get_plugin_manager
 from .utils import (
     apply_proxy_config,
-    common_header_option,
-    common_proxy_option,
+    common_download_options,
+    common_interaction_options,
+    common_network_options,
+    common_output_options,
     echo_error,
     echo_info,
     echo_success,
@@ -24,16 +26,11 @@ from .utils import (
 
 @click.command()
 @click.argument("url")
-@click.option("--auto-select", "-a", is_flag=True, help="自动选择第一个下载选项，无需手动选择")
-@click.option("--silent", "-s", is_flag=True, help="静默模式，不显示下载进度")
+@common_interaction_options
 @click.option("--filename", "-f", type=str, help="指定输出文件名")
-@click.option("--output-dir", "-o", type=click.Path(), help="指定输出目录")
-@common_header_option
-@common_proxy_option
-@click.option("--organize", is_flag=True, help="下载后自动整理文件")
-@click.option("--threads", "-t", type=click.IntRange(1, 16), help="下载线程数 (1-16)")
-@click.option("--retry", "-r", type=click.IntRange(0, 10), help="失败重试次数 (0-10)")
-@click.option("--timeout", type=click.IntRange(5, 300), help="连接超时时间(秒)")
+@common_output_options
+@common_network_options
+@common_download_options
 def download(
     url: str,
     auto_select: bool,
@@ -114,15 +111,10 @@ def download(
 
 @click.command()
 @click.option("--file", "-f", type=click.Path(exists=True), help="从文件读取URL列表")
-@click.option("--auto-select", "-a", is_flag=True, help="自动选择第一个下载选项，无需手动选择")
-@click.option("--silent", "-s", is_flag=True, help="静默模式，不显示下载进度")
-@click.option("--output-dir", "-o", type=click.Path(), help="指定输出目录")
-@common_header_option
-@common_proxy_option
-@click.option("--organize", is_flag=True, help="下载后自动整理文件")
-@click.option("--threads", "-t", type=click.IntRange(1, 16), help="下载线程数 (1-16)")
-@click.option("--retry", "-r", type=click.IntRange(0, 10), help="失败重试次数 (0-10)")
-@click.option("--timeout", type=click.IntRange(5, 300), help="连接超时时间(秒)")
+@common_interaction_options
+@common_output_options
+@common_network_options
+@common_download_options
 def batch_download(
     file: Optional[str],
     auto_select: bool,

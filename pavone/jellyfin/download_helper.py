@@ -154,7 +154,7 @@ class JellyfinDownloadHelper:
             self.logger.debug(traceback.format_exc())
             return None
 
-    def _extract_quality_info(self, item) -> VideoQualityInfo:
+    def _extract_quality_info(self, item: JellyfinItem) -> VideoQualityInfo:
         """
         从项中提取质量信息
 
@@ -164,7 +164,7 @@ class JellyfinDownloadHelper:
         Returns:
             VideoQualityInfo 对象
         """
-        metadata = ItemMetadata(item.metadata or {})
+        metadata = ItemMetadata(item.metadata or {})  # type: ignore[arg-type]
 
         # 提取视频信息
         video_stream = None
@@ -181,17 +181,17 @@ class JellyfinDownloadHelper:
 
         # 获取文件大小（字节）
         file_size = 0
-        if item.path:
+        if item.path:  # type: ignore[misc]
             try:
                 import os
 
-                if os.path.exists(item.path):
-                    file_size = os.path.getsize(item.path)
+                if os.path.exists(item.path):  # type: ignore[arg-type,misc]
+                    file_size = os.path.getsize(item.path)  # type: ignore[arg-type,misc]
             except Exception:
                 pass
 
         return VideoQualityInfo(
-            path=item.path or "未知",
+            path=item.path or "未知",  # type: ignore[arg-type,misc]
             size=FormatUtils.format_size(file_size),
             resolution=resolution,
             bitrate=FormatUtils.format_bitrate(bitrate) if bitrate else "未知",

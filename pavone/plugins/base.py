@@ -3,7 +3,8 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
+from typing import Dict, List, Optional
+from urllib.parse import urlparse
 
 import requests
 
@@ -64,3 +65,30 @@ class BasePlugin(ABC):
             timeout=timeout,
             verify_ssl=verify_ssl,
         )
+
+    def can_handle_domain(self, url: str, supported_domains: List[str]) -> bool:
+        """
+        检查URL是否在支持的域名列表中
+
+        Args:
+            url: 要检查的URL
+            supported_domains: 支持的域名列表
+
+        Returns:
+            如果URL的域名在支持列表中则返回True，否则返回False
+
+        Examples:
+            >>> can_handle_domain("https://example.com/video", ["example.com"])
+            True
+            >>> can_handle_domain("ftp://example.com", ["example.com"])
+            False
+        """
+        try:
+            parsed_url = urlparse(url)
+            # 检查协议是否为 http 或 https
+            if parsed_url.scheme.lower() not in ("http", "https"):
+                return False
+            # 检查域名是否在支持列表中（不区分大小写）
+            return any(parsed_url.netloc.lower() == domain.lower() for domain in supported_domains)
+        except Exception:
+            return False

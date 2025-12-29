@@ -5,13 +5,12 @@ SupFC2元数据提取器插件
 """
 
 import re
-from datetime import datetime
 from typing import List, Optional
-from urllib.parse import urlparse
 
 from ...models import MovieMetadata
-from ...utils import StringUtils
-from .base import MetadataPlugin
+from ...utils.html_metadata_utils import HTMLMetadataExtractor
+from ...utils.metadata_builder import MetadataBuilder
+from .fc2_base import FC2BaseMetadata
 
 # 定义插件名称和版本
 PLUGIN_NAME = "SupFC2Metadata"
@@ -28,10 +27,10 @@ SUPPORTED_DOMAINS = ["supfc2.com", "www.supfc2.com"]
 SITE_NAME = "SupFC2"
 
 
-class SupFC2Metadata(MetadataPlugin):
+class SupFC2Metadata(FC2BaseMetadata):
     """
     SupFC2元数据提取器
-    继承自MetadataPlugin，提供从 supfc2.com 提取FC2视频元数据的功能。
+    继承自 FC2BaseMetadata，提供从 supfc2.com 提取FC2视频元数据的功能。
     """
 
     def __init__(self):
@@ -53,19 +52,10 @@ class SupFC2Metadata(MetadataPlugin):
         """
         # 检查是否为URL
         if identifier.startswith("http://") or identifier.startswith("https://"):
-            try:
-                parsed_url = urlparse(identifier)
-                # 检查协议是否为HTTP或HTTPS
-                if parsed_url.scheme.lower() not in ("http", "https"):
-                    return False
-                # 检查域名是否在支持列表中
-                return any(parsed_url.netloc.lower() == domain.lower() for domain in self.supported_domains)
-            except Exception:
-                return False
+            return self.can_handle_domain(identifier, self.supported_domains)
 
         # 检查是否为FC2代码
         identifier_stripped = identifier.strip().upper()
-        # FC2代码格式: FC2-PPV-XXXXXX, FC2-XXXXXX, 或纯数字 XXXXXX
         fc2_pattern = r"^(FC2[-_]?)?(?:PPV[-_]?)?(\d+)$"
         return bool(re.match(fc2_pattern, identifier_stripped))
 
@@ -121,37 +111,25 @@ class SupFC2Metadata(MetadataPlugin):
             # 生成video_code
             video_code = f"FC2-{fc2_id}"
 
-            # 生成带代码的标题
-            title_with_code = f"{video_code} {title}" if title else video_code
-
-            # 提取年份
-            release_year = int(release_date.split("-")[0]) if release_date else datetime.now().year
-
-            # 创建identifier
-            identifier_str = StringUtils.create_identifier(site=SITE_NAME, code=video_code, url=url)
-
-            # 创建MovieMetadata对象
-            metadata = MovieMetadata(
-                title=title_with_code,
-                original_title=title,
-                identifier=identifier_str,
-                site=SITE_NAME,
-                url=url,
-                code=video_code,
-                actors=[],  # SupFC2不提供演员信息
-                director=maker,  # 使用Maker作为director
-                runtime=duration,
-                premiered=release_date,
-                genres=genres,
-                tags=tags,
-                studio=maker,
-                cover=cover_image,
-                fanart=background_image,
-                plot=description,
-                rating=rating,
-                year=release_year,
-                official_rating="JP-18+",
+            # 创建 MovieMetadata 对象
+            metadata = (
+                MetadataBuilder()
+                .set_title(title or "Unknown", video_code)
+                .set_identifier(SITE_NAME, video_code, url)
+                .set_director(maker)
+                .set_runtime(duration)
+                .set_release_date(release_date)
+                .set_genres(genres)
+                .set_tags(tags)
+                .set_studio(maker)
+                .set_cover(cover_image)
+                .set_backdrop(background_image)
+                .set_plot(description)
+                .set_rating(rating)
+                .build()
             )
+            # 直接设置 official_rating
+            metadata.official_rating = "JP-18+"
 
             self.logger.info(f"成功提取元数据: {video_code}")
             return metadata
@@ -159,13 +137,6 @@ class SupFC2Metadata(MetadataPlugin):
         except Exception as e:
             self.logger.error(f"提取元数据失败: {str(e)}", exc_info=True)
             return None
-
-    def _extract_fc2_id(self, identifier: str) -> Optional[str]:
-        """从identifier中提取FC2 ID（纯数字部分）"""
-        identifier_stripped = identifier.strip().upper()
-        fc2_pattern = r"^(?:FC2[-_]?)?(?:PPV[-_]?)?(\d+)$"
-        match = re.match(fc2_pattern, identifier_stripped)
-        return match.group(1) if match else None
 
     def _extract_fc2_id_from_url(self, url: str) -> Optional[str]:
         """从URL中提取FC2 ID"""
@@ -244,7 +215,7 @@ class SupFC2Metadata(MetadataPlugin):
     def _extract_tags(self, html_content: str) -> List[str]:
         """提取标签"""
         try:
-            tags = []
+            tags: List[str] = []
             # 查找 <label>Tag: </label> 后的所有链接
             # 首先找到Tag标签的位置
             tag_section_pattern = r"<label>Tag:\s*</label>(.*?)</li>"
@@ -266,7 +237,7 @@ class SupFC2Metadata(MetadataPlugin):
     def _extract_genres(self, html_content: str) -> List[str]:
         """提取类型"""
         try:
-            genres = []
+            genres: List[str] = []
             # 查找 <label>Genre: </label> 后的链接
             pattern = r"<label>Genre:\s*</label>.*?<a[^>]*>([^<]+)</a>"
             matches = re.finditer(pattern, html_content, re.DOTALL)
@@ -333,7 +304,10 @@ class SupFC2Metadata(MetadataPlugin):
                 - background_image: 第二张图片作为背景图
         """
         try:
-            # 从 meta property="og:image" 提取图片
+            # 从 og:image 提取图片
+            cover = HTMLMetadataExtractor.extract_og_image(html_content)
+
+            # 提取所有 og:image
             pattern = r'<meta property="og:image" content="([^"]+)"'
             matches = re.findall(pattern, html_content)
 

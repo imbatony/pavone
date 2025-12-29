@@ -5,13 +5,12 @@ PPVDataBank元数据提取器插件
 """
 
 import re
-from datetime import datetime
 from typing import Optional
-from urllib.parse import urlparse
 
 from ...models import MovieMetadata
-from ...utils import StringUtils
-from .base import MetadataPlugin
+from ...utils.html_metadata_utils import HTMLMetadataExtractor
+from ...utils.metadata_builder import MetadataBuilder
+from .fc2_base import FC2BaseMetadata
 
 # 定义插件名称和版本
 PLUGIN_NAME = "PPVDataBankMetadata"
@@ -28,10 +27,10 @@ SUPPORTED_DOMAINS = ["ppvdatabank.com", "www.ppvdatabank.com"]
 SITE_NAME = "PPVDataBank"
 
 
-class PPVDataBankMetadata(MetadataPlugin):
+class PPVDataBankMetadata(FC2BaseMetadata):
     """
     PPVDataBank元数据提取器
-    继承自MetadataPlugin，提供从 ppvdatabank.com 提取FC2视频元数据的功能。
+    继承自 FC2BaseMetadata，提供从 ppvdatabank.com 提取FC2视频元数据的功能。
     """
 
     def __init__(self):
@@ -53,21 +52,11 @@ class PPVDataBankMetadata(MetadataPlugin):
         """
         # 检查是否为URL
         if identifier.startswith("http://") or identifier.startswith("https://"):
-            try:
-                parsed_url = urlparse(identifier)
-                # 检查协议是否为HTTP或HTTPS
-                if parsed_url.scheme.lower() not in ("http", "https"):
-                    return False
-                # 检查域名是否在支持列表中
-                return any(parsed_url.netloc.lower() == domain.lower() for domain in self.supported_domains)
-            except Exception:
-                return False
+            return self.can_handle_domain(identifier, self.supported_domains)
 
         # 检查是否为FC2视频代码
-        # 支持格式: FC2-2941579 或 FC2-PPV-2941579
         identifier_stripped = identifier.strip().upper()
         if identifier_stripped.startswith("FC2"):
-            # FC2-数字 或 FC2-PPV-数字
             code_pattern = r"^FC2(-PPV)?-\d+$"
             return bool(re.match(code_pattern, identifier_stripped))
 
@@ -118,35 +107,20 @@ class PPVDataBankMetadata(MetadataPlugin):
             cover_image = self._extract_cover_image(html_content, video_id)
             backdrop_image = self._extract_backdrop_image(html_content, video_id)
 
-            # 提取年份
-            release_year = None
-            if release_date:
-                try:
-                    release_year = int(release_date.split("-")[0])
-                except Exception:
-                    release_year = datetime.now().year
-            else:
-                release_year = datetime.now().year
-
-            # 创建identifier
-            identifier_str = StringUtils.create_identifier(site=SITE_NAME, code=video_code, url=url)
-
-            # 创建MovieMetadata对象
-            metadata = MovieMetadata(
-                title=f"{video_code} {title}",  # 完整标题包含代码前缀
-                original_title=title,  # 原始标题不包含代码前缀
-                identifier=identifier_str,
-                site=SITE_NAME,
-                url=url,
-                code=video_code,
-                studio=studio,  # 制作人
-                runtime=runtime,
-                premiered=release_date,
-                cover=cover_image,
-                backdrop=backdrop_image,
-                year=release_year,
-                official_rating="JP-18+",
+            # 创建 MovieMetadata 对象
+            metadata = (
+                MetadataBuilder()
+                .set_title(title, video_code)
+                .set_identifier(SITE_NAME, video_code, url)
+                .set_studio(studio)
+                .set_runtime(runtime)
+                .set_release_date(release_date)
+                .set_cover(cover_image)
+                .set_backdrop(backdrop_image)
+                .build()
             )
+            # 直接设置 official_rating （MetadataBuilder 暂不支持）
+            metadata.official_rating = "JP-18+"
 
             self.logger.info(f"成功提取元数据: {video_code} - {title}")
             return metadata
@@ -189,16 +163,7 @@ class PPVDataBankMetadata(MetadataPlugin):
         Returns:
             数字ID，如果提取失败返回None
         """
-        try:
-            code_upper = code.strip().upper()
-            # 移除FC2-PPV-或FC2-前缀，获取数字部分
-            match = re.search(r"FC2(?:-PPV)?-(\d+)", code_upper)
-            if match:
-                return match.group(1)
-            return None
-        except Exception as e:
-            self.logger.debug(f"从代码提取ID异常: {str(e)}")
-            return None
+        return self._extract_fc2_id(code)
 
     def _extract_title(self, html: str) -> str:
         """从HTML中提取视频标题
@@ -211,18 +176,15 @@ class PPVDataBankMetadata(MetadataPlugin):
         """
         default_title = "PPVDataBank Video"
         try:
-            # 从<title>标签提取
-            title_match = re.search(r"<title>([^<]+)</title>", html)
-            if title_match:
-                title = title_match.group(1).strip()
-                # 标题中可能包含"│ ppvデータ保管庫"等后缀，需要清理
-                # 示例: "あどけない顔をした訳あり美少女。発展途上なまろやか巨乳に大量中出し！！"
+            # 从 og:title 提取
+            title = HTMLMetadataExtractor.extract_og_title(html)
+            if title:
                 return title
 
-            # 备选：从og:title提取
-            og_title_match = re.search(r'<meta property="og:title" content="([^"]+)"', html)
-            if og_title_match:
-                return og_title_match.group(1).strip()
+            # 备选：从<title>标签提取
+            title_match = re.search(r"<title>([^<]+)</title>", html)
+            if title_match:
+                return title_match.group(1).strip()
 
             # 备选：从article_title提取
             article_title_match = re.search(r'<div class="article_title[^"]*"><a[^>]*>([^<]+)</a>', html)
