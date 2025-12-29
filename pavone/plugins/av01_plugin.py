@@ -530,7 +530,7 @@ class AV01Plugin(ExtractorPlugin, MetadataPlugin):
             studio = video_metadata.maker
 
             # 提取分类/标签
-            genres = []
+            genres: list[str] = []
             tags = video_metadata.get_tag_names()
 
             # 封面图片 - 使用带认证的URL构建或 poster 字段
@@ -610,7 +610,7 @@ class AV01Plugin(ExtractorPlugin, MetadataPlugin):
             studio = video_metadata.maker
 
             # 提取分类/标签
-            genres = []
+            genres: list[str] = []
             tags = video_metadata.get_tag_names()
 
             # 封面图片 - 使用带认证的URL构建或 poster 字段

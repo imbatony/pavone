@@ -191,7 +191,7 @@ class PluginManager:
             
             # 检查插件类型并分类（支持复合型插件，一个插件可以同时是多种类型）
             # 使用 isinstance 检查，支持多继承
-            registered_types = []
+            registered_types: list[str] = []
             
             # 检查是否是 ExtractorPlugin
             if isinstance(plugin, ExtractorPlugin):
@@ -228,11 +228,11 @@ class PluginManager:
             plugin.cleanup()
 
             # 从所有类型列表中移除（支持复合型插件）
-            if plugin in self.extractor_plugins:
+            if isinstance(plugin, ExtractorPlugin) and plugin in self.extractor_plugins:
                 self.extractor_plugins.remove(plugin)
-            if plugin in self.metadata_plugins:
+            if isinstance(plugin, MetadataPlugin) and plugin in self.metadata_plugins:
                 self.metadata_plugins.remove(plugin)
-            if plugin in self.search_plugins:
+            if isinstance(plugin, SearchPlugin) and plugin in self.search_plugins:
                 self.search_plugins.remove(plugin)
 
             del self.plugins[plugin_name]

@@ -7,7 +7,7 @@ JTable统一插件
 
 import re
 from datetime import datetime
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 from ..config.logging_config import get_logger
 from ..models import MovieMetadata, OperationItem, Quality
@@ -138,7 +138,7 @@ class JTablePlugin(ExtractorPlugin, MetadataPlugin):
             self.logger.error(f"提取元数据失败: {e}", exc_info=True)
             return None
 
-    def _extract_all_metadata(self, html: str, url: str) -> dict:
+    def _extract_all_metadata(self, html: str, url: str) -> dict[str, Any]:
         """提取所有元数据（内部方法，供元数据提取和视频下载共享）
         
         Args:
