@@ -1,10 +1,7 @@
-﻿from abc import abstractmethod
-from typing import Dict, List, Optional
-
-import requests
+from abc import abstractmethod
+from typing import List, Optional
 
 from ...models import OperationItem
-from ...utils.http_utils import HttpUtils
 from ..base import BasePlugin
 
 
@@ -23,18 +20,18 @@ class ExtractorPlugin(BasePlugin):
         author: Optional[str] = "",
         priority: Optional[int] = 50,
     ):
-        super().__init__(name=name, version=version, description=description, author=author, priority=priority)
+        super().__init__(
+            name=name,
+            version=version,
+            description=description,
+            author=author,
+            priority=priority,
+        )
 
     def initialize(self) -> bool:
         """初始化插件"""
         self.logger.info(f"初始化 {self.name} 插件")
         return True
-
-    def execute(self, *args, **kwargs) -> List[OperationItem]:
-        """执行插件功能"""
-        if len(args) >= 1:
-            return self.extract(args[0])
-        return []
 
     @abstractmethod
     def can_handle(self, url: str) -> bool:

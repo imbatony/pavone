@@ -1,22 +1,16 @@
 """
-元数据插件基类
+元数据提取器插件
 """
 
-from abc import abstractmethod
-from typing import Any, Dict
+from .base import MetadataPlugin
+from .ppvdatabank_metadata import PPVDataBankMetadata
+from .supfc2_metadata import SupFC2Metadata
 
-from ..base import BasePlugin
+# MissAV插件在missav_plugin.py中定义
+# AV01插件在av01_plugin.py中定义
 
-
-class MetadataPlugin(BasePlugin):
-    """元数据插件基类"""
-
-    @abstractmethod
-    def can_extract(self, identifier: str) -> bool:
-        """检查是否能提取该标识符的元数据"""
-        pass
-
-    @abstractmethod
-    def extract_metadata(self, identifier: str) -> Dict[str, Any]:
-        """提取元数据"""
-        pass
+__all__ = [
+    "MetadataPlugin",
+    "PPVDataBankMetadata",
+    "SupFC2Metadata",
+]

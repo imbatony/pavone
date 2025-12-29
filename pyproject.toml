@@ -4,17 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pavone"
-version = "0.1.1"
+version = "0.2.0"
 description = "一个集下载,整理等多功能的插件化的AV管理工具"
 authors = [{name = "PAVOne Team"}]
 license = {text = "MIT"}
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
@@ -29,12 +28,15 @@ dependencies = [
     "beautifulsoup4>=4.12.0",
     "click>=8.1.0",
     "tqdm>=4.65.0",
+    "rich>=13.0.0",
     "configparser>=5.3.0",
     "pillow>=10.0.0",
     "lxml>=4.9.0",
     "dukpy>=0.5.0",
     "pydantic>=2.12.4",
     "setuptools>=80.9.0",
+    "jellyfin-apiclient-python>=0.12.0",
+    "tabulate>=0.9.0",
 ]
 
 
@@ -50,7 +52,7 @@ packages = ["pavone"]
 
 [tool.black]
 line-length = 127
-target-version = ['py39', 'py310', 'py311', 'py312']
+target-version = ['py310', 'py311', 'py312']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -90,6 +92,7 @@ addopts = [
     "-v",
     "--strict-markers",
     "--tb=short",
+    "-m", "not integration",  # 默认不运行集成测试
     "-W", "ignore::urllib3.exceptions.InsecureRequestWarning",
     "-W", "ignore::requests.packages.urllib3.exceptions.InsecureRequestWarning", 
     "-W", "ignore::DeprecationWarning:requests_oauthlib",
@@ -97,7 +100,7 @@ addopts = [
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
+    "integration: marks tests as integration tests (excluded by default)",
     "unit: marks tests as unit tests", 
     "network: marks tests that require network access",
 ]
@@ -133,7 +136,7 @@ precision = 2
 directory = "htmlcov"
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -186,6 +189,8 @@ dev = [
     "safety>=2.3.0",
     "bandit>=1.7.0",
     "types-lxml",
+    "ruff>=0.1.0",
+    "pyright>=1.1.407",
 ]
 docs = [
     "sphinx>=6.0.0",

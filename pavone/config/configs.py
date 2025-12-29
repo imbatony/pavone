@@ -69,13 +69,28 @@ class PluginConfig:
     # 插件配置目录
     plugin_config_dir: str = "./plugins_config"
     # 禁用的插件名称列表
-    disabled_plugins: List[str] = field(default_factory=list)
+    disabled_plugins: List[str] = field(default_factory=list[str])
     # 插件优先级设置（插件名 -> 优先级数值）
-    plugin_priorities: dict = field(default_factory=dict)
+    plugin_priorities: dict[str, int] = field(default_factory=dict[str, int])
     # 是否启用插件自动发现
     auto_discovery: bool = True
     # 插件加载超时时间（秒）
     load_timeout: int = 30
+
+
+@dataclass
+class JellyfinConfig:
+    """Jellyfin 配置"""
+
+    enabled: bool = False
+    server_url: str = ""
+    username: Optional[str] = None
+    password: Optional[str] = None
+    api_key: Optional[str] = None
+    libraries: List[str] = field(default_factory=list[str])
+    verify_ssl: bool = True
+    timeout: int = 30
+    auto_match: bool = True  # 是否自动匹配元数据
 
 
 @dataclass
@@ -88,3 +103,4 @@ class Config:
     proxy: ProxyConfig = field(default_factory=ProxyConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
     plugin: PluginConfig = field(default_factory=PluginConfig)
+    jellyfin: JellyfinConfig = field(default_factory=JellyfinConfig)

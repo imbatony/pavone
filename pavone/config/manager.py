@@ -7,7 +7,15 @@ from dataclasses import asdict
 from pathlib import Path
 from typing import Optional
 
-from .configs import Config, DownloadConfig, OrganizeConfig, PluginConfig, ProxyConfig, SearchConfig
+from .configs import (
+    Config,
+    DownloadConfig,
+    JellyfinConfig,
+    OrganizeConfig,
+    PluginConfig,
+    ProxyConfig,
+    SearchConfig,
+)
 from .logging_config import LoggingConfig, get_log_manager, init_log_manager
 from .validator import ConfigValidator
 
@@ -69,6 +77,8 @@ class ConfigManager:
             self.config.logging = LoggingConfig(**data["logging"])
         if "plugin" in data:
             self.config.plugin = PluginConfig(**data["plugin"])
+        if "jellyfin" in data:
+            self.config.jellyfin = JellyfinConfig(**data["jellyfin"])
 
     def save_config(self):
         """保存配置"""
@@ -80,6 +90,7 @@ class ConfigManager:
                 "proxy": asdict(self.config.proxy),
                 "logging": asdict(self.config.logging),
                 "plugin": asdict(self.config.plugin),
+                "jellyfin": asdict(self.config.jellyfin),
             }
 
             with open(self.config_file, "w", encoding="utf-8") as f:

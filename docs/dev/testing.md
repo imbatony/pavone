@@ -55,7 +55,7 @@ tests/
 ├── test_downloader.py          # 下载器测试
 ├── test_extractor_base.py      # 提取器基类测试
 ├── test_*_extractor.py         # 各个提取器的测试
-├── test_missav_search.py       # MissAV 搜索测试
+├── test_missav_plugin.py       # MissAV统一插件测试（包含搜索、元数据、提取三个功能）
 ├── test_logging_config.py      # 日志配置测试
 ├── test_code_extract_utils.py  # 代码提取工具测试
 ├── data/                        # 测试数据

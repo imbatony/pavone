@@ -4,11 +4,11 @@ from abc import abstractmethod
 from datetime import datetime
 from typing import Optional
 
+from lxml.builder import E
+from lxml.etree import _Element, tostring
 from pydantic import BaseModel
 
 """与操作nfo文件相关的功能"""
-from lxml.builder import E
-from lxml.etree import _Element, tostring
 
 
 class MetadataType:
@@ -89,7 +89,6 @@ class BaseMetadata(BaseModel):
 
 
 class MovieMetadata(BaseMetadata):
-
     def __init__(self, **data):
         super().__init__(type=MetadataType.MOVIE, **data)
 
@@ -112,15 +111,15 @@ class MovieMetadata(BaseMetadata):
     runtime: Optional[int] = None  # 影片时长（分钟）
     tags: Optional[list[str]] = None  # 标签列表
     tags_normalized: Optional[list[str]] = None  # 标准化标签列表
-    rating: Optional[float] = None  # 评分
+    rating: Optional[float] = None  # 评分（通常是0-10的评分系统）
+    official_rating: Optional[str] = None  # 家长分级（如 JP-18+, PG-13, R 等），在 NFO 中使用 <mpaa> 标签
     genres: Optional[list[str]] = None  # 类型列表
     genres_normalized: Optional[list[str]] = None  # 标准化类型列表
-    mpaa: Optional[str] = None  # 家长分级（如 PG-13, R 等）
     serial: Optional[str] = None  # 系列名称
     year: Optional[int] = None  # 发行年份
     trailer: Optional[str] = None  # 预告片链接
 
-    def append_extra_fields(self, nfo: _Element) -> None:
+    def append_extra_fields(self, nfo: _Element) -> None:  # noqa: C901
         d = self  # 简化引用
         # 添加可选信息
         if d.tagline:
@@ -138,6 +137,9 @@ class MovieMetadata(BaseMetadata):
         if d.rating:
             nfo.append(E.rating(str(d.rating)))
 
+        if d.official_rating:
+            nfo.append(E.mpaa(d.official_rating))  # 家长分级使用 mpaa 标签
+
         if d.premiered:
             nfo.append(E.premiered(d.premiered))
 
@@ -153,9 +155,6 @@ class MovieMetadata(BaseMetadata):
 
         if d.runtime:
             nfo.append(E.runtime(str(d.runtime)))
-
-        if d.mpaa:
-            nfo.append(E.mpaa(d.mpaa))
 
         if d.director:
             nfo.append(E.director(d.director))

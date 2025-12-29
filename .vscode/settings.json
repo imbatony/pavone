@@ -1,6 +1,6 @@
 {
     "python.defaultInterpreterPath": "./venv/Scripts/python.exe",
-    "python.analysis.typeCheckingMode": "basic",
+    "python.analysis.typeCheckingMode": "standard",
     "python.analysis.autoSearchPaths": true,
     "python.analysis.extraPaths": [
         ".",
@@ -41,5 +41,12 @@
         "build/": true,
         "dist/": true,
         "*.egg-info/": true
-    }
+    },
+    "files.encoding": "utf8",
+    "files.autoGuessEncoding": false,
+    "terminal.integrated.env.windows": {
+        "PYTHONIOENCODING": "utf-8",
+        "PYTHONUTF8": "1"
+    },
+    "terminal.integrated.defaultProfile.windows": "PowerShell"
 }

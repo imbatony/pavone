@@ -92,7 +92,10 @@ class TestJTableExtractor(unittest.TestCase):
         """测试标题和代码提取"""
         code, title = self.extractor._extract_code_title(self.test_html_content)
         self.assertEqual(code, "DASS-247")
-        self.assertEqual(title, "媚薬絶頂への恐怖に悪堕ちする誇り高き女捜査官。 黒川すみれ 美咲かんな")
+        self.assertEqual(
+            title,
+            "媚薬絶頂への恐怖に悪堕ちする誇り高き女捜査官。 黒川すみれ 美咲かんな",
+        )
 
     def test_extract_code_title_no_space(self):
         """测试标题没有空格分隔符的情况"""
@@ -209,7 +212,10 @@ class TestJTableExtractor(unittest.TestCase):
             main_item.get_url(),
             "https://gmas-clena.mushroomtrack.com/hls/bXNwsqF7g4nB5Wr29gK2DA/1750698775/36000/36865/36865.m3u8",
         )
-        self.assertEqual(main_item.get_title(), "媚薬絶頂への恐怖に悪堕ちする誇り高き女捜査官。 黒川すみれ 美咲かんな")
+        self.assertEqual(
+            main_item.get_title(),
+            "媚薬絶頂への恐怖に悪堕ちする誇り高き女捜査官。 黒川すみれ 美咲かんな",
+        )
         self.assertEqual(main_item.get_code(), "DASS-247")
         self.assertEqual(main_item.get_actors(), ["美咲かんな"])
         self.assertEqual(main_item.get_year(), 2023)
@@ -220,13 +226,10 @@ class TestJTableExtractor(unittest.TestCase):
 
         # 验证封面项目和元数据项目
         cover_item = None
-        landscape_item = None
         metadata_item: Optional[OperationItem] = None
         for child in children:
             if child.get_subtype() == "cover":
                 cover_item = child
-            elif child.get_subtype() == "landscape":
-                landscape_item = child
             elif child.item_type == "metadata":
                 metadata_item = child
 
@@ -234,7 +237,8 @@ class TestJTableExtractor(unittest.TestCase):
         self.assertIsNotNone(cover_item)
         if cover_item:
             self.assertEqual(
-                cover_item.get_url(), "https://assets-cdn.jable.tv/contents/videos_screenshots/36000/36865/preview.jpg"
+                cover_item.get_url(),
+                "https://assets-cdn.jable.tv/contents/videos_screenshots/36000/36865/preview.jpg",
             )
 
         # 验证元数据项目存在
@@ -248,7 +252,10 @@ class TestJTableExtractor(unittest.TestCase):
             m_metadata: MovieMetadata = metadata  # type: ignore # 类型转换
             if metadata:
                 self.assertEqual(m_metadata.code, "DASS-247")
-                self.assertEqual(m_metadata.title, "媚薬絶頂への恐怖に悪堕ちする誇り高き女捜査官。 黒川すみれ 美咲かんな")
+                self.assertEqual(
+                    m_metadata.title,
+                    "媚薬絶頂への恐怖に悪堕ちする誇り高き女捜査官。 黒川すみれ 美咲かんな",
+                )
                 self.assertEqual(m_metadata.actors, ["美咲かんな"])
                 # release_date 已转换为 premiered 格式
                 self.assertEqual(m_metadata.premiered, "2023-10-20")

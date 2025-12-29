@@ -1,23 +1,25 @@
 """
-AV01视频提取器插件
+AV01统一插件
 
-支持从 av01.tv 网站提取视频下载链接。
+支持从 av01.tv 和 av01.media 网站提取元数据和视频下载链接。
 
-该提取器完全基于API，不需要解析HTML：
+该插件完全基于API，不需要解析HTML：
 1. 从 geo API 获取 token
 2. 从 /api/v1/videos/{id} 获取视频元数据
 3. 从 /api/v1/videos/{id}/playlist 获取播放列表
 """
 
+import base64
 import json
 import re
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
-from ...models import (
+from ..config.logging_config import get_logger
+from ..models import (
     MovieMetadata,
     OperationItem,
     Quality,
@@ -26,8 +28,8 @@ from ...models import (
     create_metadata_item,
     create_stream_item,
 )
-from ...utils import CodeExtractUtils, StringUtils
-from .base import ExtractorPlugin
+from ..utils import CodeExtractUtils, StringUtils
+from .base import BasePlugin
 
 
 @dataclass
@@ -36,7 +38,6 @@ class GeoData:
     AV01 地理位置认证数据类
 
     用于存储从 geo API 获取的 token、IP、过期时间等信息。
-    此类仅用于 AV01 提取器。
 
     Attributes:
         token: 认证令牌
@@ -63,20 +64,19 @@ class GeoData:
     comp: bool = False
 
     @classmethod
-    def from_dict(cls, data: dict) -> "GeoData":
-        """
-        从字典创建 GeoData 实例
-
-        Args:
-            data: 包含 geo 数据的字典
-
-        Returns:
-            GeoData 实例
-
-        Raises:
-            ValueError: 当缺少必需字段时
-        """
-        required_fields = {"token", "expires", "ip", "asn", "isp", "continent", "country", "ttl", "url"}
+    def from_dict(cls, data: Dict[str, Any]) -> "GeoData":
+        """从字典创建 GeoData 实例"""
+        required_fields = {
+            "token",
+            "expires",
+            "ip",
+            "asn",
+            "isp",
+            "continent",
+            "country",
+            "ttl",
+            "url",
+        }
         missing_fields = required_fields - set(data.keys())
 
         if missing_fields:
@@ -95,13 +95,8 @@ class GeoData:
             comp=bool(data.get("comp", False)),
         )
 
-    def to_dict(self) -> dict:
-        """
-        将 GeoData 转换为字典
-
-        Returns:
-            包含所有字段的字典
-        """
+    def to_dict(self) -> Dict[str, Any]:
+        """将 GeoData 转换为字典"""
         return {
             "token": self.token,
             "expires": self.expires,
@@ -116,15 +111,7 @@ class GeoData:
         }
 
     def is_expired(self, current_time: Optional[float] = None) -> bool:
-        """
-        检查数据是否已过期
-
-        Args:
-            current_time: 当前时间戳，如果为 None 则使用系统当前时间
-
-        Returns:
-            如果已过期返回 True，否则返回 False
-        """
+        """检查数据是否已过期"""
         if current_time is None:
             current_time = time.time()
 
@@ -137,7 +124,7 @@ class GeoData:
     def __repr__(self) -> str:
         """返回对象的字符串表示"""
         token_preview = self.token[:10] + "..." if len(self.token) > 10 else self.token
-        return f"GeoData(token={token_preview}, ip={self.ip}, " f"country={self.country}, expires={self.expires})"
+        return f"GeoData(token={token_preview}, ip={self.ip}, country={self.country}, expires={self.expires})"
 
 
 @dataclass
@@ -146,7 +133,6 @@ class AV01VideoMetadata:
     AV01 视频元数据类
 
     用于存储从视频 API 获取的视频信息。
-    此类仅用于 AV01 提取器。
 
     Attributes:
         id: 视频ID
@@ -180,24 +166,13 @@ class AV01VideoMetadata:
     cover: bool
     maker: Optional[str] = None
     director: Optional[str] = None
-    actresses: Optional[List[Dict]] = None
-    tags: Optional[List[Dict]] = None
+    actresses: Optional[List[Dict[str, str]]] = None
+    tags: Optional[List[Dict[str, str]]] = None
     poster: Optional[str] = None
 
     @classmethod
-    def from_dict(cls, data: dict) -> "AV01VideoMetadata":
-        """
-        从字典创建 AV01VideoMetadata 实例
-
-        Args:
-            data: 包含视频元数据的字典
-
-        Returns:
-            AV01VideoMetadata 实例
-
-        Raises:
-            ValueError: 当缺少必需字段时
-        """
+    def from_dict(cls, data: Dict[str, Any]) -> "AV01VideoMetadata":
+        """从字典创建 AV01VideoMetadata 实例"""
         required_fields = {
             "id",
             "dvd_id",
@@ -249,13 +224,8 @@ class AV01VideoMetadata:
             poster=data.get("poster"),
         )
 
-    def to_dict(self) -> dict:
-        """
-        将 AV01VideoMetadata 转换为字典
-
-        Returns:
-            包含所有字段的字典
-        """
+    def to_dict(self) -> Dict[str, Any]:
+        """将 AV01VideoMetadata 转换为字典"""
         return {
             "id": self.id,
             "dvd_id": self.dvd_id,
@@ -276,12 +246,7 @@ class AV01VideoMetadata:
         }
 
     def get_actor_names(self) -> List[str]:
-        """
-        提取所有女优名称
-
-        Returns:
-            女优名称列表
-        """
+        """提取所有女优名称"""
         if not self.actresses or not isinstance(self.actresses, list):
             return []
 
@@ -295,12 +260,7 @@ class AV01VideoMetadata:
         return names
 
     def get_tag_names(self) -> List[str]:
-        """
-        提取所有标签名称
-
-        Returns:
-            标签名称列表
-        """
+        """提取所有标签名称"""
         if not self.tags or not isinstance(self.tags, list):
             return []
 
@@ -316,12 +276,7 @@ class AV01VideoMetadata:
         return names
 
     def get_release_year(self) -> int:
-        """
-        从发布时间提取年份
-
-        Returns:
-            发布年份
-        """
+        """从发布时间提取年份"""
         try:
             # 处理 ISO 8601 格式 (2025-11-27T00:00:00Z)
             if "T" in self.published_time:
@@ -332,12 +287,7 @@ class AV01VideoMetadata:
             return datetime.now().year
 
     def get_runtime_minutes(self) -> Optional[int]:
-        """
-        获取视频时长（分钟）
-
-        Returns:
-            视频时长（分钟）或 None
-        """
+        """获取视频时长（分钟）"""
         if self.duration and self.duration > 0:
             return int(self.duration // 60)
         return None
@@ -348,9 +298,9 @@ class AV01VideoMetadata:
 
 
 # 定义插件名称和版本
-PLUGIN_NAME = "AV01Extractor"
-PLUGIN_VERSION = "1.0.0"
-PLUGIN_DESCRIPTION = "提取 av01.tv 的视频下载链接（基于API）"
+PLUGIN_NAME = "AV01"
+PLUGIN_VERSION = "2.0.0"
+PLUGIN_DESCRIPTION = "AV01统一插件：支持元数据提取和视频下载"
 PLUGIN_AUTHOR = "PAVOne"
 
 # 定义插件优先级
@@ -366,27 +316,119 @@ GEO_API_URL = "https://www.av01.tv/edge/geo.js?json"
 VIDEO_API_BASE = "https://www.av01.media/api/v1/videos"
 
 
-class AV01Extractor(ExtractorPlugin):
+class AV01Plugin(BasePlugin):
     """
-    AV01提取器
-    继承自ExtractorPlugin，提供从 av01.tv 提取视频下载链接的功能。
-
-    该网站使用基于geo API的token认证系统来获取视频资源。
+    AV01统一插件
+    同时实现元数据提取和视频下载两种功能
     """
 
     def __init__(self):
-        """初始化AV01提取器"""
-        super().__init__()
-        self.name = PLUGIN_NAME
-        self.version = PLUGIN_VERSION
-        self.description = PLUGIN_DESCRIPTION
-        self.priority = PLUGIN_PRIORITY
+        """初始化AV01插件"""
+        super().__init__(
+            name=PLUGIN_NAME,
+            version=PLUGIN_VERSION,
+            description=PLUGIN_DESCRIPTION,
+            author=PLUGIN_AUTHOR,
+            priority=PLUGIN_PRIORITY,
+        )
         self.supported_domains = SUPPORTED_DOMAINS
-        self.author = PLUGIN_AUTHOR
+        self.site_name = SITE_NAME
+        self.logger = get_logger(__name__)
 
         # 缓存geo数据
         self._geo_data: Optional[GeoData] = None
         self._geo_fetched_at: Optional[float] = None
+
+    def initialize(self) -> bool:
+        """初始化插件"""
+        return True
+
+    # ==================== 元数据提取功能接口 ====================
+
+    def can_extract(self, identifier: str) -> bool:
+        """检查是否能处理给定的identifier
+
+        支持两种格式：
+        1. URL: https://av01.tv/jp/video/184522/fc2-ppv-4799119
+        2. 视频代码: FC2-PPV-4799119 或类似格式
+        """
+        # 检查是否为URL
+        if identifier.startswith("http://") or identifier.startswith("https://"):
+            try:
+                parsed_url = urlparse(identifier)
+                # 检查协议是否为HTTP或HTTPS
+                if parsed_url.scheme.lower() not in ("http", "https"):
+                    return False
+                # 检查域名是否在支持列表中
+                return any(parsed_url.netloc.lower() == domain.lower() for domain in self.supported_domains)
+            except Exception:
+                return False
+
+        # 检查是否为视频代码
+        # AV01支持的代码格式比较灵活，基本上符合标准番号格式的都可以
+        identifier_stripped = identifier.strip()
+        code_pattern = r"^[a-zA-Z]+(-|\d)[a-zA-Z0-9\-]*$"
+        if re.match(code_pattern, identifier_stripped):
+            # 确保包含连字符，且左边是字母
+            if "-" in identifier_stripped:
+                parts = identifier_stripped.split("-", 1)
+                if len(parts) >= 2 and len(parts[0]) > 0 and parts[0][0].isalpha():
+                    return True
+
+        return False
+
+    def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
+        """从给定的identifier提取元数据
+
+        Args:
+            identifier: 可以是URL或视频代码
+
+        Returns:
+            提取到的MovieMetadata对象，如果失败返回None
+        """
+        try:
+            # 1. 提取视频ID
+            video_id = None
+            url = identifier
+
+            if identifier.startswith("http"):
+                # 从URL提取视频ID
+                video_id = self._extract_video_id(identifier)
+                if not video_id:
+                    self.logger.error(f"无法从URL提取视频ID: {identifier}")
+                    return None
+            else:
+                # 对于视频代码，暂时不直接支持
+                # 实际应用中可以集成搜索功能来获取视频ID
+                self.logger.warning(f"代码格式identifier暂不直接支持: {identifier}，请使用URL")
+                return None
+
+            self.logger.info(f"提取到视频ID: {video_id}")
+
+            # 2. 获取geo数据和token
+            geo_data = self._get_geo_data()
+            if not geo_data:
+                self.logger.error("无法获取geo token")
+                return None
+
+            # 3. 获取视频元数据
+            metadata_api_url = f"{VIDEO_API_BASE}/{video_id}"
+            video_metadata = self._get_video_metadata(metadata_api_url)
+
+            if not video_metadata:
+                self.logger.error(f"无法获取视频元数据: {video_id}")
+                return None
+
+            self.logger.info(f"获取到视频元数据: {video_metadata.title}")
+
+            # 4. 构建 MovieMetadata 对象
+            return self._build_movie_metadata(video_metadata, url, geo_data, video_id)
+
+        except Exception as e:
+            self.logger.error(f"提取元数据失败: {e}", exc_info=True)
+            return None
+
+    # ==================== 视频提取功能接口 ====================
 
     def can_handle(self, url: str) -> bool:
         """检查是否能处理给定的URL"""
@@ -459,34 +501,90 @@ class AV01Extractor(ExtractorPlugin):
             self.logger.error(f"提取视频信息失败: {e}", exc_info=True)
             return []
 
-    def _build_cover_url(self, video_id: str, geo_data: GeoData) -> Optional[str]:
-        """
-        构建封面图片URL
+    # ==================== 共享辅助方法 ====================
 
-        Args:
-            video_id: 视频ID
-            geo_data: geo认证数据
-
-        Returns:
-            封面图片URL
-        """
+    def _build_movie_metadata(
+        self,
+        video_metadata: AV01VideoMetadata,
+        original_url: str,
+        geo_data: GeoData,
+        video_id: str,
+    ) -> Optional[MovieMetadata]:
+        """根据视频元数据构建 MovieMetadata 对象"""
         try:
-            token = geo_data.token
-            expires = geo_data.expires
-            ip = geo_data.ip
+            # 提取基本信息
+            title = video_metadata.title
 
-            if not all([token, expires, ip]):
-                return None
+            # 提取番号 - AV01使用 dvd_id 作为番号
+            video_code = video_metadata.dvd_id
+            if not video_code:
+                video_code = CodeExtractUtils.extract_code_from_text(title) or "Unknown"
+            else:
+                # 需要对番号进行额外处理
+                video_code = CodeExtractUtils.extract_code_from_text(video_code) or video_code
 
-            # AV01封面格式: https://static.av01.tv/media/videos/tmb/{video_id}/1.jpg/format=webp/wlv=800?t={token}&e={expires}&ip={ip}
-            cover_url = (
-                f"https://static.av01.tv/media/videos/tmb/{video_id}/1.jpg/format=webp/wlv=800?t={token}&e={expires}&ip={ip}"
+            # 提取演员
+            actors = video_metadata.get_actor_names()
+
+            # 提取其他信息
+            runtime_minutes = video_metadata.get_runtime_minutes()
+
+            # 提取发布时间
+            release_date = video_metadata.published_time
+
+            # 提取制作商
+            studio = video_metadata.maker
+
+            # 提取分类/标签
+            genres = []
+            tags = video_metadata.get_tag_names()
+
+            # 封面图片 - 使用带认证的URL构建或 poster 字段
+            cover_image = None
+            if video_metadata.poster:
+                cover_image = video_metadata.poster
+            elif video_metadata.cover:
+                # 使用geo认证构建封面URL
+                cover_image = self._build_cover_url(video_id, geo_data)
+
+            # 描述
+            description = video_metadata.description
+
+            # 导演
+            director = video_metadata.director
+
+            # 发布年份
+            release_year = video_metadata.get_release_year()
+
+            # 创建identifier
+            identifier = StringUtils.create_identifier(site=SITE_NAME, code=video_code, url=original_url)
+
+            # 创建元数据对象
+            metadata = MovieMetadata(
+                title=video_code + " " + title,
+                original_title=title,
+                identifier=identifier,
+                site=SITE_NAME,
+                url=original_url,
+                code=video_code,
+                actors=actors,
+                runtime=runtime_minutes,
+                premiered=release_date,
+                genres=genres,
+                tags=tags,
+                studio=studio,
+                director=director,
+                cover=cover_image,
+                plot=description,
+                year=release_year,
+                official_rating="JP-18+",
             )
 
-            self.logger.debug(f"构建封面URL: {cover_url[:100]}...")
-            return cover_url
+            self.logger.info(f"成功构建元数据: {video_code} - {title}")
+            return metadata
+
         except Exception as e:
-            self.logger.error(f"构建封面URL失败: {e}")
+            self.logger.error(f"构建元数据失败: {e}")
             return None
 
     def _build_download_items(
@@ -497,19 +595,7 @@ class AV01Extractor(ExtractorPlugin):
         geo_data: GeoData,
         video_id: str,
     ) -> List[OperationItem]:
-        """
-        根据视频元数据和URL列表构建下载选项
-
-        Args:
-            video_metadata: AV01VideoMetadata 实例
-            video_urls: 视频URL字典（质量 -> URL）
-            original_url: 原始页面URL
-            geo_data: geo认证数据
-            video_id: 视频ID
-
-        Returns:
-            下载选项列表
-        """
+        """根据视频元数据和URL列表构建下载选项"""
         try:
             # 提取基本信息
             title = video_metadata.title
@@ -571,13 +657,13 @@ class AV01Extractor(ExtractorPlugin):
                 code=video_code,
                 actors=actors,
                 runtime=runtime_minutes,
-                premiered=release_date,  # 使用premiered而不是release_date
+                premiered=release_date,
                 genres=genres,
                 tags=tags,
                 studio=studio,
                 director=director,
                 cover=cover_image,
-                plot=description,  # 使用plot而不是description
+                plot=description,
                 year=release_year,
             )
 
@@ -595,7 +681,15 @@ class AV01Extractor(ExtractorPlugin):
                 # 使用已解析的质量，如果无法识别再猜测
                 quality = (
                     quality_key
-                    if quality_key in [Quality.UHD, Quality.QHD, Quality.FHD, Quality.HD, Quality.SD, Quality.LOW]
+                    if quality_key
+                    in [
+                        Quality.UHD,
+                        Quality.QHD,
+                        Quality.FHD,
+                        Quality.HD,
+                        Quality.SD,
+                        Quality.LOW,
+                    ]
                     else Quality.guess(video_url)
                 )
                 download_item = create_stream_item(
@@ -624,20 +718,32 @@ class AV01Extractor(ExtractorPlugin):
             self.logger.error(f"构建下载选项失败: {e}")
             return []
 
+    def _build_cover_url(self, video_id: str, geo_data: GeoData) -> Optional[str]:
+        """构建封面图片URL"""
+        try:
+            token = geo_data.token
+            expires = geo_data.expires
+            ip = geo_data.ip
+
+            if not all([token, expires, ip]):
+                return None
+
+            # AV01封面格式
+            cover_url = (
+                f"https://static.av01.tv/media/videos/tmb/{video_id}/1.jpg/format=webp/wlv=800"
+                f"?t={token}&e={expires}&ip={ip}"
+            )
+
+            self.logger.debug(f"构建封面URL: {cover_url[:100]}...")
+            return cover_url
+        except Exception as e:
+            self.logger.error(f"构建封面URL失败: {e}")
+            return None
+
     def _get_geo_data(self, force_refresh: bool = False) -> Optional[GeoData]:
-        """
-        获取geo数据（包含token）
-
-        Args:
-            force_refresh: 是否强制刷新
-
-        Returns:
-            GeoData 实例或 None
-        """
+        """获取geo数据（包含token）"""
         # 检查缓存
         if not force_refresh and self._geo_data and self._geo_fetched_at:
-            import time
-
             ttl = self._geo_data.ttl
             elapsed = time.time() - self._geo_fetched_at
 
@@ -652,8 +758,6 @@ class AV01Extractor(ExtractorPlugin):
             response = self.fetch(GEO_API_URL, timeout=10, verify_ssl=True)
 
             if response.status_code == 200:
-                import time
-
                 geo_dict = response.json()
                 self._geo_data = GeoData.from_dict(geo_dict)
                 self._geo_fetched_at = time.time()
@@ -668,15 +772,7 @@ class AV01Extractor(ExtractorPlugin):
             return None
 
     def _get_video_metadata(self, metadata_url: str) -> Optional[AV01VideoMetadata]:
-        """
-        从API获取视频元数据
-
-        Args:
-            metadata_url: 元数据API URL
-
-        Returns:
-            AV01VideoMetadata 实例或 None
-        """
+        """从API获取视频元数据"""
         try:
             self.logger.info(f"正在获取视频元数据: {metadata_url}")
 
@@ -698,15 +794,7 @@ class AV01Extractor(ExtractorPlugin):
             return None
 
     def _get_video_playlist(self, playlist_url: str) -> Dict[str, str]:
-        """
-        从API获取视频播放列表
-
-        Args:
-            playlist_url: 播放列表API URL（包含token、expires、ip参数）
-
-        Returns:
-            包含不同质量视频URL的字典
-        """
+        """从API获取视频播放列表"""
         try:
             self.logger.info(f"正在获取播放列表: {playlist_url}")
 
@@ -731,16 +819,8 @@ class AV01Extractor(ExtractorPlugin):
             self.logger.error(f"获取播放列表异常: {e}")
             return {}
 
-    def _parse_playlist_json(self, data: Dict) -> Dict[str, str]:
-        """
-        解析JSON格式的播放列表响应
-
-        Args:
-            data: API返回的JSON数据
-
-        Returns:
-            质量 -> URL 的字典
-        """
+    def _parse_playlist_json(self, data: Dict[str, Any]) -> Dict[str, str]:
+        """解析JSON格式的播放列表响应"""
         result = {}
 
         try:
@@ -750,8 +830,6 @@ class AV01Extractor(ExtractorPlugin):
 
                 # 检查是否是base64编码的m3u8
                 if "base64," in src:
-                    import base64
-
                     # 提取base64部分
                     base64_data = src.split("base64,")[1]
                     # 解码
@@ -794,16 +872,7 @@ class AV01Extractor(ExtractorPlugin):
             return {}
 
     def _parse_m3u8_playlist(self, m3u8_content: str, base_url: str) -> Dict[str, str]:
-        """
-        解析m3u8格式的播放列表
-
-        Args:
-            m3u8_content: m3u8文件内容
-            base_url: 基础URL用于构建完整URL（如果为空字符串则表示URL已经完整）
-
-        Returns:
-            质量 -> URL 的字典
-        """
+        """解析m3u8格式的播放列表"""
         result = {}
 
         try:
@@ -863,8 +932,7 @@ class AV01Extractor(ExtractorPlugin):
             return {}
 
     def _extract_video_id(self, url: str) -> Optional[str]:
-        """
-        从URL提取视频ID
+        """从URL提取视频ID
 
         URL格式示例:
         - https://www.av01.media/jp/video/184522/fc2-ppv-4799119

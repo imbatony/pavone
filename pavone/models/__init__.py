@@ -1,5 +1,12 @@
 from .constants import CommonExtraKeys, ItemSubType, ItemType, OperationType, Quality
-from .metadata import BaseMetadata, ClipMetadata, DocumentaryMetadata, MovieMetadata, TVShowMetadata
+from .jellyfin_item import ItemMetadata
+from .metadata import (
+    BaseMetadata,
+    ClipMetadata,
+    DocumentaryMetadata,
+    MovieMetadata,
+    TVShowMetadata,
+)
 from .operation import (
     OperationItem,
     create_backdrop_item,
@@ -39,4 +46,5 @@ __all__ = [
     "ProgressCallback",
     "ProgressInfo",
     "SearchResult",
+    "ItemMetadata",
 ]

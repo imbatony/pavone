@@ -13,7 +13,6 @@ from ...models import (
     Quality,
     create_cover_item,
     create_landscape_item,
-    create_metadata_item,
     create_stream_item,
 )
 from ...utils import CodeExtractUtils
@@ -101,7 +100,11 @@ class MemojavExtractor(ExtractorPlugin):
 
             # 4. 构建操作项
             item = create_stream_item(
-                code=code, quality=Quality.UNKNOWN, title=title, url=m3u8_url, site=SITE_NAME  # Memojav 不提供质量信息
+                code=code,
+                quality=Quality.UNKNOWN,
+                title=title,
+                url=m3u8_url,
+                site=SITE_NAME,  # Memojav 不提供质量信息
             )
             cover_item = create_cover_item(url=cover_url, title=title)
             landscape_item = create_landscape_item(url=cover_url, title=title)

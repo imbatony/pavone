@@ -3,7 +3,7 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Dict, Optional
 
 import requests
 
@@ -36,11 +36,6 @@ class BasePlugin(ABC):
         """初始化插件"""
         pass
 
-    @abstractmethod
-    def execute(self, *args, **kwargs) -> Any:
-        """执行插件功能"""
-        pass
-
     def cleanup(self):
         """清理插件资源"""
         pass
@@ -54,7 +49,11 @@ class BasePlugin(ABC):
         return self.priority
 
     def fetch(
-        self, url: str, headers: Optional[Dict[str, str]] = None, timeout: int = 10, verify_ssl: bool = True
+        self,
+        url: str,
+        headers: Optional[Dict[str, str]] = None,
+        timeout: int = 10,
+        verify_ssl: bool = True,
     ) -> requests.Response:
         return HttpUtils.fetch(
             download_config=self.config.download,

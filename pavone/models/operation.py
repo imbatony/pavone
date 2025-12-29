@@ -226,7 +226,11 @@ class OperationItem:
 
         # 使用配置的文件夹结构模式生成目标路径
         target_sub_folder = folder_name_pattern.format(
-            code=code, studio=studio, actors=" ".join(actors) if actors else "", title=title or "", year=year
+            code=code,
+            studio=studio,
+            actors=" ".join(actors) if actors else "",
+            title=title or "",
+            year=year,
         )
 
         target_folder = StringUtils.normalize_folder_path(output_dir + "/" + target_sub_folder)
@@ -263,7 +267,11 @@ class OperationItem:
 
         # 使用配置的文件名模式生成目标文件名
         target_filename = file_name_pattern.format(
-            code=code, studio=studio, actors=" ".join(actors) if actors else "", title=title or "", year=year
+            code=code,
+            studio=studio,
+            actors=" ".join(actors) if actors else "",
+            title=title or "",
+            year=year,
         )
 
         if not target_filename:
@@ -394,7 +402,7 @@ def create_video_item(
         quality = Quality.UNKNOWN
 
     # 设置描述信息
-    desc = f"{title} ({quality})"
+    desc = f"{code} {title} ({quality})"
     item = OperationItem(opt_type=OperationType.DOWNLOAD, item_type=item_type, desc=desc)
     item.set_url(url)
     item._extra[VideoCoreExtraKeys.QUALITY] = quality
@@ -456,7 +464,7 @@ def create_stream_item(
     if not quality:
         quality = Quality.UNKNOWN
     # 设置描述信息
-    desc = f"{title} ({quality})"
+    desc = f"{code} {title} ({quality})"
 
     item = OperationItem(opt_type=OperationType.DOWNLOAD, item_type=item_type, desc=desc)
     item.set_url(url)

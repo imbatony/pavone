@@ -1,7 +1,9 @@
 from .base import SearchPlugin
-from .missav_search import MissavSearch
+from .jellyfin_search import JellyfinSearch
+
+# MissAV插件在missav_plugin.py中定义
 
 __all__ = [
     "SearchPlugin",
-    "MissavSearch",
+    "JellyfinSearch",
 ]

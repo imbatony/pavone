@@ -31,10 +31,10 @@ pavone/
 │   │   ├── __init__.py
 │   │   ├── base.py            # 插件基类
 │   │   ├── manager.py         # 插件管理器
+│   │   ├── missav_plugin.py   # MissAV统一插件
 │   │   ├── extractors/        # 提取器插件
 │   │   │   ├── __init__.py
 │   │   │   ├── base.py        # 提取器基类
-│   │   │   ├── missav_extractor.py
 │   │   │   ├── m3u8_direct.py
 │   │   │   ├── mp4_direct.py
 │   │   │   └── ...
