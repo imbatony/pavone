@@ -17,7 +17,6 @@ from .av01_plugin import AV01Plugin
 from .base import BasePlugin
 from .extractors import (
     ExtractorPlugin,
-    JTableExtractor,
     M3U8DirectExtractor,
     MP4DirectExtractor,
 )
