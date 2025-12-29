@@ -37,12 +37,6 @@ class MetadataPlugin(BasePlugin):
         self.logger.info(f"初始化 {self.name} 插件")
         return True
 
-    def execute(self, *args, **kwargs) -> Optional[BaseMetadata]:
-        """执行插件功能"""
-        if len(args) >= 1:
-            return self.extract_metadata(args[0])
-        return None
-
     @abstractmethod
     def can_extract(self, identifier: str) -> bool:
         """检查是否能处理该identifier

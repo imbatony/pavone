@@ -33,12 +33,6 @@ class ExtractorPlugin(BasePlugin):
         self.logger.info(f"初始化 {self.name} 插件")
         return True
 
-    def execute(self, *args, **kwargs) -> List[OperationItem]:
-        """执行插件功能"""
-        if len(args) >= 1:
-            return self.extract(args[0])
-        return []
-
     @abstractmethod
     def can_handle(self, url: str) -> bool:
         """检查是否能处理该URL"""

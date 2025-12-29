@@ -6,6 +6,8 @@ Jellyfin 搜索插件
 
 from typing import List, Optional
 
+from pavone.jellyfin.models import JellyfinItem
+
 from ...config.logging_config import get_logger
 from ...jellyfin import JellyfinClientWrapper, LibraryManager
 from ...models import SearchResult
@@ -87,7 +89,7 @@ class JellyfinSearch(SearchPlugin):
                 return []
 
             # 将 JellyfinItem 转换为 SearchResult
-            results = []
+            results: List[SearchResult] = []
             for item in items:
                 result = SearchResult(
                     site=SITE_NAME,
@@ -106,7 +108,7 @@ class JellyfinSearch(SearchPlugin):
             self.logger.error(f"Jellyfin 搜索失败: {e}")
             return []
 
-    def _extract_code_from_item(self, item) -> str:
+    def _extract_code_from_item(self, item:JellyfinItem) -> str:
         """
         从 Jellyfin 项中提取视频番号
 
