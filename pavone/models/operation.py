@@ -25,7 +25,7 @@ class OperationItem:
     操作项
     """
 
-    def __init__(self, opt_type: str, item_type: str, desc: str, **extra):
+    def __init__(self, opt_type: str, item_type: str, desc: str, **extra: Any):
         self.opt_type = opt_type  # 操作类型, 如下载、移动等
         self.item_type = item_type
         self._extra: Dict[str, Any] = extra
@@ -38,6 +38,10 @@ class OperationItem:
         判断是否支持自定义文件名
         """
         return True
+
+    def set_extra(self, key: str, value: Any) -> None:
+        """设置 extra 字段"""
+        self._extra[key] = value
 
     def set_subtype(self, subtype: str):
         """
@@ -405,12 +409,12 @@ def create_video_item(
     desc = f"{code} {title} ({quality})"
     item = OperationItem(opt_type=OperationType.DOWNLOAD, item_type=item_type, desc=desc)
     item.set_url(url)
-    item._extra[VideoCoreExtraKeys.QUALITY] = quality
+    item.set_extra(VideoCoreExtraKeys.QUALITY, quality)
     if custom_headers:
-        item._extra[CommonExtraKeys.CUSTOM_HEADERS] = custom_headers
+        item.set_extra(CommonExtraKeys.CUSTOM_HEADERS, custom_headers)
     # 视频的主要信息
     item.set_title(title)
-    item._extra[VideoCoreExtraKeys.SITE] = site
+    item.set_extra(VideoCoreExtraKeys.SITE, site)
     if not code:
         code = StringUtils.sha_256_hash(title)
         item.set_code(code)
@@ -473,9 +477,9 @@ def create_stream_item(
         item.set_subtype(sub_type)
 
     if custom_headers:
-        item._extra[CommonExtraKeys.CUSTOM_HEADERS] = custom_headers
+        item.set_extra(CommonExtraKeys.CUSTOM_HEADERS, custom_headers)
 
-    item._extra[VideoCoreExtraKeys.QUALITY] = quality
+    item.set_extra(VideoCoreExtraKeys.QUALITY, quality)
 
     # 视频的主要信息
     if not code:
@@ -525,7 +529,7 @@ def create_image_item(
         item.set_subtype(sub_type)
 
     if custom_headers:
-        item._extra[CommonExtraKeys.CUSTOM_HEADERS] = custom_headers
+        item.set_extra(CommonExtraKeys.CUSTOM_HEADERS, custom_headers)
 
     return item
 
@@ -634,5 +638,5 @@ def create_metadata_item(
     desc = f"{title} (元数据)"
 
     item = OperationItem(OperationType.SAVE_METADATA, item_type=item_type, desc=desc)
-    item._extra[MetadataExtraKeys.METADATA_OBJ] = meta_data
+    item.set_extra(MetadataExtraKeys.METADATA_OBJ, meta_data)
     return item

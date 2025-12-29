@@ -244,7 +244,7 @@ class SupFC2Metadata(MetadataPlugin):
     def _extract_tags(self, html_content: str) -> List[str]:
         """提取标签"""
         try:
-            tags = []
+            tags: List[str] = []
             # 查找 <label>Tag: </label> 后的所有链接
             # 首先找到Tag标签的位置
             tag_section_pattern = r"<label>Tag:\s*</label>(.*?)</li>"
@@ -266,7 +266,7 @@ class SupFC2Metadata(MetadataPlugin):
     def _extract_genres(self, html_content: str) -> List[str]:
         """提取类型"""
         try:
-            genres = []
+            genres: List[str] = []
             # 查找 <label>Genre: </label> 后的链接
             pattern = r"<label>Genre:\s*</label>.*?<a[^>]*>([^<]+)</a>"
             matches = re.finditer(pattern, html_content, re.DOTALL)

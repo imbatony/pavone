@@ -15,7 +15,7 @@ import re
 import time
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, cast
 from urllib.parse import urlparse
 
 from ..config.logging_config import get_logger
@@ -192,18 +192,24 @@ class AV01VideoMetadata:
             raise ValueError(f"缺少必需字段: {missing_fields}")
 
         # 处理 maker 字段 - 可能是字典或字符串
-        maker = data.get("maker")
-        if isinstance(maker, dict):
-            maker = maker.get("name", "")
-        elif not isinstance(maker, str):
-            maker = None
+        maker_raw = data.get("maker")
+        maker: Optional[str] = None
+        if isinstance(maker_raw, dict):
+            maker_dict = cast(Dict[str, Any], maker_raw)
+            name_value = maker_dict.get("name", "")
+            maker = str(name_value) if name_value else None
+        elif isinstance(maker_raw, str):
+            maker = maker_raw
 
         # 处理 director 字段 - 可能是字典或字符串
-        director = data.get("director")
-        if isinstance(director, dict):
-            director = director.get("name", "")
-        elif not isinstance(director, str):
-            director = None
+        director_raw = data.get("director")
+        director: Optional[str] = None
+        if isinstance(director_raw, dict):
+            director_dict = cast(Dict[str, Any], director_raw)
+            name_value = director_dict.get("name", "")
+            director = str(name_value) if name_value else None
+        elif isinstance(director_raw, str):
+            director = director_raw
 
         return cls(
             id=int(data["id"]),
@@ -250,7 +256,7 @@ class AV01VideoMetadata:
         if not self.actresses or not isinstance(self.actresses, list):
             return []
 
-        names = []
+        names: List[str] = []
         for actress in self.actresses:
             if isinstance(actress, dict):
                 name = actress.get("name", "")
@@ -264,7 +270,7 @@ class AV01VideoMetadata:
         if not self.tags or not isinstance(self.tags, list):
             return []
 
-        names = []
+        names: List[str] = []
         for tag in self.tags:
             if isinstance(tag, dict):
                 name = tag.get("name", "")
@@ -821,7 +827,7 @@ class AV01Plugin(BasePlugin):
 
     def _parse_playlist_json(self, data: Dict[str, Any]) -> Dict[str, str]:
         """解析JSON格式的播放列表响应"""
-        result = {}
+        result: Dict[str, str] = {}
 
         try:
             # AV01 API返回的是 {src: "data:application/x-mpegurl;charset=utf-8;base64,..."} 格式
@@ -848,11 +854,12 @@ class AV01Plugin(BasePlugin):
 
             # 尝试其他可能的数据结构
             # 情况1: {data: {quality: url}}
+            playlist: Dict[str, Any]
             if "data" in data and isinstance(data["data"], dict):
-                playlist = data["data"]
+                playlist = cast(Dict[str, Any], data["data"])
             # 情况2: {playlist: {quality: url}}
             elif "playlist" in data:
-                playlist = data["playlist"]
+                playlist = cast(Dict[str, Any], data["playlist"])
             # 情况3: 直接是 {quality: url}
             else:
                 playlist = data
@@ -873,13 +880,13 @@ class AV01Plugin(BasePlugin):
 
     def _parse_m3u8_playlist(self, m3u8_content: str, base_url: str) -> Dict[str, str]:
         """解析m3u8格式的播放列表"""
-        result = {}
+        result: Dict[str, str] = {}
 
         try:
             lines = m3u8_content.splitlines()
 
-            current_quality = None
-            for i, line in enumerate(lines):
+            current_quality: Optional[str] = None
+            for _i, line in enumerate(lines):
                 line = line.strip()
 
                 # 解析 #EXT-X-STREAM-INF 标签以获取分辨率

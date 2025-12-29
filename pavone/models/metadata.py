@@ -2,10 +2,10 @@
 
 from abc import abstractmethod
 from datetime import datetime
-from typing import Optional
+from typing import Any, Optional
 
 from lxml.builder import E
-from lxml.etree import _Element, tostring
+from lxml.etree import Element, tostring
 from pydantic import BaseModel
 
 """与操作nfo文件相关的功能"""
@@ -25,7 +25,7 @@ class MetadataType:
     CLIP = "clip"
 
     @classmethod
-    def to_nfo_root(cls, type_name: str) -> _Element:
+    def to_nfo_root(cls, type_name: str) -> Element:
         """
         根据元数据类型名称返回对应的 NFO 根元素
         :param type_name: 元数据类型名称
@@ -80,7 +80,7 @@ class BaseMetadata(BaseModel):
         return tostring(nfo, pretty_print=True, encoding="UTF-8", xml_declaration=True).decode("utf-8")
 
     @abstractmethod
-    def append_extra_fields(self, nfo: _Element) -> None:
+    def append_extra_fields(self, nfo: Element) -> None:
         """
         子类需要实现此方法来添加特定的元数据字段到 NFO 中
         :param nfo: NFO XML 根元素
@@ -89,7 +89,7 @@ class BaseMetadata(BaseModel):
 
 
 class MovieMetadata(BaseMetadata):
-    def __init__(self, **data):
+    def __init__(self, **data: Any) -> None:
         super().__init__(type=MetadataType.MOVIE, **data)
 
     """
@@ -119,7 +119,7 @@ class MovieMetadata(BaseMetadata):
     year: Optional[int] = None  # 发行年份
     trailer: Optional[str] = None  # 预告片链接
 
-    def append_extra_fields(self, nfo: _Element) -> None:  # noqa: C901
+    def append_extra_fields(self, nfo: Element) -> None:  # noqa: C901
         d = self  # 简化引用
         # 添加可选信息
         if d.tagline:
@@ -193,10 +193,10 @@ class MovieMetadata(BaseMetadata):
 
 
 class TVShowMetadata(BaseMetadata):
-    def __init__(self, **data):
+    def __init__(self, **data: Any) -> None:
         super().__init__(type=MetadataType.TV_SHOW, **data)
 
-    def append_extra_fields(self, nfo: _Element) -> None:
+    def append_extra_fields(self, nfo: Element) -> None:
         """
         添加 TVShow 特有的元数据字段到 NFO 中
         需要在子类中实现具体的转换逻辑
@@ -210,10 +210,10 @@ class AnimeMetadata(BaseMetadata):
     包含动漫特有的元数据字段
     """
 
-    def __init__(self, **data):
+    def __init__(self, **data: Any) -> None:
         super().__init__(type=MetadataType.ANIME, **data)
 
-    def append_extra_fields(self, nfo: _Element) -> None:
+    def append_extra_fields(self, nfo: Element) -> None:
         """
         添加 Anime 特有的元数据字段到 NFO 中
         需要在子类中实现具体的转换逻辑
@@ -227,10 +227,10 @@ class DocumentaryMetadata(BaseMetadata):
     包含纪录片特有的元数据字段
     """
 
-    def __init__(self, **data):
+    def __init__(self, **data: Any) -> None:
         super().__init__(type=MetadataType.DOCUMENTARY, **data)
 
-    def append_extra_fields(self, nfo: _Element) -> None:
+    def append_extra_fields(self, nfo: Element) -> None:
         """
         添加 Documentary 特有的元数据字段到 NFO 中
         需要在子类中实现具体的转换逻辑
@@ -244,10 +244,10 @@ class MusicMetadata(BaseMetadata):
     包含音乐特有的元数据字段
     """
 
-    def __init__(self, **data):
+    def __init__(self, **data: Any) -> None:
         super().__init__(type=MetadataType.MUSIC, **data)
 
-    def append_extra_fields(self, nfo: _Element) -> None:
+    def append_extra_fields(self, nfo: Element) -> None:
         """
         添加 Music 特有的元数据字段到 NFO 中
         需要在子类中实现具体的转换逻辑
@@ -261,10 +261,10 @@ class ClipMetadata(BaseMetadata):
     包含剪辑特有的元数据字段
     """
 
-    def __init__(self, **data):
+    def __init__(self, **data: Any) -> None:
         super().__init__(type=MetadataType.CLIP, **data)
 
-    def append_extra_fields(self, nfo: _Element) -> None:
+    def append_extra_fields(self, nfo: Element) -> None:
         """
         添加 Clip 特有的元数据字段到 NFO 中
         需要在子类中实现具体的转换逻辑

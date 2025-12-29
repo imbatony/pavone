@@ -330,7 +330,7 @@ class MissAVPlugin(BasePlugin):
             self.logger.debug(f"处理大师链接内容: {m3u8_content[:100]}...")
 
             lines = m3u8_content.splitlines()
-            sub_urls = {}
+            sub_urls: Dict[str, str] = {}
             for line in lines:
                 line = line.strip()
                 if line and not line.startswith("#"):
