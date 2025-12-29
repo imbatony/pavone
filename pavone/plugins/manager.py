@@ -189,17 +189,36 @@ class PluginManager:
 
         if plugin.initialize():
             self.plugins[plugin.name] = plugin
-            # 检查插件类型并分类
-            if isinstance(plugin, ExtractorPlugin):
-                self.extractor_plugins.append(plugin)
-                # 按优先级排序（数值越小优先级越高）
-                self.extractor_plugins.sort(key=lambda p: getattr(p, "priority", 50))
-            elif isinstance(plugin, MetadataPlugin):
-                self.metadata_plugins.append(plugin)
-            elif isinstance(plugin, SearchPlugin):
-                self.search_plugins.append(plugin)
+            
+            # 检查插件类型并分类（支持复合型插件，一个插件可以同时是多种类型）
+            registered_types = []
+            
+            # 检查是否实现了 ExtractorPlugin 接口
+            if hasattr(plugin, "can_handle") and hasattr(plugin, "extract"):
+                if callable(getattr(plugin, "can_handle")) and callable(getattr(plugin, "extract")):
+                    self.extractor_plugins.append(plugin)
+                    # 按优先级排序（数值越小优先级越高）
+                    self.extractor_plugins.sort(key=lambda p: getattr(p, "priority", 50))
+                    registered_types.append("Extractor")
+            
+            # 检查是否实现了 MetadataPlugin 接口
+            if hasattr(plugin, "can_extract") and hasattr(plugin, "extract_metadata"):
+                if callable(getattr(plugin, "can_extract")) and callable(getattr(plugin, "extract_metadata")):
+                    self.metadata_plugins.append(plugin)
+                    registered_types.append("Metadata")
+            
+            # 检查是否实现了 SearchPlugin 接口
+            if hasattr(plugin, "search"):
+                if callable(getattr(plugin, "search")):
+                    self.search_plugins.append(plugin)
+                    registered_types.append("Search")
 
-            self.logger.info(f"成功注册插件: {plugin.name}")
+            if registered_types:
+                types_str = ", ".join(registered_types)
+                self.logger.info(f"成功注册插件: {plugin.name} (类型: {types_str})")
+            else:
+                self.logger.warning(f"插件 {plugin.name} 未实现任何已知接口")
+            
             return True
         else:
             self.logger.warning(f"插件 {plugin.name} 初始化失败")
@@ -211,11 +230,12 @@ class PluginManager:
             plugin = self.plugins[plugin_name]
             plugin.cleanup()
 
-            if isinstance(plugin, ExtractorPlugin):
+            # 从所有类型列表中移除（支持复合型插件）
+            if plugin in self.extractor_plugins:
                 self.extractor_plugins.remove(plugin)
-            elif isinstance(plugin, MetadataPlugin):
+            if plugin in self.metadata_plugins:
                 self.metadata_plugins.remove(plugin)
-            elif isinstance(plugin, SearchPlugin):
+            if plugin in self.search_plugins:
                 self.search_plugins.remove(plugin)
 
             del self.plugins[plugin_name]
