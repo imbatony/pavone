@@ -15,12 +15,8 @@ class TestSupFC2Metadata:
         extractor = SupFC2Metadata()
 
         # 测试不同格式的URL
-        assert extractor.can_extract(
-            "https://supfc2.com/detail/FC2-PPV-1482027/【完全素人85】ミライ19才その３"
-        )
-        assert extractor.can_extract(
-            "https://www.supfc2.com/detail/FC2-PPV-123456/test-title"
-        )
+        assert extractor.can_extract("https://supfc2.com/detail/FC2-PPV-1482027/【完全素人85】ミライ19才その３")
+        assert extractor.can_extract("https://www.supfc2.com/detail/FC2-PPV-123456/test-title")
         assert extractor.can_extract("http://supfc2.com/detail/FC2-PPV-789012/title")
 
     def test_can_extract_fc2_code(self):

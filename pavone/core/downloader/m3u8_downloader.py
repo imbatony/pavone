@@ -222,25 +222,26 @@ class M3U8Downloader(BaseDownloader):
                 self.logger.info(f"Found {existing_segments} existing segments, resuming download...")
                 successful_downloads = existing_segments
                 # 显示断点续传状态
-                progress_callback(ProgressInfo(
-                    total_size=0,
-                    downloaded=total_downloaded_bytes,
-                    speed=0.0,
-                    status_message=f"发现 {existing_segments} 个已存在的分段，正在恢复下载..."
-                ))
+                progress_callback(
+                    ProgressInfo(
+                        total_size=0,
+                        downloaded=total_downloaded_bytes,
+                        speed=0.0,
+                        status_message=f"发现 {existing_segments} 个已存在的分段，正在恢复下载...",
+                    )
+                )
             else:
                 # 显示开始下载状态
-                progress_callback(ProgressInfo(
-                    total_size=0,
-                    downloaded=0,
-                    speed=0.0,
-                    status_message=f"开始下载 {total_segments} 个视频分段..."
-                ))
+                progress_callback(
+                    ProgressInfo(
+                        total_size=0, downloaded=0, speed=0.0, status_message=f"开始下载 {total_segments} 个视频分段..."
+                    )
+                )
 
             def download_with_progress(segment_info: Tuple[int, str]) -> bool:
                 nonlocal total_downloaded_bytes
                 nonlocal successful_downloads
-                
+
                 index, url = segment_info
 
                 # 检查分段是否已存在（断点续传）
@@ -319,14 +320,16 @@ class M3U8Downloader(BaseDownloader):
                 # 可以选择重试失败的段
                 return False  # 合并所有视频段，优先使用ffmpeg
             self.logger.info("Merging video segments...")
-            
+
             # 显示合并状态
-            progress_callback(ProgressInfo(
-                total_size=0,
-                downloaded=total_downloaded_bytes,
-                speed=0.0,
-                status_message=f"正在合并 {total_segments} 个视频分段..."
-            ))
+            progress_callback(
+                ProgressInfo(
+                    total_size=0,
+                    downloaded=total_downloaded_bytes,
+                    speed=0.0,
+                    status_message=f"正在合并 {total_segments} 个视频分段...",
+                )
+            )
 
             def _merge_using_ffmpeg(segment_files: list[str], output_path: str) -> bool:
                 """使用ffmpeg合并视频段"""
@@ -390,12 +393,14 @@ class M3U8Downloader(BaseDownloader):
 
                 if shutil.which("ffmpeg"):
                     # 显示正在使用ffmpeg合并的状态
-                    progress_callback(ProgressInfo(
-                        total_size=0,
-                        downloaded=total_downloaded_bytes,
-                        speed=0.0,
-                        status_message="正在使用 ffmpeg 合并视频分段..."
-                    ))
+                    progress_callback(
+                        ProgressInfo(
+                            total_size=0,
+                            downloaded=total_downloaded_bytes,
+                            speed=0.0,
+                            status_message="正在使用 ffmpeg 合并视频分段...",
+                        )
+                    )
                     ffmpeg_success = _merge_using_ffmpeg(segment_files, output_file)
             except Exception as e:
                 self.logger.warning(f"Error checking for ffmpeg: {e}")
@@ -403,23 +408,19 @@ class M3U8Downloader(BaseDownloader):
             # 如果ffmpeg失败或不可用，则使用传统方法合并
             if not ffmpeg_success:
                 self.logger.info("Falling back to direct file merging...")
-                progress_callback(ProgressInfo(
-                    total_size=0,
-                    downloaded=total_downloaded_bytes,
-                    speed=0.0,
-                    status_message="正在直接合并视频文件..."
-                ))
+                progress_callback(
+                    ProgressInfo(
+                        total_size=0, downloaded=total_downloaded_bytes, speed=0.0, status_message="正在直接合并视频文件..."
+                    )
+                )
                 with open(output_file, "wb") as output:
                     for segment_file in segment_files:
                         with open(segment_file, "rb") as f:
                             output.write(f.read())
             # 清理临时文件
-            progress_callback(ProgressInfo(
-                total_size=0,
-                downloaded=total_downloaded_bytes,
-                speed=0.0,
-                status_message="正在清理临时文件..."
-            ))
+            progress_callback(
+                ProgressInfo(total_size=0, downloaded=total_downloaded_bytes, speed=0.0, status_message="正在清理临时文件...")
+            )
             try:
                 for segment_file in downloaded_segments.values():
                     if os.path.exists(segment_file):
@@ -432,10 +433,7 @@ class M3U8Downloader(BaseDownloader):
 
             # 最终进度更新
             progress_info = ProgressInfo(
-                total_size=total_segments, 
-                downloaded=total_segments, 
-                speed=0.0,
-                status_message="✅ 下载完成！"
+                total_size=total_segments, downloaded=total_segments, speed=0.0, status_message="✅ 下载完成！"
             )
             progress_callback(progress_info)
 

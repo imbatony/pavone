@@ -4,6 +4,7 @@ Jellyfin 相关命令
 提供 Jellyfin 库管理命令
 """
 
+from typing import Any, Optional
 from unicodedata import east_asian_width
 
 import click
@@ -15,8 +16,20 @@ from ...jellyfin import (
     JellyfinDownloadHelper,
     LibraryManager,
 )
+from ...jellyfin.models import JellyfinItem
 from ...models import ItemMetadata
-from .utils import echo_error, echo_info, echo_success, echo_warning
+from .utils import (
+    confirm_action,
+    echo_colored,
+    echo_error,
+    echo_info,
+    echo_inline,
+    echo_success,
+    echo_success_inline,
+    echo_warning,
+    prompt_int,
+    prompt_text,
+)
 
 logger = get_logger(__name__)
 
@@ -123,7 +136,7 @@ def libraries():
 
 @jellyfin.command()
 @click.argument("keyword", required=False)
-def search(keyword):
+def search(keyword: Optional[str] = None):
     """在 Jellyfin 库中搜索视频"""
     config_manager = get_config_manager()
     config = config_manager.get_config()
@@ -134,7 +147,7 @@ def search(keyword):
 
     # 如果未提供关键词，提示用户输入
     if not keyword:
-        keyword = click.prompt("请输入搜索关键词")
+        keyword = prompt_text("请输入搜索关键词")
 
     try:
         client = JellyfinClientWrapper(config.jellyfin)
@@ -163,9 +176,9 @@ def search(keyword):
 
         # 询问用户是否查看详细信息
         try:
-            if click.confirm("\n是否查看某个视频的详细信息?", default=False):
+            if confirm_action("\n是否查看某个视频的详细信息?", default=False):
                 try:
-                    choice = click.prompt("请输入视频编号 (1-{})".format(len(items)), type=int, default=1)
+                    choice = prompt_int("请输入视频编号 (1-{})".format(len(items)), default=1)
                     if 1 <= choice <= len(items):
                         selected_item = items[choice - 1]
                         _display_video_info(selected_item.id, client)
@@ -186,7 +199,172 @@ def search(keyword):
         return 1
 
 
-def _display_video_info(item_id, client=None):
+def _format_section(title: str, fields: list[tuple[str, Any]]) -> None:
+    """格式化一个信息段"""
+    print(title)
+    # 输出表头和分隔符
+    print(pad_text("字段", 16) + " 数值")
+    print("-" * 80)
+    # 输出字段
+    for field_name, value in fields:
+        if value:
+            value_str = str(value)
+            if len(value_str) > 60:
+                value_str = value_str[:60] + "..."
+            print(pad_text(field_name, 16) + " " + value_str)
+    print()
+
+
+def _get_basic_info_fields(item: JellyfinItem) -> list[tuple[str, str]]:
+    """获取基本信息字段"""
+    return [
+        ("ID", item.id),
+        ("文件路径", item.path if item.path else ""),
+        ("容器", item.container if item.container else ""),
+    ]
+
+
+def _get_metadata_fields(item: JellyfinItem, metadata: ItemMetadata) -> list[tuple[str, str]]:
+    """获取元数据字段"""
+    fields: list[tuple[str, str]] = []
+
+    # 标题
+    fields.append(("标题", item.name))
+
+    # 代码
+    if metadata.external_id:
+        fields.append(("代码", metadata.external_id))
+
+    # 发行日期
+    if metadata.year:
+        fields.append(("发行日期", str(metadata.year)))
+    elif metadata.premiere_date:
+        fields.append(("发行日期", metadata.premiere_date))
+
+    # 时长
+    if metadata.runtime_minutes:
+        fields.append(("时长", f"{metadata.runtime_minutes} 分钟"))
+
+    # 制作公司
+    if metadata.studio_names:
+        fields.append(("制作公司", ", ".join(metadata.studio_names)))
+
+    # 导演
+    if metadata.directors:
+        fields.append(("导演", ", ".join(metadata.directors[:3])))
+
+    # 演员
+    if metadata.actors:
+        fields.append(("演员", ", ".join(metadata.actors[:5])))
+
+    # 系列
+    if metadata.series_name:
+        fields.append(("系列", metadata.series_name))
+
+    # 类型
+    if metadata.genres:
+        fields.append(("类型", ", ".join(metadata.genres)))
+
+    # 标签
+    if metadata.tags:
+        fields.append(("标签", ", ".join(metadata.tags)))
+
+    # 评分
+    if metadata.rating is not None:
+        fields.append(("评分", f"{metadata.rating}/10"))
+
+    # 分级
+    if metadata.official_rating:
+        fields.append(("分级", metadata.official_rating))
+
+    # 描述
+    if metadata.overview:
+        overview = metadata.overview
+        if len(overview) > 60:
+            overview = overview[:60] + "..."
+        fields.append(("描述", overview))
+
+    # 图片信息
+    image_info: list[str] = []
+    if metadata.has_primary_image:
+        image_info.append("封面")
+    if metadata.has_thumb_image:
+        image_info.append("缩略图")
+    if metadata.backdrop_count > 0:
+        image_info.append(f"背景({metadata.backdrop_count})")
+
+    if image_info:
+        fields.append(("图片", ", ".join(image_info)))
+
+    return fields
+
+
+def _get_media_stream_fields(metadata: ItemMetadata) -> list[tuple[str, Any]]:
+    """获取媒体流信息字段"""
+    if not metadata.media_streams:
+        return []
+
+    fields: list[tuple[str, Any]] = []
+
+    # 视频流
+    if metadata.video_streams:
+        for i, stream in enumerate(metadata.video_streams, 1):
+            codec = stream.get("Codec", "未知")
+            width = stream.get("Width", 0)
+            height = stream.get("Height", 0)
+            resolution = f"{width}x{height}" if width and height else "未知"
+            bitrate = stream.get("BitRate", 0)
+            bitrate_str = f"{bitrate / 1000000:.2f} Mbps" if bitrate else "未知"
+
+            stream_info = f"视频流{i}: {codec} {resolution} {bitrate_str}"
+            fields.append(("", stream_info))
+
+    # 音频流
+    if metadata.audio_streams:
+        for i, stream in enumerate(metadata.audio_streams, 1):
+            lang = stream.get("Language", "未知")
+            codec = stream.get("Codec", "未知")
+            channels = stream.get("Channels", 0)
+            bitrate = stream.get("BitRate", 0)
+            bitrate_str = f"{bitrate / 1000000:.2f} Mbps" if bitrate else "未知"
+
+            stream_info = f"音频流{i} ({lang}): {codec} {channels}声道 {bitrate_str}"
+            fields.append(("", stream_info))
+
+    # 字幕流
+    if metadata.subtitle_streams:
+        langs = [s.get("Language", "未知") for s in metadata.subtitle_streams]
+        fields.append(("字幕", ", ".join(langs)))
+
+    return fields
+
+
+def _get_file_info_fields(metadata: ItemMetadata) -> list[tuple[str, Any]]:
+    """获取文件信息字段"""
+    fields: list[tuple[str, Any]] = []
+    if metadata.size:
+        fields.append(("文件大小", metadata.size_str))
+    return fields
+
+
+def _get_play_info_fields(metadata: ItemMetadata) -> list[tuple[str, Any]]:
+    """获取播放信息字段"""
+    fields: list[tuple[str, Any]] = []
+
+    if metadata.playback_minutes:
+        fields.append(("已播放", f"{metadata.playback_minutes} 分钟"))
+    if metadata.is_played:
+        status = "是" if metadata.is_played else "否"
+        fields.append(("已观看", status))
+    if metadata.play_count:
+        fields.append(("播放次数", str(metadata.play_count)))
+    if metadata.last_played_date:
+        fields.append(("最后播放", metadata.last_played_date))
+
+    return fields
+
+
+def _display_video_info(item_id: str, client: Optional[JellyfinClientWrapper] = None) -> None:
     """显示视频的详细信息"""
     try:
         if client is None:
@@ -200,161 +378,29 @@ def _display_video_info(item_id, client=None):
 
         echo_success(f"视频详情: {item.name}\n")
 
-        def format_section(title: str, fields: list) -> None:
-            """格式化一个信息段"""
-            print(title)
-            # 输出表头和分隔符
-            print(pad_text("字段", 16) + " 数值")
-            print("-" * 80)
-            # 输出字段
-            for field_name, value in fields:
-                if value:
-                    value_str = str(value)
-                    if len(value_str) > 60:
-                        value_str = value_str[:60] + "..."
-                    print(pad_text(field_name, 16) + " " + value_str)
-            print()
+        # 基本信息
+        basic_fields = _get_basic_info_fields(item)
+        _format_section("【基本信息】", basic_fields)
 
-        # 基本信息部分
-        basic_fields = [
-            ("ID", item.id),
-            ("文件路径", item.path if item.path else ""),
-            ("容器", item.container if item.container else ""),
-        ]
-        format_section("【基本信息】", basic_fields)
-
-        # 元数据部分 - 与metadata show命令字段完全对标
-        metadata_fields = []
-
-        # 标题
-        metadata_fields.append(("标题", item.name))
-
-        # 代码
-        if metadata.external_id:
-            metadata_fields.append(("代码", metadata.external_id))
-
-        # 发行日期
-        if metadata.year:
-            metadata_fields.append(("发行日期", str(metadata.year)))
-        elif metadata.premiere_date:
-            metadata_fields.append(("发行日期", metadata.premiere_date))
-
-        # 时长
-        if metadata.runtime_minutes:
-            metadata_fields.append(("时长", f"{metadata.runtime_minutes} 分钟"))
-
-        # 制作公司
-        if metadata.studio_names:
-            metadata_fields.append(("制作公司", ", ".join(metadata.studio_names)))
-
-        # 导演
-        if metadata.directors:
-            metadata_fields.append(("导演", ", ".join(metadata.directors[:3])))
-
-        # 演员
-        if metadata.actors:
-            metadata_fields.append(("演员", ", ".join(metadata.actors[:5])))
-
-        # 系列
-        if metadata.series_name:
-            metadata_fields.append(("系列", metadata.series_name))
-
-        # 类型
-        if metadata.genres:
-            metadata_fields.append(("类型", ", ".join(metadata.genres)))
-
-        # 标签
-        if metadata.tags:
-            metadata_fields.append(("标签", ", ".join(metadata.tags)))
-
-        # 评分
-        if metadata.rating is not None:
-            metadata_fields.append(("评分", f"{metadata.rating}/10"))
-
-        # 分级
-        if metadata.official_rating:
-            metadata_fields.append(("分级", metadata.official_rating))
-
-        # 描述
-        if metadata.overview:
-            overview = metadata.overview
-            if len(overview) > 60:
-                overview = overview[:60] + "..."
-            metadata_fields.append(("描述", overview))
-
-        # 图片信息
-        image_info = []
-        if metadata.has_primary_image:
-            image_info.append("封面")
-        if metadata.has_thumb_image:
-            image_info.append("缩略图")
-        if metadata.backdrop_count > 0:
-            image_info.append(f"背景({metadata.backdrop_count})")
-
-        if image_info:
-            metadata_fields.append(("图片", ", ".join(image_info)))
-
+        # 元数据
+        metadata_fields = _get_metadata_fields(item, metadata)
         if metadata_fields:
-            format_section("【元数据】", metadata_fields)
+            _format_section("【元数据】", metadata_fields)
 
-        # 媒体流信息 - 整合为表格式
-        if metadata.media_streams:
-            stream_fields = []
+        # 媒体流信息
+        stream_fields = _get_media_stream_fields(metadata)
+        if stream_fields:
+            _format_section("【媒体流信息】", stream_fields)
 
-            if metadata.video_streams:
-                for i, stream in enumerate(metadata.video_streams, 1):
-                    codec = stream.get("Codec", "未知")
-                    width = stream.get("Width", 0)
-                    height = stream.get("Height", 0)
-                    resolution = f"{width}x{height}" if width and height else "未知"
-                    bitrate = stream.get("BitRate", 0)
-                    bitrate_str = f"{bitrate / 1000000:.2f} Mbps" if bitrate else "未知"
-
-                    stream_info = f"视频流{i}: {codec} {resolution} {bitrate_str}"
-                    stream_fields.append(("", stream_info))
-
-            if metadata.audio_streams:
-                for i, stream in enumerate(metadata.audio_streams, 1):
-                    lang = stream.get("Language", "未知")
-                    codec = stream.get("Codec", "未知")
-                    channels = stream.get("Channels", 0)
-                    bitrate = stream.get("BitRate", 0)
-                    bitrate_str = f"{bitrate / 1000000:.2f} Mbps" if bitrate else "未知"
-
-                    stream_info = f"音频流{i} ({lang}): {codec} {channels}声道 {bitrate_str}"
-                    stream_fields.append(("", stream_info))
-
-            if metadata.subtitle_streams:
-                langs = [s.get("Language", "未知") for s in metadata.subtitle_streams]
-                stream_fields.append(("字幕", ", ".join(langs)))
-
-            if stream_fields:
-                format_section("【媒体流信息】", stream_fields)
-
-        # 文件信息部分
-        file_fields = []
-
-        if metadata.size:
-            file_fields.append(("文件大小", metadata.size_str))
-
+        # 文件信息
+        file_fields = _get_file_info_fields(metadata)
         if file_fields:
-            format_section("【文件信息】", file_fields)
+            _format_section("【文件信息】", file_fields)
 
-        # 播放信息部分
-        play_fields = []
-
-        if metadata.playback_minutes:
-            play_fields.append(("已播放", f"{metadata.playback_minutes} 分钟"))
-        if metadata.is_played:
-            status = "是" if metadata.is_played else "否"
-            play_fields.append(("已观看", status))
-        if metadata.play_count:
-            play_fields.append(("播放次数", str(metadata.play_count)))
-        if metadata.last_played_date:
-            play_fields.append(("最后播放", metadata.last_played_date))
-
+        # 播放信息
+        play_fields = _get_play_info_fields(metadata)
         if play_fields:
-            format_section("【播放信息】", play_fields)
+            _format_section("【播放信息】", play_fields)
 
     except Exception as e:
         echo_error(f"获取详细信息失败: {e}")
@@ -362,7 +408,7 @@ def _display_video_info(item_id, client=None):
 
 @jellyfin.command()
 @click.argument("library_name")
-def scan(library_name):
+def scan(library_name: str):
     """扫描 Jellyfin 库"""
     config_manager = get_config_manager()
     config = config_manager.get_config()
@@ -405,7 +451,7 @@ def scan(library_name):
 @jellyfin.command()
 @click.argument("library_name")
 @click.option("--force", is_flag=True, help="强制全量扫描（不使用缓存）")
-def refresh(library_name, force):
+def refresh(library_name: str, force: bool):
     """刷新 Jellyfin 库的元数据（增量或全量扫描）"""
     config_manager = get_config_manager()
     config = config_manager.get_config()
@@ -463,7 +509,7 @@ def info(item_id):
         return
 
     if not item_id:
-        item_id = click.prompt("请输入视频的 ID")
+        item_id = prompt_text("请输入视频的 ID")
 
     try:
         client = JellyfinClientWrapper(config.jellyfin)
@@ -477,7 +523,7 @@ def info(item_id):
 
 @jellyfin.command()
 @click.argument("keyword", required=False)
-def duplicate_check(keyword):
+def duplicate_check(keyword: str):
     """检查是否有重复视频"""
     config_manager = get_config_manager()
     config = config_manager.get_config()
@@ -536,7 +582,7 @@ def duplicate_check(keyword):
     "source_path",
     type=click.Path(exists=True, file_okay=False, dir_okay=True, path_type=str),
 )
-def move(source_path):
+def move(source_path: str):
     """将下载的文件夹移动到 Jellyfin 库
 
     示例:
@@ -589,20 +635,25 @@ def move(source_path):
 
         # 显示库列表
         echo_info("可用的 Jellyfin 库:")
-        libraries_list = list(valid_libraries.items())
+        libraries_list: list[tuple[str, list[str]]] = list(valid_libraries.items())
         for i, (lib_name, folders) in enumerate(libraries_list, 1):
-            click.echo(f"  {i}. ", nl=False)
-            click.secho(f"{lib_name}", fg="green", bold=True)
+            echo_inline(f"  {i}. ")
+            echo_success_inline(f"{lib_name}")
             for folder in folders:
                 echo_info(f"     📁 {folder}")
 
+        selected_folders: list[str] = []
+        selected_lib_name: str = ""
+        target_folder: str = ""
         # 让用户选择库
         while True:
             try:
-                lib_choice = click.prompt("\n请选择库", type=click.IntRange(1, len(libraries_list)))
-                selected_lib_name, selected_folders = libraries_list[lib_choice - 1]
-                click.secho(f"✓ 已选择库: {selected_lib_name}\n", fg="green", bold=True)
-                break
+                lib_choice_input = click.prompt("\n请选择库", type=click.IntRange(1, len(libraries_list)))
+                lib_choice: int = int(lib_choice_input)
+                if lib_choice > 0 and lib_choice <= len(libraries_list):
+                    selected_lib_name, selected_folders = libraries_list[lib_choice - 1]
+                    echo_colored(f"✓ 已选择库: {selected_lib_name}\n", fg="green", bold=True)
+                    break
             except click.BadParameter:
                 echo_error(f"请输入 1 到 {len(libraries_list)} 之间的数字")
 
@@ -615,14 +666,14 @@ def move(source_path):
             while True:
                 try:
                     folder_choice = click.prompt("请选择文件夹", type=click.IntRange(1, len(selected_folders)))
-                    target_folder = selected_folders[folder_choice - 1]
-                    click.secho(f"✓ 已选择文件夹: {target_folder}\n", fg="green", bold=True)
+                    target_folder = str(selected_folders[folder_choice - 1])
+                    echo_colored(f"✓ 已选择文件夹: {target_folder}\n", fg="green", bold=True)
                     break
                 except click.BadParameter:
                     echo_error(f"请输入 1 到 {len(selected_folders)} 之间的数字")
         else:
             target_folder = selected_folders[0]
-            click.secho(f"✓ 已选择文件夹: {target_folder}\n", fg="green", bold=True)
+            echo_colored(f"✓ 已选择文件夹: {target_folder}\n", fg="green", bold=True)
 
         # 显示最终的移动确认
         target_location = os.path.join(target_folder, source_folder_name)
@@ -641,7 +692,7 @@ def move(source_path):
 
         # 执行文件夹移动
         if helper.move_to_library(source_path, target_folder):
-            click.secho("\n✓ 文件夹移动成功!\n", fg="green", bold=True)
+            echo_colored("\n✓ 文件夹移动成功!\n", fg="green", bold=True)
             echo_success(f"源位置: {source_path}")
             echo_success(f"目标位置: {target_location}")
 
@@ -649,7 +700,7 @@ def move(source_path):
             refresh = click.confirm("\n是否增量刷新 Jellyfin 库的元数据？", default=True)
             if refresh:
                 if helper.refresh_library(selected_lib_name):
-                    click.secho("✓ 元数据增量刷新成功!\n", fg="green", bold=True)
+                    echo_colored("✓ 元数据增量刷新成功!\n", fg="green", bold=True)
                 else:
                     echo_error("元数据刷新失败")
                     return 1

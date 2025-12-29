@@ -390,9 +390,9 @@ class ExecutionManager:
             click.secho("\n📁 目标位置:", fg="yellow", bold=True)
             click.secho(f"   {target_location}", fg="yellow")
             click.echo()
-            
+
             if not click.confirm("确认移动?", default=True):
-                click.secho("已取消移动", fg='yellow')
+                click.secho("已取消移动", fg="yellow")
                 return
 
             # 执行文件夹移动

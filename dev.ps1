@@ -1,25 +1,28 @@
-# PAVOne 开发脚本
+﻿# PAVOne 开发脚本
 
 param(
     [Parameter(Position=0)]
     [string]$Command
 )
 
+# 设置控制台输出编码为 UTF-8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+
 switch ($Command) {
     "install" {
         Write-Host "安装项目依赖..." -ForegroundColor Green
-        pip install -r requirements.txt
-        pip install -e .
+        uv sync
+        uv install -e .
     }
     "test" {
         Write-Host "运行测试..." -ForegroundColor Green
-        python -m pytest tests/ -v
+        uv run pytest tests/ -v
     }
     "lint" {
         Write-Host "运行代码检查..." -ForegroundColor Green
-        pip install flake8 black
-        black .
-        flake8 pavone/
+        uv run black .
+        uv run flake8 pavone/
     }
     "clean" {
         Write-Host "清理缓存文件..." -ForegroundColor Green
@@ -34,15 +37,15 @@ switch ($Command) {
     }
     "build" {
         Write-Host "构建项目..." -ForegroundColor Green
-        python setup.py sdist bdist_wheel
+        uv build
     }
     "dev" {
         Write-Host "启动开发环境..." -ForegroundColor Green
-        if (!(Test-Path "venv")) {
+        if (!(Test-Path ".venv")) {
             Write-Host "创建虚拟环境..." -ForegroundColor Yellow
-            python -m venv venv
+            uv venv
         }
-        .\venv\Scripts\Activate.ps1
+        .\.venv\Scripts\Activate.ps1
         Write-Host "虚拟环境已激活!" -ForegroundColor Green
     }
     default {

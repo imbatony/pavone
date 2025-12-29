@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import List, Optional
 from unicodedata import east_asian_width
 
 import click
@@ -8,7 +8,16 @@ from ...jellyfin.client import JellyfinClientWrapper
 from ...models import BaseMetadata, ItemMetadata
 from ...plugins.manager import get_plugin_manager
 from .enrich_helper import ImageManager, JellyfinMetadataUpdater, MetadataComparison
-from .utils import echo_error, echo_info, echo_success, echo_warning
+from .utils import (
+    apply_proxy_config,
+    common_proxy_option,
+    confirm_action,
+    echo_error,
+    echo_info,
+    echo_success,
+    echo_warning,
+    prompt_int,
+)
 
 
 def get_display_width(text: str) -> int:
@@ -53,7 +62,7 @@ def format_metadata_output(metadata: BaseMetadata) -> None:
     print("-" * 80)
 
     # 构建输出行
-    lines = []
+    lines: List[str] = []
 
     # 基础字段
     lines.append(format_field("标题", metadata.title))
@@ -132,7 +141,8 @@ def metadata():
 
 @metadata.command()
 @click.argument("identifier")
-def show(identifier: str):
+@common_proxy_option
+def show(identifier: str, proxy: str):
     """
     显示指定identifier的元数据信息
 
@@ -145,6 +155,15 @@ def show(identifier: str):
         pavone metadata show SDMT-415
     """
     try:
+        # 获取配置
+        config = get_config()
+
+        # 处理代理设置
+        error_msg = apply_proxy_config(proxy, config)
+        if error_msg:
+            echo_error(error_msg)
+            return 1
+
         # 获取插件管理器
         plugin_manager = get_plugin_manager()
         plugin_manager.load_plugins()
@@ -182,7 +201,8 @@ def show(identifier: str):
 @click.argument("video_id", required=False)
 @click.option("--search", "-s", "search_keyword", help="在Jellyfin中搜索匹配的视频")
 @click.option("--force", is_flag=True, help="强制覆盖所有字段（默认仅补充缺失信息）")
-def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[str], force: bool):
+@common_proxy_option
+def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[str], force: bool, proxy: str):
     """
     从指定identifier提取元数据并应用到Jellyfin中的视频
 
@@ -205,6 +225,12 @@ def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[st
         # 获取配置
         config = get_config()
         jellyfin_config = config.jellyfin
+
+        # 处理代理设置
+        error_msg = apply_proxy_config(proxy, config)
+        if error_msg:
+            echo_error(error_msg)
+            return 1
 
         # 检查Jellyfin配置
         if not jellyfin_config.enabled or not jellyfin_config.server_url:
@@ -270,7 +296,7 @@ def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[st
 
                 # 让用户选择
                 try:
-                    choice = click.prompt("请选择视频编号", type=int, default=1)
+                    choice = prompt_int("请选择视频编号", default=1)
                     if choice < 1 or choice > len(search_results):
                         echo_error("选择无效")
                         return 1
@@ -319,24 +345,24 @@ def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[st
 
         # 用户确认
         echo_info("")
-        if not click.confirm("是否继续 enrich？", default=True):
+        if not confirm_action("是否继续 enrich？", default=True):
             echo_info("已取消")
-            return 0
+            return 1
 
         # 询问是否替换图片
         replace_images = False
         cover_url = getattr(remote_metadata, "cover", None)
         backdrop_url = getattr(remote_metadata, "backdrop", None)
-        
+
         if cover_url or backdrop_url:
             echo_info("\n发现远程图片资源:")
             if cover_url:
                 echo_info(f"  📷 封面图 (Cover): {cover_url}")
             if backdrop_url:
                 echo_info(f"  🖼️  背景图 (Backdrop): {backdrop_url}")
-            
+
             echo_info("")
-            replace_images = click.confirm("是否下载并替换 Jellyfin 中的图片？", default=True)
+            replace_images = confirm_action("是否下载并替换 Jellyfin 中的图片？", default=True)
 
         # 合并元数据
         merged_updates = MetadataComparison.merge_metadata(local_metadata, remote_metadata, comparison, force)
@@ -344,41 +370,41 @@ def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[st
         # 下载图片和上传到Jellyfin
         if replace_images:
             echo_info("\n正在处理图片...")
-            
+
             # 使用 Jellyfin 远程图片下载功能（让 Jellyfin 自己下载）
             # 这样可以避免直接上传的权限问题
-            
+
             # 下载并上传封面图
             if cover_url:
                 try:
                     echo_info(f"  设置封面图: {cover_url}")
                     jf_client.download_remote_image(target_video_id, cover_url, "Primary")
-                    echo_success(f"  ✓ 封面图已更新")
-                except Exception as e:
+                    echo_success("  ✓ 封面图已更新")
+                except Exception:
                     # 如果远程下载失败，尝试本地上传
-                    echo_warning(f"  远程下载失败，尝试本地上传...")
+                    echo_warning("  远程下载失败，尝试本地上传...")
                     try:
                         cover_path = ImageManager.download_image(cover_url, "cover")
                         if cover_path:
                             jf_client.upload_image(target_video_id, str(cover_path), "Primary")
-                            echo_success(f"  ✓ 封面图已更新（本地上传）")
+                            echo_success("  ✓ 封面图已更新（本地上传）")
                     except Exception as e2:
                         echo_warning(f"  ✗ 封面图处理失败: {e2}")
-            
+
             # 下载并上传背景图
             if backdrop_url:
                 try:
                     echo_info(f"  设置背景图: {backdrop_url}")
                     jf_client.download_remote_image(target_video_id, backdrop_url, "Backdrop")
-                    echo_success(f"  ✓ 背景图已更新")
-                except Exception as e:
+                    echo_success("  ✓ 背景图已更新")
+                except Exception:
                     # 如果远程下载失败，尝试本地上传
-                    echo_warning(f"  远程下载失败，尝试本地上传...")
+                    echo_warning("  远程下载失败，尝试本地上传...")
                     try:
                         backdrop_path = ImageManager.download_image(backdrop_url, "backdrop")
                         if backdrop_path:
                             jf_client.upload_image(target_video_id, str(backdrop_path), "Backdrop")
-                            echo_success(f"  ✓ 背景图已更新（本地上传）")
+                            echo_success("  ✓ 背景图已更新（本地上传）")
                     except Exception as e2:
                         echo_warning(f"  ✗ 背景图处理失败: {e2}")
         else:

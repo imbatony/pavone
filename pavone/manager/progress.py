@@ -1,7 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional
-
-if TYPE_CHECKING:
-    from rich.progress import TaskID
+from typing import Any, Optional
 
 try:
     from rich.progress import (
@@ -12,6 +9,7 @@ try:
         TimeRemainingColumn,
         TransferSpeedColumn,
     )
+
     _HAS_RICH = True  # type: ignore
 except ImportError:
     _HAS_RICH = False  # type: ignore
@@ -51,17 +49,17 @@ def _create_rich_progress_callback() -> ProgressCallback:
         "•",
         TimeRemainingColumn(),  # type: ignore
     )
-    
+
     task_id: Optional[Any] = None
     progress.start()
 
     def progress_callback(progress_info: ProgressInfo):
         nonlocal task_id
-        
+
         # 如果有状态消息，显示在进度条上方
         if progress_info.status_message:
             progress.console.print(f"[yellow]ℹ️  {progress_info.status_message}[/yellow]")
-        
+
         # 首次调用时创建任务
         if task_id is None:
             if progress_info.total_size > 0:
@@ -75,7 +73,7 @@ def _create_rich_progress_callback() -> ProgressCallback:
                     "下载中",
                     total=None,
                 )
-        
+
         # 更新进度
         if task_id is not None:
             if progress_info.total_size > 0:
@@ -91,7 +89,7 @@ def _create_rich_progress_callback() -> ProgressCallback:
                     task_id,
                     completed=progress_info.downloaded,
                 )
-        
+
             # 如果下载完成，停止进度条
             if progress_info.total_size > 0 and progress_info.downloaded >= progress_info.total_size:
                 progress.stop()
@@ -107,12 +105,12 @@ def _create_simple_progress_callback() -> ProgressCallback:
 
     def progress_callback(progress_info: ProgressInfo):
         nonlocal last_status_message
-        
+
         # 如果有新的状态消息，显示在新行
         if progress_info.status_message and progress_info.status_message != last_status_message:
             print(f"\nℹ️  {progress_info.status_message}")
             last_status_message = progress_info.status_message
-        
+
         if progress_info.total_size > 0:
             bar_length = 50
             filled_length = int(bar_length * progress_info.downloaded / progress_info.total_size)
@@ -123,9 +121,7 @@ def _create_simple_progress_callback() -> ProgressCallback:
             speed_str = format_bytes(int(progress_info.speed)) + "/s"
 
             print(
-                f"\r[{bar}] {progress_info.percentage:.1f}% " 
-                f"({downloaded_str}/{total_str}) " 
-                f"Speed: {speed_str}",
+                f"\r[{bar}] {progress_info.percentage:.1f}% " f"({downloaded_str}/{total_str}) " f"Speed: {speed_str}",
                 end="",
                 flush=True,
             )
@@ -154,22 +150,16 @@ def create_silent_progress_callback() -> ProgressCallback:
 def create_status_only_progress(status_message: str) -> ProgressInfo:
     """
     创建仅包含状态消息的ProgressInfo对象
-    
+
     这是一个便捷函数，用于在不需要更新下载进度时只显示状态消息
-    
+
     Args:
         status_message: 要显示的状态消息
-        
+
     Returns:
         ProgressInfo: 包含状态消息的进度信息对象
-        
+
     Example:
         >>> progress_callback(create_status_only_progress("正在合并视频..."))
     """
-    return ProgressInfo(
-        total_size=0,
-        downloaded=0,
-        speed=0.0,
-        status_message=status_message
-    )
-
+    return ProgressInfo(total_size=0, downloaded=0, speed=0.0, status_message=status_message)

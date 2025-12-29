@@ -59,10 +59,7 @@ class SupFC2Metadata(MetadataPlugin):
                 if parsed_url.scheme.lower() not in ("http", "https"):
                     return False
                 # 检查域名是否在支持列表中
-                return any(
-                    parsed_url.netloc.lower() == domain.lower()
-                    for domain in self.supported_domains
-                )
+                return any(parsed_url.netloc.lower() == domain.lower() for domain in self.supported_domains)
             except Exception:
                 return False
 
@@ -128,14 +125,10 @@ class SupFC2Metadata(MetadataPlugin):
             title_with_code = f"{video_code} {title}" if title else video_code
 
             # 提取年份
-            release_year = (
-                int(release_date.split("-")[0]) if release_date else datetime.now().year
-            )
+            release_year = int(release_date.split("-")[0]) if release_date else datetime.now().year
 
             # 创建identifier
-            identifier_str = StringUtils.create_identifier(
-                site=SITE_NAME, code=video_code, url=url
-            )
+            identifier_str = StringUtils.create_identifier(site=SITE_NAME, code=video_code, url=url)
 
             # 创建MovieMetadata对象
             metadata = MovieMetadata(
@@ -185,7 +178,7 @@ class SupFC2Metadata(MetadataPlugin):
         """提取标题"""
         try:
             # 从页面标题中提取
-            title_pattern = r'<title>\[FC2-PPV-\d+\](.+?)\s*-\s*SupFC2\.com</title>'
+            title_pattern = r"<title>\[FC2-PPV-\d+\](.+?)\s*-\s*SupFC2\.com</title>"
             match = re.search(title_pattern, html_content)
             if match:
                 return match.group(1).strip()
@@ -222,7 +215,7 @@ class SupFC2Metadata(MetadataPlugin):
     def _extract_maker(self, html_content: str) -> Optional[str]:
         """提取制作商"""
         try:
-            pattern = r'<label>Maker:\s*</label>\s*<a[^>]*>([^<]+)</a>'
+            pattern = r"<label>Maker:\s*</label>\s*<a[^>]*>([^<]+)</a>"
             match = re.search(pattern, html_content)
             if match:
                 return match.group(1).strip()
@@ -254,12 +247,12 @@ class SupFC2Metadata(MetadataPlugin):
             tags = []
             # 查找 <label>Tag: </label> 后的所有链接
             # 首先找到Tag标签的位置
-            tag_section_pattern = r'<label>Tag:\s*</label>(.*?)</li>'
+            tag_section_pattern = r"<label>Tag:\s*</label>(.*?)</li>"
             match = re.search(tag_section_pattern, html_content, re.DOTALL)
             if match:
                 tag_section = match.group(1)
                 # 提取所有标签链接
-                tag_pattern = r'<a[^>]*>([^<]+)</a>'
+                tag_pattern = r"<a[^>]*>([^<]+)</a>"
                 tag_matches = re.findall(tag_pattern, tag_section)
                 for tag in tag_matches:
                     tag = tag.strip()
@@ -275,7 +268,7 @@ class SupFC2Metadata(MetadataPlugin):
         try:
             genres = []
             # 查找 <label>Genre: </label> 后的链接
-            pattern = r'<label>Genre:\s*</label>.*?<a[^>]*>([^<]+)</a>'
+            pattern = r"<label>Genre:\s*</label>.*?<a[^>]*>([^<]+)</a>"
             matches = re.finditer(pattern, html_content, re.DOTALL)
             for match in matches:
                 genre = match.group(1).strip()
@@ -309,22 +302,22 @@ class SupFC2Metadata(MetadataPlugin):
                 r'<h4[^>]*>映画の説明</h4>\s*<div class="mb-4">\s*<body><p>(.*?)</p>',
                 r'<h4[^>]*>Movie Description</h4>\s*<div class="mb-4">\s*<body><p>(.*?)</p>',
             ]
-            
+
             desc_html = None
             for pattern in patterns:
                 match = re.search(pattern, html_content, re.DOTALL)
                 if match:
                     desc_html = match.group(1)
                     break
-            
+
             if desc_html:
                 # 移除所有图片链接
-                desc_html = re.sub(r'<a[^>]*data-fancybox[^>]*>.*?</a>', '', desc_html, flags=re.DOTALL)
+                desc_html = re.sub(r"<a[^>]*data-fancybox[^>]*>.*?</a>", "", desc_html, flags=re.DOTALL)
                 # 移除HTML标签，保留<br>标签
-                desc_html = re.sub(r'<br\s*/?>', '\n', desc_html)
-                desc_html = re.sub(r'<[^>]+>', '', desc_html)
+                desc_html = re.sub(r"<br\s*/?>", "\n", desc_html)
+                desc_html = re.sub(r"<[^>]+>", "", desc_html)
                 # 清理多余的空白
-                desc_text = re.sub(r'\n\s*\n', '\n\n', desc_html)
+                desc_text = re.sub(r"\n\s*\n", "\n\n", desc_html)
                 return desc_text.strip()
             return None
         except Exception as e:
@@ -343,13 +336,13 @@ class SupFC2Metadata(MetadataPlugin):
             # 从 meta property="og:image" 提取图片
             pattern = r'<meta property="og:image" content="([^"]+)"'
             matches = re.findall(pattern, html_content)
-            
+
             # 过滤掉网站logo
-            images = [img for img in matches if 'supfc2.png' not in img]
-            
+            images = [img for img in matches if "supfc2.png" not in img]
+
             cover = images[0] if len(images) > 0 else None
             background = images[1] if len(images) > 1 else cover
-            
+
             return cover, background
         except Exception as e:
             self.logger.error(f"提取图片失败: {str(e)}")

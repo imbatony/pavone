@@ -6,7 +6,7 @@ PPVDataBank元数据提取器插件
 
 import re
 from datetime import datetime
-from typing import Optional, Tuple
+from typing import Optional
 from urllib.parse import urlparse
 
 from ...models import MovieMetadata
@@ -59,9 +59,7 @@ class PPVDataBankMetadata(MetadataPlugin):
                 if parsed_url.scheme.lower() not in ("http", "https"):
                     return False
                 # 检查域名是否在支持列表中
-                return any(
-                    parsed_url.netloc.lower() == domain.lower() for domain in self.supported_domains
-                )
+                return any(parsed_url.netloc.lower() == domain.lower() for domain in self.supported_domains)
             except Exception:
                 return False
 
@@ -131,9 +129,7 @@ class PPVDataBankMetadata(MetadataPlugin):
                 release_year = datetime.now().year
 
             # 创建identifier
-            identifier_str = StringUtils.create_identifier(
-                site=SITE_NAME, code=video_code, url=url
-            )
+            identifier_str = StringUtils.create_identifier(site=SITE_NAME, code=video_code, url=url)
 
             # 创建MovieMetadata对象
             metadata = MovieMetadata(
@@ -173,12 +169,12 @@ class PPVDataBankMetadata(MetadataPlugin):
             match = re.search(r"[?&]id=(\d+)", url)
             if match:
                 return match.group(1)
-            
+
             # URL格式2: https://ppvdatabank.com/article/4802082/
             match = re.search(r"/article/(\d+)/?", url)
             if match:
                 return match.group(1)
-            
+
             return None
         except Exception as e:
             self.logger.debug(f"提取视频ID异常: {str(e)}")
@@ -222,16 +218,14 @@ class PPVDataBankMetadata(MetadataPlugin):
                 # 标题中可能包含"│ ppvデータ保管庫"等后缀，需要清理
                 # 示例: "あどけない顔をした訳あり美少女。発展途上なまろやか巨乳に大量中出し！！"
                 return title
-            
+
             # 备选：从og:title提取
             og_title_match = re.search(r'<meta property="og:title" content="([^"]+)"', html)
             if og_title_match:
                 return og_title_match.group(1).strip()
-            
+
             # 备选：从article_title提取
-            article_title_match = re.search(
-                r'<div class="article_title[^"]*"><a[^>]*>([^<]+)</a>', html
-            )
+            article_title_match = re.search(r'<div class="article_title[^"]*"><a[^>]*>([^<]+)</a>', html)
             if article_title_match:
                 return article_title_match.group(1).strip()
 
@@ -251,9 +245,7 @@ class PPVDataBankMetadata(MetadataPlugin):
         """
         try:
             # 示例: <li>販売者 : <a href="...">レッド・D・キング</a></li>
-            studio_match = re.search(
-                r"<li>販売者\s*:\s*<a[^>]*>([^<]+)</a></li>", html
-            )
+            studio_match = re.search(r"<li>販売者\s*:\s*<a[^>]*>([^<]+)</a></li>", html)
             if studio_match:
                 return studio_match.group(1).strip()
             return None
@@ -294,9 +286,7 @@ class PPVDataBankMetadata(MetadataPlugin):
         """
         try:
             # 示例: <li>再生時間 : 01:31:25</li>
-            runtime_match = re.search(
-                r"<li>再生時間\s*:\s*(\d{1,2}):(\d{2}):(\d{2})</li>", html
-            )
+            runtime_match = re.search(r"<li>再生時間\s*:\s*(\d{1,2}):(\d{2}):(\d{2})</li>", html)
             if runtime_match:
                 hours = int(runtime_match.group(1))
                 minutes = int(runtime_match.group(2))
@@ -320,16 +310,14 @@ class PPVDataBankMetadata(MetadataPlugin):
         """
         try:
             # 示例: <div class="thumb"><img src="https://ppvdatabank.com/article/2941579/img/thumb.webp" ...>
-            cover_match = re.search(
-                r'<div class="thumb"><img src="([^"]+)"', html
-            )
+            cover_match = re.search(r'<div class="thumb"><img src="([^"]+)"', html)
             if cover_match:
                 cover_url = cover_match.group(1)
                 # 如果是相对路径，转换为绝对路径
                 if not cover_url.startswith("http"):
                     cover_url = f"https://ppvdatabank.com{cover_url}"
                 return cover_url
-            
+
             # 备选方案：根据video_id构建封面URL
             return f"https://ppvdatabank.com/article/{video_id}/img/thumb.webp"
         except Exception as e:
@@ -349,16 +337,14 @@ class PPVDataBankMetadata(MetadataPlugin):
         try:
             # 示例: <li><a href="https://ppvdatabank.com/article/2941579/img/pl1.webp" ...>
             # 我们提取第一个大图片链接（pl1.webp）
-            backdrop_match = re.search(
-                r'<li><a href="([^"]+/pl1\.webp)"', html
-            )
+            backdrop_match = re.search(r'<li><a href="([^"]+/pl1\.webp)"', html)
             if backdrop_match:
                 backdrop_url = backdrop_match.group(1)
                 # 如果是相对路径，转换为绝对路径
                 if not backdrop_url.startswith("http"):
                     backdrop_url = f"https://ppvdatabank.com{backdrop_url}"
                 return backdrop_url
-            
+
             # 备选方案：根据video_id构建背景图URL
             return f"https://ppvdatabank.com/article/{video_id}/img/pl1.webp"
         except Exception as e:

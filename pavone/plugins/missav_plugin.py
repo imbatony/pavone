@@ -91,8 +91,7 @@ class MissAVPlugin(BasePlugin):
             return results
         else:
             self.logger.error(
-                f"Failed to fetch search results for {keyword}. "
-                f"Status code: {res.status_code if res else 'No response'}"
+                f"Failed to fetch search results for {keyword}. " f"Status code: {res.status_code if res else 'No response'}"
             )
             return []
 
@@ -173,14 +172,10 @@ class MissAVPlugin(BasePlugin):
             metadata_dict = self._extract_all_metadata(html_content)
 
             release_year = (
-                int(metadata_dict["release_date"].split("-")[0])
-                if metadata_dict["release_date"]
-                else datetime.now().year
+                int(metadata_dict["release_date"].split("-")[0]) if metadata_dict["release_date"] else datetime.now().year
             )
 
-            identifier_str = StringUtils.create_identifier(
-                site=self.site_name, code=metadata_dict["video_code"], url=url
-            )
+            identifier_str = StringUtils.create_identifier(site=self.site_name, code=metadata_dict["video_code"], url=url)
 
             metadata = MovieMetadata(
                 title=metadata_dict["title_with_code"],
@@ -242,26 +237,18 @@ class MissAVPlugin(BasePlugin):
             metadata_dict = self._extract_all_metadata(html_content)
 
             release_year = (
-                int(metadata_dict["release_date"].split("-")[0])
-                if metadata_dict["release_date"]
-                else datetime.now().year
+                int(metadata_dict["release_date"].split("-")[0]) if metadata_dict["release_date"] else datetime.now().year
             )
 
             # 创建封面和背景图片项
             cover_item: Optional[OperationItem] = None
             landscape_item: Optional[OperationItem] = None
             if metadata_dict["cover_image"]:
-                cover_item = create_cover_item(
-                    url=metadata_dict["cover_image"], title=metadata_dict["original_title"]
-                )
-                landscape_item = create_landscape_item(
-                    url=metadata_dict["cover_image"], title=metadata_dict["original_title"]
-                )
+                cover_item = create_cover_item(url=metadata_dict["cover_image"], title=metadata_dict["original_title"])
+                landscape_item = create_landscape_item(url=metadata_dict["cover_image"], title=metadata_dict["original_title"])
 
             # 创建元数据对象
-            identifier = StringUtils.create_identifier(
-                site=self.site_name, code=metadata_dict["video_code"], url=url
-            )
+            identifier = StringUtils.create_identifier(site=self.site_name, code=metadata_dict["video_code"], url=url)
             metadata = MovieMetadata(
                 title=metadata_dict["title_with_code"],
                 identifier=identifier,
@@ -470,9 +457,19 @@ class MissAVPlugin(BasePlugin):
         """从HTML中提取视频类型"""
         try:
             genre_labels = [
-                r"ジャンル:", r"类型:", r"類型:", r"分类:", r"分類:",
-                r"种类:", r"種類:", r"Genre:", r"Category:", r"장르:",
-                r"Thể loại:", r"Kategori:", r"หมวดหมู่:",
+                r"ジャンル:",
+                r"类型:",
+                r"類型:",
+                r"分类:",
+                r"分類:",
+                r"种类:",
+                r"種類:",
+                r"Genre:",
+                r"Category:",
+                r"장르:",
+                r"Thể loại:",
+                r"Kategori:",
+                r"หมวดหมู่:",
             ]
 
             for label_pattern in genre_labels:
@@ -516,8 +513,14 @@ class MissAVPlugin(BasePlugin):
         """从HTML中提取制作公司"""
         try:
             studio_labels = [
-                r"发行商:", r"發行商:", r"制作公司:", r"製作公司:",
-                r"制作商:", r"製作商:", r"メーカー:", r"Maker:",
+                r"发行商:",
+                r"發行商:",
+                r"制作公司:",
+                r"製作公司:",
+                r"制作商:",
+                r"製作商:",
+                r"メーカー:",
+                r"Maker:",
             ]
 
             for label_pattern in studio_labels:

@@ -12,6 +12,8 @@ from typing import Any, Dict, List, Optional, Tuple
 import click
 import requests
 
+from ...jellyfin.client import JellyfinClientWrapper
+
 from ...models import BaseMetadata, ItemMetadata
 from .utils import echo_error, echo_info, echo_success, echo_warning
 
@@ -545,8 +547,8 @@ class JellyfinMetadataUpdater:
         }
 
         # 收集需要合并到 People 数组的人员信息
-        people_list = []
-        
+        people_list: list[Dict[str, Any]] = []
+
         for internal_field, jellyfin_field in field_mapping.items():
             if internal_field not in updates:
                 continue
@@ -566,28 +568,16 @@ class JellyfinMetadataUpdater:
                 if isinstance(value, list):
                     for director in value:
                         if director:
-                            people_list.append({
-                                "Name": director,
-                                "Type": "Director",
-                                "Role": ""
-                            })
+                            people_list.append({"Name": director, "Type": "Director", "Role": ""})
                 elif isinstance(value, str) and value:
-                    people_list.append({
-                        "Name": value,
-                        "Type": "Director",
-                        "Role": ""
-                    })
+                    people_list.append({"Name": value, "Type": "Director", "Role": ""})
 
             elif internal_field == "actors":
                 # 演员添加到 People 数组，Type="Actor"
                 if isinstance(value, list):
                     for actor in value:
                         if actor:
-                            people_list.append({
-                                "Name": actor,
-                                "Type": "Actor",
-                                "Role": ""
-                            })
+                            people_list.append({"Name": actor, "Type": "Actor", "Role": ""})
 
             elif internal_field == "studio":
                 # 制作公司：Jellyfin使用Studios数组，每个元素是 {'Name': 'studio_name'} 格式
@@ -609,7 +599,7 @@ class JellyfinMetadataUpdater:
         return jellyfin_updates
 
     @staticmethod
-    def update_jellyfin_metadata(client, item_id: str, updates: Dict[str, Any]) -> bool:
+    def update_jellyfin_metadata(client: "JellyfinClientWrapper", item_id: str, updates: Dict[str, Any]) -> bool:
         """更新Jellyfin中的项元数据
 
         Args:

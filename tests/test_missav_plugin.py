@@ -75,7 +75,7 @@ class TestMissAVPlugin(unittest.TestCase):
         self.assertIsInstance(first_result, SearchResult)
         self.assertEqual(first_result.site, "MissAV")
         self.assertEqual(first_result.keyword, "优等生")
-        
+
         # code 可能为 None，需要处理
         if first_result.code is not None:
             self.assertIn("GOAL-052", first_result.code.upper())

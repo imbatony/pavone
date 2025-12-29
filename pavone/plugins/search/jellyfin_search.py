@@ -108,7 +108,7 @@ class JellyfinSearch(SearchPlugin):
             self.logger.error(f"Jellyfin 搜索失败: {e}")
             return []
 
-    def _extract_code_from_item(self, item:JellyfinItem) -> str:
+    def _extract_code_from_item(self, item: JellyfinItem) -> str:
         """
         从 Jellyfin 项中提取视频番号
 

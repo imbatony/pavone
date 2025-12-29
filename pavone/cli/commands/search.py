@@ -6,18 +6,25 @@ import click
 
 from ...config.settings import get_config
 from ...plugins.manager import get_plugin_manager
-from .utils import echo_error, echo_info, echo_success
+from .utils import apply_proxy_config, common_proxy_option, echo_error, echo_info, echo_success
 
 
 @click.command()
 @click.argument("keyword")
-def search(keyword: str):
+@common_proxy_option
+def search(keyword: str, proxy: str):
     """搜索指定关键词"""
     try:
         # 获取配置
         config = get_config()
         search_config = config.search
         plugin_config = config.plugin
+
+        # 处理代理设置
+        error_msg = apply_proxy_config(proxy, config)
+        if error_msg:
+            echo_error(error_msg)
+            return 1
 
         # 获取插件管理器
         plugin_manager = get_plugin_manager()

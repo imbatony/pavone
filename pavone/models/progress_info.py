@@ -9,9 +9,9 @@ class ProgressInfo:
     """下载进度信息"""
 
     def __init__(
-        self, 
-        total_size: int = 0, 
-        downloaded: int = 0, 
+        self,
+        total_size: int = 0,
+        downloaded: int = 0,
         speed: float = 0.0,
         status_message: str = "",
     ):

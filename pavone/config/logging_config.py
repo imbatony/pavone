@@ -37,7 +37,7 @@ class LoggingConfig:
 class LogManager:
     """日志管理器"""
 
-    def __init__(self, config: LoggingConfig):
+    def __init__(self, config: LoggingConfig) -> None:
         self.config = config
         self._loggers: Dict[str, logging.Logger] = {}
         self._configured = False

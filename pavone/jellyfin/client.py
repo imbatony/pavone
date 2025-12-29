@@ -628,7 +628,7 @@ class JellyfinClientWrapper:
                     img = background
                 elif img.mode != "RGB":
                     img = img.convert("RGB")
-                
+
                 # 保存为临时 jpeg 文件
                 temp_path = image_file.with_suffix(".jpg")
                 img.save(temp_path, "JPEG", quality=95)
@@ -661,24 +661,24 @@ class JellyfinClientWrapper:
 
             # 构建完整的 API URL
             base_url = self.config.server_url.rstrip("/")
-            
+
             # Jellyfin 10.8+ 使用这个端点上传图片
             # 对于 Backdrop，可能需要索引
             if image_type == "Backdrop":
                 endpoint = f"{base_url}/Items/{item_id}/Images/{image_type}/0"
             else:
                 endpoint = f"{base_url}/Items/{item_id}/Images/{image_type}"
-            
+
             # 准备请求头 - 参考实际请求案例，直接设置 Content-Type
             headers = {
                 "X-Emby-Token": access_token,
                 "Content-Type": content_type,
             }
-            
+
             self.logger.debug(f"上传图片到: {endpoint}")
             self.logger.debug(f"Content-Type: {content_type}")
             self.logger.debug(f"图片大小: {len(image_data)} bytes")
-            
+
             # 参考实际请求案例，直接 POST 二进制数据
             response = requests.post(
                 endpoint,
@@ -694,7 +694,7 @@ class JellyfinClientWrapper:
                 self.logger.error(f"上传图片失败，状态码: {response.status_code}")
                 self.logger.error(f"响应内容: {response.text}")
                 self.logger.error(f"请求 URL: {endpoint}")
-            
+
             response.raise_for_status()
 
             self.logger.debug(f"上传图片成功: {image_type} -> {item_id}")
@@ -742,9 +742,7 @@ class JellyfinClientWrapper:
             }
 
             # 发送 DELETE 请求
-            response = requests.delete(
-                endpoint, headers=headers, verify=self.config.verify_ssl, timeout=30
-            )
+            response = requests.delete(endpoint, headers=headers, verify=self.config.verify_ssl, timeout=30)
 
             # 检查响应
             response.raise_for_status()
@@ -775,7 +773,7 @@ class JellyfinClientWrapper:
 
             # 构建完整的 API URL
             base_url = self.config.server_url.rstrip("/")
-            
+
             # 使用 RemoteImages/Download 端点让 Jellyfin 下载图片
             endpoint = f"{base_url}/Items/{item_id}/RemoteImages/Download"
 
@@ -815,7 +813,7 @@ class JellyfinClientWrapper:
             if response.status_code >= 400:
                 self.logger.error(f"远程图片下载失败，状态码: {response.status_code}")
                 self.logger.error(f"响应内容: {response.text}")
-            
+
             response.raise_for_status()
 
             self.logger.debug(f"远程图片下载成功: {image_type} -> {item_id}")
@@ -827,4 +825,3 @@ class JellyfinClientWrapper:
 
     def __repr__(self) -> str:
         return f"JellyfinClientWrapper(server={self.config.server_url}, authenticated={self._authenticated})"
-
