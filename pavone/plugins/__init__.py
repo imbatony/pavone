@@ -6,6 +6,7 @@
 from .av01_plugin import AV01Plugin
 from .base import BasePlugin
 from .extractors import ExtractorPlugin
+from .jtable_plugin import JTablePlugin
 from .manager import PluginManager, plugin_manager
 from .metadata import MetadataPlugin
 from .missav_plugin import MissAVPlugin
@@ -18,6 +19,7 @@ __all__ = [
     "SearchPlugin",
     "AV01Plugin",
     "MissAVPlugin",
+    "JTablePlugin",
     "PluginManager",
     "plugin_manager",
 ]
