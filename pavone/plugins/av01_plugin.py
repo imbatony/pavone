@@ -23,7 +23,8 @@ from ..models import MovieMetadata, OperationItem, Quality
 from ..utils import CodeExtractUtils
 from ..utils.metadata_builder import MetadataBuilder
 from ..utils.operation_item_builder import OperationItemBuilder
-from .base import BasePlugin
+from .extractors.base import ExtractorPlugin
+from .metadata.base import MetadataPlugin
 
 
 @dataclass
@@ -316,14 +317,15 @@ GEO_API_URL = "https://www.av01.tv/edge/geo.js?json"
 VIDEO_API_BASE = "https://www.av01.media/api/v1/videos"
 
 
-class AV01Plugin(BasePlugin):
+class AV01Plugin(ExtractorPlugin, MetadataPlugin):
     """
     AV01统一插件
-    同时实现元数据提取和视频下载两种功能
+    同时实现元数据提取和视频下载两种功能（通过多继承）
     """
 
     def __init__(self):
         """初始化AV01插件"""
+        # 多继承情况下，使用 super() 会按照 MRO 顺序调用
         super().__init__(
             name=PLUGIN_NAME,
             version=PLUGIN_VERSION,

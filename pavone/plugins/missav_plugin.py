@@ -14,7 +14,9 @@ from ..utils import CodeExtractUtils
 from ..utils.html_metadata_utils import HTMLMetadataExtractor
 from ..utils.metadata_builder import MetadataBuilder
 from ..utils.operation_item_builder import OperationItemBuilder
-from .base import BasePlugin
+from .extractors.base import ExtractorPlugin
+from .metadata.base import MetadataPlugin
+from .search.base import SearchPlugin
 
 # 定义插件名称和版本
 PLUGIN_NAME = "MissAV"
@@ -34,21 +36,28 @@ SITE_NAME = "MissAV"
 MISSAV_BASE_URL = "https://missav.ai"
 
 
-class MissAVPlugin(BasePlugin):
+class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
     """
     MissAV统一插件
-    同时实现搜索、元数据提取和视频下载三种功能
+    同时实现搜索、元数据提取和视频下载三种功能（通过多继承）
     """
 
     def __init__(self):
         """初始化MissAV插件"""
-        super().__init__(
+        # 多继承时，由于 SearchPlugin 有不同的 __init__ 签名，
+        # 我们直接调用 BasePlugin 的初始化，避免 MRO 链的问题
+        from .base import BasePlugin
+        BasePlugin.__init__(
+            self,
             name=PLUGIN_NAME,
             version=PLUGIN_VERSION,
             description=PLUGIN_DESCRIPTION,
             author=PLUGIN_AUTHOR,
             priority=PLUGIN_PRIORITY,
         )
+        # 设置 SearchPlugin 需要的属性
+        self.site = SITE_NAME
+        # 其他属性
         self.supported_domains = SUPPORTED_DOMAINS
         self.site_name = SITE_NAME
         self.base_url = MISSAV_BASE_URL

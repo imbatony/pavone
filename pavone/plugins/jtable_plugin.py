@@ -15,7 +15,8 @@ from ..utils import CodeExtractUtils, StringUtils
 from ..utils.html_metadata_utils import HTMLMetadataExtractor
 from ..utils.metadata_builder import MetadataBuilder
 from ..utils.operation_item_builder import OperationItemBuilder
-from .base import BasePlugin
+from .extractors.base import ExtractorPlugin
+from .metadata.base import MetadataPlugin
 
 # 定义插件名称和版本
 PLUGIN_NAME = "JTable"
@@ -35,14 +36,15 @@ SITE_NAME = "Jable"
 JTABLE_BASE_URL = "https://jp.jable.tv"
 
 
-class JTablePlugin(BasePlugin):
+class JTablePlugin(ExtractorPlugin, MetadataPlugin):
     """
     JTable统一插件
-    同时实现元数据提取和视频下载两种功能
+    同时实现元数据提取和视频下载两种功能（通过多继承）
     """
 
     def __init__(self):
         """初始化JTable插件"""
+        # 调用父类初始化（多继承情况下，使用 super() 会按照 MRO 顺序调用）
         super().__init__(
             name=PLUGIN_NAME,
             version=PLUGIN_VERSION,
