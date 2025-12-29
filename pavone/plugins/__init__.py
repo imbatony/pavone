@@ -8,6 +8,7 @@ from .base import BasePlugin
 from .extractors import ExtractorPlugin
 from .jtable_plugin import JTablePlugin
 from .manager import PluginManager, plugin_manager
+from .memojav_plugin import MemojavPlugin
 from .metadata import MetadataPlugin
 from .missav_plugin import MissAVPlugin
 from .search import SearchPlugin
@@ -20,6 +21,7 @@ __all__ = [
     "AV01Plugin",
     "MissAVPlugin",
     "JTablePlugin",
+    "MemojavPlugin",
     "PluginManager",
     "plugin_manager",
 ]

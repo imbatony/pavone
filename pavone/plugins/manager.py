@@ -19,10 +19,10 @@ from .extractors import (
     ExtractorPlugin,
     JTableExtractor,
     M3U8DirectExtractor,
-    MemojavExtractor,
     MP4DirectExtractor,
 )
 from .jtable_plugin import JTablePlugin
+from .memojav_plugin import MemojavPlugin
 from .metadata import (
     MetadataPlugin,
     PPVDataBankMetadata,
@@ -74,7 +74,7 @@ class PluginManager:
                 "MP4DirectExtractor": MP4DirectExtractor,
                 "M3U8DirectExtractor": M3U8DirectExtractor,
                 "MissAVPlugin": MissAVPlugin,
-                "MemojavExtractor": MemojavExtractor,
+                "MemojavPlugin": MemojavPlugin,
                 "JTablePlugin": JTablePlugin,
                 "AV01Plugin": AV01Plugin,
                 "PPVDataBankMetadata": PPVDataBankMetadata,
