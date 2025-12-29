@@ -15,11 +15,11 @@ class TestMemojavPlugin(unittest.TestCase):
     def setUp(self):
         """设置测试环境"""
         self.plugin = MemojavPlugin()
-        
+
         # 测试用的示例 URL
         self.test_url = "https://memojav.com/video/sone-768/"
         self.test_embed_url = "https://memojav.com/embed/sone-768/"
-        
+
         # 示例 HTML 内容
         self.sample_html = """
         <html>
@@ -29,7 +29,7 @@ class TestMemojavPlugin(unittest.TestCase):
         </head>
         </html>
         """
-        
+
         # 示例视频信息内容
         self.sample_video_info = '{"url":"https%3A%2F%2Fexample.com%2Fvideo.m3u8"}'
 
@@ -84,7 +84,7 @@ class TestMemojavPlugin(unittest.TestCase):
         mock_extract_m3u8.return_value = "https://example.com/video.m3u8"
         mock_extract_cover.return_value = "https://memojav.com/cover.jpg"
         mock_extract_title.return_value = "Test video title"
-        
+
         mock_response = MagicMock()
         mock_response.text = self.sample_html
         mock_fetch.return_value = mock_response
@@ -96,6 +96,7 @@ class TestMemojavPlugin(unittest.TestCase):
         self.assertIsInstance(result[0], OperationItem)
         # code 存储在 extra 中，并且会被转换为大写
         from pavone.models.constants import VideoCoreExtraKeys
+
         self.assertEqual(result[0]._extra.get(VideoCoreExtraKeys.CODE), "SONE-768")
         # desc 包含 code, title 和 quality
         self.assertIn("SONE-768", result[0].desc)
@@ -118,7 +119,7 @@ class TestMemojavPlugin(unittest.TestCase):
         """测试提取失败 - 未找到 m3u8"""
         mock_get_vid.return_value = "sone-768"
         mock_extract_m3u8.return_value = None
-        
+
         mock_response = MagicMock()
         mock_response.text = self.sample_html
         mock_fetch.return_value = mock_response
@@ -165,7 +166,7 @@ class TestMemojavPlugin(unittest.TestCase):
         mock_get_vid.return_value = "sone-768"
         mock_extract_title.return_value = "Test video title"
         mock_extract_cover.return_value = "https://memojav.com/cover.jpg"
-        
+
         mock_response = MagicMock()
         mock_response.text = self.sample_html
         mock_fetch.return_value = mock_response
@@ -195,7 +196,7 @@ class TestMemojavPlugin(unittest.TestCase):
         """测试提取元数据失败 - 未找到标题"""
         mock_get_vid.return_value = "sone-768"
         mock_extract_title.return_value = None
-        
+
         mock_response = MagicMock()
         mock_response.text = self.sample_html
         mock_fetch.return_value = mock_response

@@ -188,23 +188,23 @@ class PluginManager:
 
         if plugin.initialize():
             self.plugins[plugin.name] = plugin
-            
+
             # 检查插件类型并分类（支持复合型插件，一个插件可以同时是多种类型）
             # 使用 isinstance 检查，支持多继承
             registered_types: list[str] = []
-            
+
             # 检查是否是 ExtractorPlugin
             if isinstance(plugin, ExtractorPlugin):
                 self.extractor_plugins.append(plugin)
                 # 按优先级排序（数值越小优先级越高）
                 self.extractor_plugins.sort(key=lambda p: getattr(p, "priority", 50))
                 registered_types.append("Extractor")
-            
+
             # 检查是否是 MetadataPlugin
             if isinstance(plugin, MetadataPlugin):
                 self.metadata_plugins.append(plugin)
                 registered_types.append("Metadata")
-            
+
             # 检查是否是 SearchPlugin
             if isinstance(plugin, SearchPlugin):
                 self.search_plugins.append(plugin)
@@ -215,7 +215,7 @@ class PluginManager:
                 self.logger.info(f"成功注册插件: {plugin.name} (类型: {types_str})")
             else:
                 self.logger.warning(f"插件 {plugin.name} 未继承任何已知插件基类")
-            
+
             return True
         else:
             self.logger.warning(f"插件 {plugin.name} 初始化失败")

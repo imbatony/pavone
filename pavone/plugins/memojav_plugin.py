@@ -113,7 +113,7 @@ class MemojavPlugin(ExtractorPlugin, MetadataPlugin):
         """从给定的URL提取元数据"""
         if not self.can_extract(identifier):
             return None
-        
+
         try:
             # 获取内嵌网页内容
             url = identifier.replace("video", "embed")
@@ -122,22 +122,22 @@ class MemojavPlugin(ExtractorPlugin, MetadataPlugin):
             if not html:
                 self.logger.error("无法获取网页内容")
                 return None
-            
+
             # 提取视频 ID
             vid = self._get_vid_from_url(url)
             code = CodeExtractUtils.extract_code_from_text(vid) or vid
             # 将 code 转为大写
             code = code.upper()
-            
+
             # 提取标题
             title = self._extract_title(html)
             if not title:
                 self.logger.error("未能提取视频标题")
                 return None
-            
+
             # 提取封面
             cover_url = self._extract_cover(html)
-            
+
             # 使用 MetadataBuilder 构建元数据
             builder = MetadataBuilder()
             builder.set_title(title, code)
@@ -145,12 +145,12 @@ class MemojavPlugin(ExtractorPlugin, MetadataPlugin):
             builder.set_site(self.site_name)  # 设置 site
             builder.set_url(identifier)
             builder.set_identifier(self.site_name, code, identifier)  # 设置 identifier
-            
+
             if cover_url:
                 builder.set_poster(cover_url)
-            
+
             return builder.build()
-            
+
         except Exception as e:
             self.logger.error(f"提取元数据失败: {e}")
             return None

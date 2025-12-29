@@ -86,10 +86,7 @@ class TestJTablePlugin(unittest.TestCase):
         item = result[0]
         self.assertIsInstance(item, OperationItem)
         # 检查描述包含演员名
-        self.assertTrue(
-            "黒川すみれ" in item.desc or "美咲かんな" in item.desc,
-            f"Expected actors in desc. Got: {item.desc}"
-        )
+        self.assertTrue("黒川すみれ" in item.desc or "美咲かんな" in item.desc, f"Expected actors in desc. Got: {item.desc}")
 
         # 检查是否包含元数据子项
         children = item.get_children()
@@ -182,7 +179,7 @@ class TestJTablePlugin(unittest.TestCase):
         self.assertIsNotNone(metadata)
         self.assertIsInstance(metadata, MovieMetadata)
         self.assertEqual(metadata.code, "DASS-247")
-        
+
         # 验证构造的URL
         mock_fetch.assert_called_once()
         called_url = mock_fetch.call_args[0][0]
@@ -245,10 +242,7 @@ class TestJTablePlugin(unittest.TestCase):
         self.assertIsInstance(actors, list)
         self.assertGreater(len(actors), 0)
         # HTML中可能只包含部分演员
-        self.assertTrue(
-            "黒川すみれ" in actors or "美咲かんな" in actors,
-            f"Expected actors not found. Got: {actors}"
-        )
+        self.assertTrue("黒川すみれ" in actors or "美咲かんな" in actors, f"Expected actors not found. Got: {actors}")
 
     def test_extract_actors_no_match(self):
         """测试没有演员信息的情况"""

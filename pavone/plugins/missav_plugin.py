@@ -47,6 +47,7 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
         # 多继承时，由于 SearchPlugin 有不同的 __init__ 签名，
         # 我们直接调用 BasePlugin 的初始化，避免 MRO 链的问题
         from .base import BasePlugin
+
         BasePlugin.__init__(
             self,
             name=PLUGIN_NAME,

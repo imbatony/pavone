@@ -65,10 +65,10 @@ class JTablePlugin(ExtractorPlugin, MetadataPlugin):
 
     def can_extract(self, identifier: str) -> bool:
         """检查是否能处理给定的identifier
-        
+
         Args:
             identifier: URL或视频代码
-            
+
         Returns:
             是否能处理
         """
@@ -90,10 +90,10 @@ class JTablePlugin(ExtractorPlugin, MetadataPlugin):
 
     def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
         """从给定的identifier提取元数据
-        
+
         Args:
             identifier: URL或视频代码
-            
+
         Returns:
             元数据对象，提取失败返回None
         """
@@ -140,28 +140,28 @@ class JTablePlugin(ExtractorPlugin, MetadataPlugin):
 
     def _extract_all_metadata(self, html: str, url: str) -> dict[str, Any]:
         """提取所有元数据（内部方法，供元数据提取和视频下载共享）
-        
+
         Args:
             html: HTML内容
             url: 视频URL
-            
+
         Returns:
             包含所有元数据的字典
         """
         # 提取封面
         cover = HTMLMetadataExtractor.extract_og_image(html)
-        
+
         # 提取代码和标题
         code, title = self._extract_code_title(html)
-        
+
         # 提取演员
         actors = self._extract_actors(html)
-        
+
         # 提取发布日期
         release_date_obj = self._extract_release_date(html)
         release_date = release_date_obj.strftime("%Y-%m-%d")
         year = release_date_obj.year
-        
+
         # 提取类型和标签
         genres = self._extract_genres(html)
         tags = self._extract_tags(html)
@@ -185,16 +185,16 @@ class JTablePlugin(ExtractorPlugin, MetadataPlugin):
 
     def extract(self, url: str) -> List[OperationItem]:
         """从给定的URL提取下载选项
-        
+
         Args:
             url: 视频页面URL
-            
+
         Returns:
             操作项列表
         """
         if not self.can_handle(url):
             return []
-        
+
         try:
             # 获取网页内容
             response = self.fetch(url)
@@ -208,7 +208,7 @@ class JTablePlugin(ExtractorPlugin, MetadataPlugin):
             if not m3u8_url:
                 self.logger.error("未找到 m3u8 链接")
                 return []
-            
+
             self.logger.info(f"找到 m3u8: {m3u8_url}")
 
             # 2. 提取所有元数据
@@ -231,25 +231,19 @@ class JTablePlugin(ExtractorPlugin, MetadataPlugin):
             )
 
             # 4. 使用 OperationItemBuilder 创建操作对象
-            builder = OperationItemBuilder(
-                self.site_name,
-                metadata_dict["title"],
-                metadata_dict["code"]
-            )
-            
-            builder.set_actors(metadata_dict["actors"]) \
-                   .set_year(metadata_dict["year"]) \
-                   .set_studio("")
-            
+            builder = OperationItemBuilder(self.site_name, metadata_dict["title"], metadata_dict["code"])
+
+            builder.set_actors(metadata_dict["actors"]).set_year(metadata_dict["year"]).set_studio("")
+
             # 添加视频流
             quality = Quality.guess(m3u8_url)
             builder.add_stream(url=m3u8_url, quality=quality)
-            
+
             # 添加封面和背景图
             if metadata_dict["cover"]:
                 builder.set_cover(metadata_dict["cover"])
                 builder.set_landscape(metadata_dict["cover"])  # JTable 使用同一张图作为 landscape
-            
+
             # 添加元数据
             builder.set_metadata(metadata)
 
@@ -263,10 +257,10 @@ class JTablePlugin(ExtractorPlugin, MetadataPlugin):
 
     def _extract_m3u8_url(self, html: str) -> Optional[str]:
         """从HTML中提取m3u8链接
-        
+
         Args:
             html: HTML内容
-            
+
         Returns:
             m3u8 URL或None
         """
@@ -285,12 +279,12 @@ class JTablePlugin(ExtractorPlugin, MetadataPlugin):
         """
         default_title = "Jable Video"
         default_code = StringUtils.sha_256_hash(default_title)
-        
+
         title = HTMLMetadataExtractor.extract_og_title(html)
         if not title:
             self.logger.warning("未找到视频标题，使用默认值")
             return (default_code, default_title)
-        
+
         # 分离编号和标题
         # 格式通常是: "CODE-123 标题内容"
         title_parts = title.split(" ", 1)
@@ -309,14 +303,14 @@ class JTablePlugin(ExtractorPlugin, MetadataPlugin):
 
     def _extract_actors(self, html: str) -> List[str]:
         """从HTML中提取演员信息
-        
+
         Args:
             html: HTML内容
-            
+
         Returns:
             演员列表
         """
-        # <span class="placeholder rounded-circle" data-toggle="tooltip" 
+        # <span class="placeholder rounded-circle" data-toggle="tooltip"
         #       data-placement="bottom" title="演员名">...</span>
         pattern = r'<span class="placeholder rounded-circle" data-toggle="tooltip" data-placement="bottom" title="([^"]+)">'
         matches = re.findall(pattern, html)
@@ -324,10 +318,10 @@ class JTablePlugin(ExtractorPlugin, MetadataPlugin):
 
     def _extract_release_date(self, html: str) -> datetime:
         """从HTML中提取发布日期
-        
+
         Args:
             html: HTML内容
-            
+
         Returns:
             日期对象，解析失败返回当前日期
         """
@@ -340,15 +334,15 @@ class JTablePlugin(ExtractorPlugin, MetadataPlugin):
                 return datetime.strptime(date_str, "%Y-%m-%d")
             except ValueError:
                 self.logger.warning(f"无法解析发布日期: {date_str}")
-        
+
         return datetime.now()  # 如果解析失败，返回当前日期
 
     def _extract_genres(self, html: str) -> List[str]:
         """从HTML中提取视频类型
-        
+
         Args:
             html: HTML内容
-            
+
         Returns:
             类型列表
         """
@@ -359,10 +353,10 @@ class JTablePlugin(ExtractorPlugin, MetadataPlugin):
 
     def _extract_tags(self, html: str) -> List[str]:
         """从HTML中提取标签
-        
+
         Args:
             html: HTML内容
-            
+
         Returns:
             标签列表
         """
