@@ -36,11 +36,6 @@ class BasePlugin(ABC):
         """初始化插件"""
         pass
 
-    @abstractmethod
-    def execute(self, *args, **kwargs) -> Any:
-        """执行插件功能"""
-        pass
-
     def cleanup(self):
         """清理插件资源"""
         pass

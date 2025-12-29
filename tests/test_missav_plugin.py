@@ -55,22 +55,6 @@ class TestMissAVPlugin(unittest.TestCase):
         except Exception as e:
             self.fail(f"cleanup() raised {e} unexpectedly!")
 
-    def test_execute_with_url(self):
-        """测试execute方法使用URL参数"""
-        test_url = "https://missav.ai/test"
-        result = self.plugin.execute(test_url)
-        self.assertTrue(result)
-
-    def test_execute_without_args(self):
-        """测试execute方法无参数"""
-        result = self.plugin.execute()
-        self.assertTrue(result)
-
-    def test_execute_with_non_string_args(self):
-        """测试execute方法使用非字符串参数"""
-        result = self.plugin.execute(123, 456)
-        self.assertTrue(result)
-
     # ==================== 搜索功能测试 ====================
 
     def test_parse_search_results(self):

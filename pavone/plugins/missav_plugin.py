@@ -66,11 +66,6 @@ class MissAVPlugin(BasePlugin):
         """初始化插件"""
         return True
 
-    def execute(self, *args, **kwargs) -> Any:
-        """执行插件功能 - 根据参数决定执行哪种功能"""
-        # 这是一个通用接口，实际使用时会调用具体的方法
-        return True
-
     # ==================== 搜索功能接口 ====================
 
     def search(self, keyword: str, limit: int = 20) -> List[SearchResult]:
