@@ -8,14 +8,10 @@ import re
 from typing import List, Optional
 from urllib.parse import unquote, urlparse
 
-from ...models import (
-    OperationItem,
-    Quality,
-    create_cover_item,
-    create_landscape_item,
-    create_stream_item,
-)
+from ...models import OperationItem, Quality
 from ...utils import CodeExtractUtils
+from ...utils.html_metadata_utils import HTMLMetadataExtractor
+from ...utils.operation_item_builder import OperationItemBuilder
 from .base import ExtractorPlugin
 
 # 定义插件名称和版本
@@ -51,15 +47,7 @@ class MemojavExtractor(ExtractorPlugin):
 
     def can_handle(self, url: str) -> bool:
         """检查是否能处理给定的URL"""
-        try:
-            parsed_url = urlparse(url)
-            # 检查协议是否为HTTP或HTTPS
-            if parsed_url.scheme.lower() not in ("http", "https"):
-                return False
-            # 检查域名是否在支持列表中
-            return any(parsed_url.netloc.lower() == domain.lower() for domain in self.supported_domains)
-        except Exception:
-            return False
+        return self.can_handle_domain(url, self.supported_domains)
 
     def extract(self, url: str) -> List[OperationItem]:
         """从给定的URL提取下载选项"""
@@ -70,7 +58,7 @@ class MemojavExtractor(ExtractorPlugin):
             url = url.replace("video", "embed")
             response = self.fetch(url)
             vid = self.get_vid_from_url(url)
-            code = CodeExtractUtils.extract_code_from_text(vid)
+            code = CodeExtractUtils.extract_code_from_text(vid) or vid
             html = response.text
             if not html:
                 self.logger.error("无法获取网页内容")
@@ -99,18 +87,12 @@ class MemojavExtractor(ExtractorPlugin):
                 return []
 
             # 4. 构建操作项
-            item = create_stream_item(
-                code=code,
-                quality=Quality.UNKNOWN,
-                title=title,
-                url=m3u8_url,
-                site=SITE_NAME,  # Memojav 不提供质量信息
+            return (
+                OperationItemBuilder(SITE_NAME, title, code)
+                .add_stream(url=m3u8_url, quality=Quality.UNKNOWN)
+                .set_cover(cover_url)
+                .build()
             )
-            cover_item = create_cover_item(url=cover_url, title=title)
-            landscape_item = create_landscape_item(url=cover_url, title=title)
-            item.append_child(cover_item)
-            item.append_child(landscape_item)
-            return [item]
         except Exception as e:
             self.logger.error(f"提取视频信息失败: {e}")
             return []
@@ -125,12 +107,7 @@ class MemojavExtractor(ExtractorPlugin):
 
     def _extract_cover(self, html: str) -> Optional[str]:
         """从HTML中提取封面图片链接"""
-        # <meta property="og:image" content="https://memojav.com/image/preview/1fns00052/1fns00052pl.jpg">
-        pattern = r'<meta property="og:image" content="([^"]+)"'
-        match = re.search(pattern, html)
-        if match:
-            return match.group(1)
-        return None
+        return HTMLMetadataExtractor.extract_og_image(html)
 
     def _extract_title(self, html: str) -> str:
         """从HTML中提取视频代码和标题"""

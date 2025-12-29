@@ -19,16 +19,10 @@ from typing import Any, Dict, List, Optional, cast
 from urllib.parse import urlparse
 
 from ..config.logging_config import get_logger
-from ..models import (
-    MovieMetadata,
-    OperationItem,
-    Quality,
-    create_cover_item,
-    create_landscape_item,
-    create_metadata_item,
-    create_stream_item,
-)
-from ..utils import CodeExtractUtils, StringUtils
+from ..models import MovieMetadata, OperationItem, Quality
+from ..utils import CodeExtractUtils
+from ..utils.metadata_builder import MetadataBuilder
+from ..utils.operation_item_builder import OperationItemBuilder
 from .base import BasePlugin
 
 
@@ -438,15 +432,7 @@ class AV01Plugin(BasePlugin):
 
     def can_handle(self, url: str) -> bool:
         """检查是否能处理给定的URL"""
-        try:
-            parsed_url = urlparse(url)
-            # 检查协议是否为HTTP或HTTPS
-            if parsed_url.scheme.lower() not in ("http", "https"):
-                return False
-            # 检查域名是否在支持列表中
-            return any(parsed_url.netloc.lower() == domain.lower() for domain in self.supported_domains)
-        except Exception:
-            return False
+        return self.can_handle_domain(url, self.supported_domains)
 
     def extract(self, url: str) -> List[OperationItem]:
         """
@@ -559,32 +545,28 @@ class AV01Plugin(BasePlugin):
             # 导演
             director = video_metadata.director
 
-            # 发布年份
-            release_year = video_metadata.get_release_year()
-
-            # 创建identifier
-            identifier = StringUtils.create_identifier(site=SITE_NAME, code=video_code, url=original_url)
-
-            # 创建元数据对象
-            metadata = MovieMetadata(
-                title=video_code + " " + title,
-                original_title=title,
-                identifier=identifier,
-                site=SITE_NAME,
-                url=original_url,
-                code=video_code,
-                actors=actors,
-                runtime=runtime_minutes,
-                premiered=release_date,
-                genres=genres,
-                tags=tags,
-                studio=studio,
-                director=director,
-                cover=cover_image,
-                plot=description,
-                year=release_year,
-                official_rating="JP-18+",
+            # 使用 MetadataBuilder 构建元数据
+            builder = MetadataBuilder()
+            metadata = (
+                builder.set_title(title, video_code)
+                .set_code(video_code)
+                .set_site(SITE_NAME)
+                .set_url(original_url)
+                .set_identifier(SITE_NAME, video_code, original_url)
+                .set_release_date(release_date)
+                .set_cover(cover_image)
+                .set_plot(description)
+                .set_actors(actors)
+                .set_director(director)
+                .set_runtime(runtime_minutes)
+                .set_genres(genres)
+                .set_tags(tags)
+                .set_studio(studio)
+                .build()
             )
+
+            # 手动设置 MetadataBuilder 不支持的字段
+            metadata.official_rating = "JP-18+"
 
             self.logger.info(f"成功构建元数据: {video_code} - {title}")
             return metadata
@@ -646,40 +628,33 @@ class AV01Plugin(BasePlugin):
             # 发布年份
             release_year = video_metadata.get_release_year()
 
-            # 创建封面项
-            cover_item: Optional[OperationItem] = None
-            landscape_item: Optional[OperationItem] = None
-            if cover_image:
-                cover_item = create_cover_item(url=cover_image, title=title)
-                landscape_item = create_landscape_item(url=cover_image, title=title)
-
-            # 创建元数据对象
-            identifier = StringUtils.create_identifier(site=SITE_NAME, code=video_code, url=original_url)
-            metadata = MovieMetadata(
-                title=video_code + " " + title,
-                identifier=identifier,
-                site=SITE_NAME,
-                url=original_url,
-                code=video_code,
-                actors=actors,
-                runtime=runtime_minutes,
-                premiered=release_date,
-                genres=genres,
-                tags=tags,
-                studio=studio,
-                director=director,
-                cover=cover_image,
-                plot=description,
-                year=release_year,
+            # 使用 MetadataBuilder 构建元数据
+            builder = MetadataBuilder()
+            metadata = (
+                builder.set_title(title, video_code)
+                .set_code(video_code)
+                .set_site(SITE_NAME)
+                .set_url(original_url)
+                .set_identifier(SITE_NAME, video_code, original_url)
+                .set_release_date(release_date)
+                .set_cover(cover_image)
+                .set_plot(description)
+                .set_actors(actors)
+                .set_director(director)
+                .set_runtime(runtime_minutes)
+                .set_genres(genres)
+                .set_tags(tags)
+                .set_studio(studio)
+                .build()
             )
 
-            metadata_item = create_metadata_item(
-                title=title,
-                meta_data=metadata,
-            )
+            # 使用 OperationItemBuilder 构建下载项
+            op_builder = OperationItemBuilder(SITE_NAME, title, video_code)
+            op_builder.set_cover(cover_image).set_landscape(cover_image).set_metadata(metadata).set_actors(
+                actors
+            ).set_studio(studio).set_year(release_year)
 
             # 构建下载选项
-            download_items: List[OperationItem] = []
             for quality_key, video_url in video_urls.items():
                 if not video_url:
                     continue
@@ -698,27 +673,10 @@ class AV01Plugin(BasePlugin):
                     ]
                     else Quality.guess(video_url)
                 )
-                download_item = create_stream_item(
-                    site=SITE_NAME,
-                    url=video_url,
-                    title=title,
-                    code=video_code,
-                    quality=quality,
-                    actors=actors,
-                    studio=studio,
-                    year=release_year,
-                )
 
-                # 添加子项
-                if cover_item:
-                    download_item.append_child(cover_item)
-                if landscape_item:
-                    download_item.append_child(landscape_item)
-                download_item.append_child(metadata_item)
+                op_builder.add_stream(video_url, quality)
 
-                download_items.append(download_item)
-
-            return download_items
+            return op_builder.build()
 
         except Exception as e:
             self.logger.error(f"构建下载选项失败: {e}")

@@ -34,6 +34,55 @@ def common_header_option(func: F) -> F:
     return cast(F, wrapper)
 
 
+def common_download_options(func: F) -> F:
+    """添加通用的下载选项装饰器（线程数、重试、超时）"""
+
+    @click.option("--threads", "-t", type=click.IntRange(1, 16), help="下载线程数 (1-16)")
+    @click.option("--retry", "-r", type=click.IntRange(0, 10), help="失败重试次数 (0-10)")
+    @click.option("--timeout", type=click.IntRange(5, 300), help="连接超时时间(秒)")
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        return func(*args, **kwargs)
+
+    return cast(F, wrapper)
+
+
+def common_output_options(func: F) -> F:
+    """添加通用的输出选项装饰器（输出目录、自动整理）"""
+
+    @click.option("--output-dir", "-o", type=click.Path(), help="指定输出目录")
+    @click.option("--organize", is_flag=True, help="下载后自动整理文件")
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        return func(*args, **kwargs)
+
+    return cast(F, wrapper)
+
+
+def common_interaction_options(func: F) -> F:
+    """添加通用的交互选项装饰器（自动选择、静默模式）"""
+
+    @click.option("--auto-select", "-a", is_flag=True, help="自动选择第一个下载选项，无需手动选择")
+    @click.option("--silent", "-s", is_flag=True, help="静默模式，不显示下载进度")
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        return func(*args, **kwargs)
+
+    return cast(F, wrapper)
+
+
+def common_network_options(func: F) -> F:
+    """添加通用的网络选项装饰器（代理、头部、超时）"""
+
+    @common_proxy_option
+    @common_header_option
+    @functools.wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        return func(*args, **kwargs)
+
+    return cast(F, wrapper)
+
+
 def apply_proxy_config(proxy: Optional[str], config: Config) -> Optional[str]:
     """应用代理配置
 
