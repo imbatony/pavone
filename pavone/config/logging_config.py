@@ -120,7 +120,7 @@ class LogManager:
         # 移除控制台处理器
         for handler in root_logger.handlers[:]:
             if isinstance(handler, logging.StreamHandler) and not isinstance(handler, logging.FileHandler):
-                root_logger.removeHandler(handler) # type: ignore
+                root_logger.removeHandler(handler)  # type: ignore
 
     def enable_console_logging(self):
         """启用控制台日志"""

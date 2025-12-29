@@ -9,7 +9,7 @@ import click
 
 from ...config.configs import Config
 
-F = TypeVar('F', bound=Callable[..., Any])
+F = TypeVar("F", bound=Callable[..., Any])
 
 
 def common_proxy_option(func: F) -> F:

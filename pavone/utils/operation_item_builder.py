@@ -250,16 +250,12 @@ class OperationItemBuilder:
         for stream_item in self._stream_items:
             # 添加封面
             if self._cover_url:
-                cover_item = create_cover_item(
-                    url=self._cover_url, title=self.title, custom_headers=self._custom_headers
-                )
+                cover_item = create_cover_item(url=self._cover_url, title=self.title, custom_headers=self._custom_headers)
                 stream_item.append_child(cover_item)
 
             # 添加海报
             if self._poster_url:
-                poster_item = create_poster_item(
-                    url=self._poster_url, title=self.title, custom_headers=self._custom_headers
-                )
+                poster_item = create_poster_item(url=self._poster_url, title=self.title, custom_headers=self._custom_headers)
                 stream_item.append_child(poster_item)
 
             # 添加横版封面

@@ -306,7 +306,7 @@ class SupFC2Metadata(FC2BaseMetadata):
         try:
             # 从 og:image 提取图片
             cover = HTMLMetadataExtractor.extract_og_image(html_content)
-            
+
             # 提取所有 og:image
             pattern = r'<meta property="og:image" content="([^"]+)"'
             matches = re.findall(pattern, html_content)

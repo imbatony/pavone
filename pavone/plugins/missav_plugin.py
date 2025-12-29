@@ -83,8 +83,7 @@ class MissAVPlugin(BasePlugin):
             return results
         else:
             self.logger.error(
-                "Failed to fetch search results for "
-                f"{keyword}. Status code: {res.status_code if res else 'No response'}"
+                "Failed to fetch search results for " f"{keyword}. Status code: {res.status_code if res else 'No response'}"
             )
             return []
 

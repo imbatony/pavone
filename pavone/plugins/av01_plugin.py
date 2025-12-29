@@ -650,9 +650,9 @@ class AV01Plugin(BasePlugin):
 
             # 使用 OperationItemBuilder 构建下载项
             op_builder = OperationItemBuilder(SITE_NAME, title, video_code)
-            op_builder.set_cover(cover_image).set_landscape(cover_image).set_metadata(metadata).set_actors(
-                actors
-            ).set_studio(studio).set_year(release_year)
+            op_builder.set_cover(cover_image).set_landscape(cover_image).set_metadata(metadata).set_actors(actors).set_studio(
+                studio
+            ).set_year(release_year)
 
             # 构建下载选项
             for quality_key, video_url in video_urls.items():
