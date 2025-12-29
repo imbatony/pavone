@@ -11,7 +11,7 @@ from .utils import confirm_action, echo_info, prompt_choice, prompt_int_range, p
 @click.command()
 @click.option("--force", is_flag=True, help="强制重新初始化，覆盖现有配置")
 @click.option("--interactive/--no-interactive", "-i", default=True, help="交互式配置（默认）")
-def init(force, interactive):
+def init(force: bool, interactive: bool):
     """初始化PAVOne配置"""
     echo_info("欢迎使用PAVOne！")
 

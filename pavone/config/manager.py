@@ -5,7 +5,7 @@
 import json
 from dataclasses import asdict
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from .configs import (
     Config,
@@ -63,22 +63,22 @@ class ConfigManager:
             self.config = Config()
             self.save_config()
 
-    def _load_config_data(self, data: dict):
+    def _load_config_data(self, data: dict[str, Any]) -> None:
         """从字典数据加载配置"""
         if "download" in data:
-            self.config.download = DownloadConfig(**data["download"])
+            self.config.download = DownloadConfig(**data["download"])  # type: ignore[arg-type]
         if "organize" in data:
-            self.config.organize = OrganizeConfig(**data["organize"])
+            self.config.organize = OrganizeConfig(**data["organize"])  # type: ignore[arg-type]
         if "search" in data:
-            self.config.search = SearchConfig(**data["search"])
+            self.config.search = SearchConfig(**data["search"])  # type: ignore[arg-type]
         if "proxy" in data:
-            self.config.proxy = ProxyConfig(**data["proxy"])
+            self.config.proxy = ProxyConfig(**data["proxy"])  # type: ignore[arg-type]
         if "logging" in data:
-            self.config.logging = LoggingConfig(**data["logging"])
+            self.config.logging = LoggingConfig(**data["logging"])  # type: ignore[arg-type]
         if "plugin" in data:
-            self.config.plugin = PluginConfig(**data["plugin"])
+            self.config.plugin = PluginConfig(**data["plugin"])  # type: ignore[arg-type]
         if "jellyfin" in data:
-            self.config.jellyfin = JellyfinConfig(**data["jellyfin"])
+            self.config.jellyfin = JellyfinConfig(**data["jellyfin"])  # type: ignore[arg-type]
 
     def save_config(self):
         """保存配置"""
@@ -103,7 +103,7 @@ class ConfigManager:
         """获取配置"""
         return self.config
 
-    def update_config(self, **kwargs):
+    def update_config(self, **kwargs: Any) -> None:
         """更新配置"""
         for key, value in kwargs.items():
             if hasattr(self.config, key):
@@ -121,7 +121,7 @@ class ConfigManager:
         return get_log_manager().get_logger(name)
 
     # 日志配置管理方法
-    def update_logging_config(self, **kwargs):
+    def update_logging_config(self, **kwargs: Any) -> None:
         """更新日志配置"""
         for key, value in kwargs.items():
             if hasattr(self.config.logging, key):
@@ -203,7 +203,7 @@ class ConfigManager:
         plugin_dir.mkdir(parents=True, exist_ok=True)
         plugin_config_dir.mkdir(parents=True, exist_ok=True)
 
-    def update_plugin_config(self, **kwargs):
+    def update_plugin_config(self, **kwargs: Any) -> None:
         """更新插件配置"""
         for key, value in kwargs.items():
             if hasattr(self.config.plugin, key):

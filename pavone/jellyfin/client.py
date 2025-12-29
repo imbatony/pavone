@@ -52,11 +52,11 @@ class JellyfinClientWrapper:
     def _setup_client_config(self) -> None:
         """配置 Jellyfin 客户端基本信息"""
         # 需要设置设备信息才能获取有效的用户令牌
-        self.client.config.app("PAVOne", "0.2.0", "pavone-client", "pavone-unique-id-client")
-        self.client.config.http(user_agent="PAVOne/0.2.0")
+        self.client.config.app("PAVOne", "0.2.0", "pavone-client", "pavone-unique-id-client")  # type: ignore[misc]
+        self.client.config.http(user_agent="PAVOne/0.2.0")  # type: ignore[misc]
 
         # 设置 SSL 验证
-        self.client.config.data["auth.ssl"] = "https" in self.config.server_url
+        self.client.config.data["auth.ssl"] = "https" in self.config.server_url  # type: ignore[index]
         if not self.config.verify_ssl:
             # 禁用 SSL 验证警告
             import urllib3
@@ -103,7 +103,7 @@ class JellyfinClientWrapper:
     def _authenticate_with_api_key(self) -> None:
         """使用 API Key 进行认证"""
         try:
-            self.client.authenticate(
+            self.client.authenticate(  # type: ignore[misc]
                 {
                     "Servers": [
                         {
@@ -118,21 +118,21 @@ class JellyfinClientWrapper:
             # 从认证结果中获取用户 ID
             try:
                 # 尝试从 ConnectionManager 的凭证中获取用户 ID
-                creds = self.client.get_credentials()
-                if creds and "Servers" in creds and len(creds["Servers"]) > 0:
-                    server_creds = creds["Servers"][0]
-                    if "UserId" in server_creds:
-                        self.user_id = server_creds["UserId"]
-                        self.client.config.data["auth.user_id"] = self.user_id
-                        self.logger.debug(f"从认证结果获取用户 ID: {self.user_id}")
+                creds = self.client.get_credentials()  # type: ignore[misc]
+                if creds and "Servers" in creds and len(creds["Servers"]) > 0:  # type: ignore[arg-type]
+                    server_creds = creds["Servers"][0]  # type: ignore[index]
+                    if "UserId" in server_creds:  # type: ignore[operator]
+                        self.user_id = server_creds["UserId"]  # type: ignore[assignment,index]
+                        self.client.config.data["auth.user_id"] = self.user_id  # type: ignore[index]
+                        self.logger.debug(f"从认证结果获取用户 ID: {self.user_id}")  # type: ignore[str-bytes-safe]
 
                 # 如果仍未获得用户 ID，调用 API 获取当前用户信息
-                if not self.user_id:
-                    users = self.client.jellyfin.get_users()
-                    if isinstance(users, list) and len(users) > 0:
-                        self.user_id = users[0].get("Id")
-                        self.client.config.data["auth.user_id"] = self.user_id
-                        self.logger.debug(f"从 API 获取用户 ID: {self.user_id}")
+                if not self.user_id:  # type: ignore[truthy-bool]
+                    users = self.client.jellyfin.get_users()  # type: ignore[misc]
+                    if isinstance(users, list) and len(users) > 0:  # type: ignore[arg-type]
+                        self.user_id = users[0].get("Id")  # type: ignore[assignment,misc]
+                        self.client.config.data["auth.user_id"] = self.user_id  # type: ignore[index]
+                        self.logger.debug(f"从 API 获取用户 ID: {self.user_id}")  # type: ignore[str-bytes-safe]
 
             except Exception as e:
                 self.logger.warning(f"无法获取用户 ID: {e}")
@@ -145,20 +145,20 @@ class JellyfinClientWrapper:
         """使用用户名密码进行认证"""
         try:
             # 连接到服务器地址
-            self.client.auth.connect_to_address(self.config.server_url)
+            self.client.auth.connect_to_address(self.config.server_url)  # type: ignore[misc]
 
             # 使用用户名密码登录
-            self.client.auth.login(self.config.server_url, self.config.username, self.config.password)
+            self.client.auth.login(self.config.server_url, self.config.username, self.config.password)  # type: ignore[misc]
 
             # 获取用户 ID 用于后续 API 调用
             try:
-                creds = self.client.get_credentials()
-                if creds and "Servers" in creds and len(creds["Servers"]) > 0:
-                    server_creds = creds["Servers"][0]
-                    if "UserId" in server_creds:
-                        self.user_id = server_creds["UserId"]
-                        self.client.config.data["auth.user_id"] = self.user_id
-                        self.logger.debug(f"从认证结果获取用户 ID: {self.user_id}")
+                creds = self.client.get_credentials()  # type: ignore[misc]
+                if creds and "Servers" in creds and len(creds["Servers"]) > 0:  # type: ignore[arg-type]
+                    server_creds = creds["Servers"][0]  # type: ignore[index]
+                    if "UserId" in server_creds:  # type: ignore[operator]
+                        self.user_id = server_creds["UserId"]  # type: ignore[assignment,index]
+                        self.client.config.data["auth.user_id"] = self.user_id  # type: ignore[index]
+                        self.logger.debug(f"从认证结果获取用户 ID: {self.user_id}")  # type: ignore[str-bytes-safe]
             except Exception as e:
                 self.logger.warning(f"无法从认证结果获取用户 ID: {e}")
 
@@ -186,9 +186,9 @@ class JellyfinClientWrapper:
             JellyfinAPIError: API 调用失败
         """
         try:
-            info = self.client.jellyfin.get_system_info()
-            self.logger.debug(f"获取到服务器信息: {info.get('ServerName', 'Unknown')}")
-            return info
+            info = self.client.jellyfin.get_system_info()  # type: ignore[misc]
+            self.logger.debug(f"获取到服务器信息: {info.get('ServerName', 'Unknown')}")  # type: ignore[misc]
+            return info  # type: ignore[return-value]
         except Exception as e:
             self.logger.error(f"获取服务器信息失败: {e}")
             raise JellyfinAPIError(f"获取服务器信息失败: {e}")
@@ -205,13 +205,13 @@ class JellyfinClientWrapper:
         """
         try:
             # 使用 media_folders() 直接获取库列表（不需要 UserId）
-            result = self.client.jellyfin.media_folders()
-            libraries = []
+            result = self.client.jellyfin.media_folders()  # type: ignore[misc]
+            libraries: List[LibraryInfo] = []
 
-            for item in result.get("Items", []):
-                lib_id = item.get("Id", "")
-                lib_name = item.get("Name", "")
-                lib_type = item.get("CollectionType", "")
+            for item in result.get("Items", []):  # type: ignore[misc]
+                lib_id = item.get("Id", "")  # type: ignore[misc]
+                lib_name = item.get("Name", "")  # type: ignore[misc]
+                lib_type = item.get("CollectionType", "")  # type: ignore[misc]
 
                 # 排除 playlists 类型的库（内建库）
                 if lib_type == "playlists":
@@ -219,12 +219,12 @@ class JellyfinClientWrapper:
                     continue
 
                 # 获取库中的项目数
-                item_count = self._get_library_item_count(lib_id)
+                item_count = self._get_library_item_count(lib_id)  # type: ignore[arg-type]
 
                 lib_info = LibraryInfo(
-                    name=lib_name,
-                    id=lib_id,
-                    type=lib_type,
+                    name=lib_name,  # type: ignore[arg-type]
+                    id=lib_id,  # type: ignore[arg-type]
+                    type=lib_type,  # type: ignore[arg-type]
                     item_count=item_count,
                 )
                 libraries.append(lib_info)
@@ -247,15 +247,15 @@ class JellyfinClientWrapper:
             JellyfinAPIError: API 调用失败
         """
         try:
-            locations = {}
+            locations: Dict[str, List[str]] = {}
 
             # 方法 1: 尝试使用 virtual_folders API
             try:
-                virtual_folders_result = self.client.jellyfin.virtual_folders()
+                virtual_folders_result = self.client.jellyfin.virtual_folders()  # type: ignore[misc]
                 if virtual_folders_result and isinstance(virtual_folders_result, list):
-                    for vf in virtual_folders_result:
-                        lib_name = vf.get("Name", "")
-                        locations_list = vf.get("Locations", [])
+                    for vf in virtual_folders_result:  # type: ignore[misc]
+                        lib_name = vf.get("Name", "")  # type: ignore[misc]
+                        locations_list = vf.get("Locations", [])  # type: ignore[misc]
                         if lib_name and locations_list:
                             locations[lib_name] = locations_list
                             self.logger.debug(f"从 virtual_folders 获取 {lib_name}: {locations_list}")
@@ -267,37 +267,37 @@ class JellyfinClientWrapper:
                 return locations
 
             # 方法 2: 尝试从 media_folders 获取 PhysicalLocations 或 CollectionFolders
-            result = self.client.jellyfin.media_folders()
-            for item in result.get("Items", []):
-                lib_name = item.get("Name", "")
-                lib_type = item.get("CollectionType", "")
+            result = self.client.jellyfin.media_folders()  # type: ignore[misc]
+            for item in result.get("Items", []):  # type: ignore[misc]
+                lib_name = item.get("Name", "")  # type: ignore[misc]
+                lib_type = item.get("CollectionType", "")  # type: ignore[misc]
 
                 # 排除 playlists 类型的库（内建库）
                 if lib_type == "playlists":
                     continue
 
                 # 尝试获取物理位置
-                paths = item.get("PhysicalLocations", [])
+                paths = item.get("PhysicalLocations", [])  # type: ignore[misc]
                 if paths:
-                    locations[lib_name] = paths
+                    locations[lib_name] = paths  # type: ignore[index]
                     self.logger.debug(f"从 media_folders PhysicalLocations 获取 {lib_name}: {paths}")
                     continue
 
                 # 尝试从 CollectionFolders 获取
-                collection_folders = item.get("CollectionFolders", [])
+                collection_folders = item.get("CollectionFolders", [])  # type: ignore[misc]
                 if collection_folders:
-                    folder_paths = [f.get("Path", "") for f in collection_folders if f.get("Path")]
+                    folder_paths = [f.get("Path", "") for f in collection_folders if f.get("Path")]  # type: ignore[misc]
                     if folder_paths:
-                        locations[lib_name] = folder_paths
+                        locations[lib_name] = folder_paths  # type: ignore[index]
                         self.logger.debug(f"从 media_folders CollectionFolders 获取 {lib_name}: {folder_paths}")
                         continue
 
                 # 尝试从 Folders 获取
-                folders = item.get("Folders", [])
+                folders = item.get("Folders", [])  # type: ignore[misc]
                 if folders:
-                    folder_paths = [f.get("Path", "") for f in folders if f.get("Path")]
+                    folder_paths = [f.get("Path", "") for f in folders if f.get("Path")]  # type: ignore[misc]
                     if folder_paths:
-                        locations[lib_name] = folder_paths
+                        locations[lib_name] = folder_paths  # type: ignore[index]
                         self.logger.debug(f"从 media_folders Folders 获取 {lib_name}: {folder_paths}")
 
             self.logger.debug(f"获取到库物理位置: {locations}")
@@ -319,16 +319,16 @@ class JellyfinClientWrapper:
         """
         try:
             # 查询库中的项目总数
-            result = self.client.jellyfin.user_items(
+            result = self.client.jellyfin.user_items(  # type: ignore[misc]
                 handler="",
                 params={
                     "ParentId": library_id,
                     "Recursive": True,
                 },
             )
-            count = result.get("TotalRecordCount", 0)
+            count = result.get("TotalRecordCount", 0)  # type: ignore[misc]
             self.logger.debug(f"库 {library_id} 包含 {count} 个项目")
-            return count
+            return count  # type: ignore[return-value]
         except Exception as e:
             self.logger.warning(f"获取库 {library_id} 的项目数失败: {e}")
             return 0
@@ -354,7 +354,7 @@ class JellyfinClientWrapper:
             JellyfinAPIError: API 调用失败
         """
         try:
-            items = []
+            items: List[JellyfinItem] = []
 
             # 如果未指定库，获取所有库
             if not library_ids:
@@ -364,7 +364,7 @@ class JellyfinClientWrapper:
             for lib_id in library_ids:
                 try:
                     # 使用 user_items 方法获取库中的项
-                    result = self.client.jellyfin.user_items(
+                    result = self.client.jellyfin.user_items(  # type: ignore[misc]
                         handler="",
                         params={
                             "ParentId": lib_id,
@@ -376,11 +376,11 @@ class JellyfinClientWrapper:
                         },
                     )
 
-                    for item_data in result.get("Items", []):
-                        item = self._parse_item(item_data)
+                    for item_data in result.get("Items", []):  # type: ignore[misc]
+                        item = self._parse_item(item_data)  # type: ignore[arg-type]
                         items.append(item)
 
-                    self.logger.debug(f"从库 {lib_id} 获取了 {len(result.get('Items', []))} 个项")
+                    self.logger.debug(f"从库 {lib_id} 获取了 {len(result.get('Items', []))} 个项")  # type: ignore[misc,arg-type]
 
                 except Exception as e:
                     self.logger.warning(f"获取库 {lib_id} 的项失败: {e}")
@@ -414,17 +414,17 @@ class JellyfinClientWrapper:
             # 临时设置用户 ID 来进行搜索（某些 API 需要它）
             old_user_id = None
             if self.user_id:
-                old_user_id = self.client.config.data.get("auth.user_id")
-                self.client.config.data["auth.user_id"] = self.user_id
+                old_user_id = self.client.config.data.get("auth.user_id")  # type: ignore[misc]
+                self.client.config.data["auth.user_id"] = self.user_id  # type: ignore[index]
 
-            result = self.client.jellyfin.search_media_items(term=keyword, media=media_type, limit=limit)
+            result = self.client.jellyfin.search_media_items(term=keyword, media=media_type, limit=limit)  # type: ignore[misc]
 
             if self.user_id:
-                self.client.config.data["auth.user_id"] = old_user_id
+                self.client.config.data["auth.user_id"] = old_user_id  # type: ignore[index]
 
-            items = []
-            for item_data in result.get("Items", []):
-                item = self._parse_item(item_data)
+            items: List[JellyfinItem] = []
+            for item_data in result.get("Items", []):  # type: ignore[misc]
+                item = self._parse_item(item_data)  # type: ignore[arg-type]
                 items.append(item)
 
             self.logger.info(f"搜索到 {len(items)} 个结果")
@@ -448,8 +448,8 @@ class JellyfinClientWrapper:
             JellyfinAPIError: API 调用失败
         """
         try:
-            item_data = self.client.jellyfin.get_item(item_id)
-            item = self._parse_item(item_data)
+            item_data = self.client.jellyfin.get_item(item_id)  # type: ignore[misc]
+            item = self._parse_item(item_data)  # type: ignore[arg-type]
             self.logger.debug(f"获取项信息: {item.name}")
             return item
 
@@ -472,7 +472,7 @@ class JellyfinClientWrapper:
             JellyfinAPIError: API 调用失败
         """
         try:
-            self.client.jellyfin.update_item(item_id, metadata)
+            self.client.jellyfin.update_item(item_id, metadata)  # type: ignore[misc]
             self.logger.info(f"更新项 {item_id} 的元数据成功")
             return True
 
@@ -500,13 +500,13 @@ class JellyfinClientWrapper:
             target_user_id = user_id or self.user_id
 
             if target_user_id:
-                old_user_id = self.client.config.data.get("auth.user_id")
-                self.client.config.data["auth.user_id"] = target_user_id
+                old_user_id = self.client.config.data.get("auth.user_id")  # type: ignore[misc]
+                self.client.config.data["auth.user_id"] = target_user_id  # type: ignore[index]
 
-            self.client.jellyfin.item_played(item_id, watched=True)
+            self.client.jellyfin.item_played(item_id, watched=True)  # type: ignore[misc]
 
             if target_user_id:
-                self.client.config.data["auth.user_id"] = old_user_id
+                self.client.config.data["auth.user_id"] = old_user_id  # type: ignore[index]
 
             self.logger.debug(f"标记项 {item_id} 为已观看")
             return True
@@ -534,7 +534,7 @@ class JellyfinClientWrapper:
             if library_id:
                 # 增量刷新特定库
                 # 使用 jellyfin 库的 _post 方法调用 API，传递增量刷新参数
-                self.client.jellyfin._post(
+                self.client.jellyfin._post(  # type: ignore[misc]
                     f"Items/{library_id}/Refresh",
                     params={
                         "Recursive": True,
@@ -550,7 +550,7 @@ class JellyfinClientWrapper:
                 # 增量刷新所有库
                 libraries = self.get_libraries()
                 for lib in libraries:
-                    self.client.jellyfin._post(
+                    self.client.jellyfin._post(  # type: ignore[misc]
                         f"Items/{lib.id}/Refresh",
                         params={
                             "Recursive": True,
@@ -652,9 +652,9 @@ class JellyfinClientWrapper:
             access_token = self.config.api_key
             if not access_token:
                 # 尝试从客户端凭证获取
-                creds = self.client.get_credentials()
-                if creds and "Servers" in creds and len(creds["Servers"]) > 0:
-                    access_token = creds["Servers"][0].get("AccessToken")
+                creds = self.client.get_credentials()  # type: ignore[misc]
+                if creds and "Servers" in creds and len(creds["Servers"]) > 0:  # type: ignore[arg-type]
+                    access_token = creds["Servers"][0].get("AccessToken")  # type: ignore[index,misc]
 
             if not access_token:
                 raise JellyfinAPIError("无法获取访问令牌")
@@ -670,8 +670,8 @@ class JellyfinClientWrapper:
                 endpoint = f"{base_url}/Items/{item_id}/Images/{image_type}"
 
             # 准备请求头 - 参考实际请求案例，直接设置 Content-Type
-            headers = {
-                "X-Emby-Token": access_token,
+            headers: Dict[str, str] = {
+                "X-Emby-Token": access_token,  # type: ignore[dict-item]
                 "Content-Type": content_type,
             }
 
@@ -729,16 +729,16 @@ class JellyfinClientWrapper:
             access_token = self.config.api_key
             if not access_token:
                 # 尝试从客户端凭证获取
-                creds = self.client.get_credentials()
-                if creds and "Servers" in creds and len(creds["Servers"]) > 0:
-                    access_token = creds["Servers"][0].get("AccessToken")
+                creds = self.client.get_credentials()  # type: ignore[misc]
+                if creds and "Servers" in creds and len(creds["Servers"]) > 0:  # type: ignore[arg-type]
+                    access_token = creds["Servers"][0].get("AccessToken")  # type: ignore[index,misc]
 
             if not access_token:
                 raise JellyfinAPIError("无法获取访问令牌")
 
             # 准备请求头
-            headers = {
-                "X-Emby-Token": access_token,
+            headers: Dict[str, str] = {
+                "X-Emby-Token": access_token,  # type: ignore[dict-item]
             }
 
             # 发送 DELETE 请求
@@ -780,9 +780,9 @@ class JellyfinClientWrapper:
             # 获取访问令牌
             access_token = self.config.api_key
             if not access_token:
-                creds = self.client.get_credentials()
-                if creds and "Servers" in creds and len(creds["Servers"]) > 0:
-                    access_token = creds["Servers"][0].get("AccessToken")
+                creds = self.client.get_credentials()  # type: ignore[misc]
+                if creds and "Servers" in creds and len(creds["Servers"]) > 0:  # type: ignore[arg-type]
+                    access_token = creds["Servers"][0].get("AccessToken")  # type: ignore[index,misc]
 
             if not access_token:
                 raise JellyfinAPIError("无法获取访问令牌")
@@ -793,8 +793,8 @@ class JellyfinClientWrapper:
                 "ImageUrl": image_url,
             }
 
-            headers = {
-                "X-Emby-Token": access_token,
+            headers: Dict[str, str] = {
+                "X-Emby-Token": access_token,  # type: ignore[dict-item]
             }
 
             self.logger.debug(f"请求 Jellyfin 下载远程图片: {image_url}")

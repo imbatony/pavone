@@ -3,34 +3,38 @@ CLI Utilities - 共享的辅助函数
 """
 
 import functools
-from typing import List, Optional
+from typing import Any, Callable, List, Optional, TypeVar, cast
 
 import click
 
+from ...config.configs import Config
 
-def common_proxy_option(func):
+F = TypeVar('F', bound=Callable[..., Any])
+
+
+def common_proxy_option(func: F) -> F:
     """添加通用的 proxy 选项装饰器"""
 
     @click.option("--proxy", type=str, help="HTTP代理地址 (格式: http://proxy:port)")
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         return func(*args, **kwargs)
 
-    return wrapper
+    return cast(F, wrapper)
 
 
-def common_header_option(func):
+def common_header_option(func: F) -> F:
     """添加通用的 header 选项装饰器"""
 
     @click.option("--header", multiple=True, help='自定义HTTP头部 (可多次使用, 格式: "Key: Value")')
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         return func(*args, **kwargs)
 
-    return wrapper
+    return cast(F, wrapper)
 
 
-def apply_proxy_config(proxy: Optional[str], config):
+def apply_proxy_config(proxy: Optional[str], config: Config) -> Optional[str]:
     """应用代理配置
 
     Args:
@@ -50,7 +54,7 @@ def apply_proxy_config(proxy: Optional[str], config):
     echo_info(f"使用代理: {proxy}")
 
     # 设置下载配置中的代理
-    proxy_config = config.proxy
+    proxy_config = config.proxy  # type: ignore[attr-defined]
     proxy_config.enabled = True
     if proxy.startswith("http://"):
         proxy_config.http_proxy = proxy
@@ -145,7 +149,7 @@ def prompt_int_range(message: str, min_val: int, max_val: int, default: Optional
     return click.prompt(message, type=click.IntRange(min_val, max_val), default=default)
 
 
-def prompt_text(message: str, default: Optional[str] = None, type=str) -> str:
+def prompt_text(message: str, default: Optional[str] = None, type: type[str] = str) -> str:
     """提示用户输入文本"""
     return click.prompt(message, default=default, type=type)
 
@@ -157,7 +161,7 @@ def prompt_int(message: str, default: Optional[int] = None) -> int:
 
 def read_urls_from_file(file_path: str) -> List[str]:
     """从文件读取URL列表"""
-    urls = []
+    urls: List[str] = []
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             for line in f:
@@ -171,7 +175,7 @@ def read_urls_from_file(file_path: str) -> List[str]:
 
 def read_urls_from_input() -> List[str]:
     """从用户输入读取URL列表"""
-    urls = []
+    urls: List[str] = []
     echo_info("请输入URL列表，每行一个URL，输入空行结束:")
     while True:
         try:

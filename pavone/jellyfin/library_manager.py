@@ -71,7 +71,7 @@ class LibraryManager:
 
         try:
             libraries = self.client.get_libraries()
-            result = {}
+            result: Dict[str, List[JellyfinItem]] = {}
 
             for lib in libraries:
                 self.logger.info(f"扫描库: {lib.name}")
@@ -79,7 +79,7 @@ class LibraryManager:
                 result[lib.name] = items
 
             self._cache = result
-            self.logger.info(f"扫描完成，共获取 {sum(len(v) for v in result.values())} 个项")
+            self.logger.info(f"扫描完成，共获取 {sum(len(v) for v in result.values())} 个项")  # type: ignore[arg-type]
             return result
 
         except Exception as e:
@@ -177,10 +177,10 @@ class LibraryManager:
             # 如果 API 返回为空，则回退到从库项获取路径
             self.logger.info("API 返回的物理位置为空，尝试从库项获取路径")
             libraries = self.client.get_libraries()
-            result = {}
+            result: Dict[str, List[str]] = {}
 
             for lib in libraries:
-                folders = []
+                folders: List[str] = []
 
                 # 尝试从库项中获取路径
                 # 获取多个项目来增加找到路径的可能性
@@ -188,10 +188,10 @@ class LibraryManager:
 
                 if items:
                     # 从所有项中收集唯一的父路径
-                    parent_paths = set()
+                    parent_paths: set[str] = set()
                     for item in items:
-                        if item.path:
-                            parent_path = str(Path(item.path).parent)
+                        if item.path:  # type: ignore[misc]
+                            parent_path = str(Path(item.path).parent)  # type: ignore[arg-type]
                             parent_paths.add(parent_path)
 
                     if parent_paths:

@@ -194,7 +194,7 @@ class MetadataComparison:
                 }
             }
         """
-        comparison = {}
+        comparison: Dict[str, Dict[str, Any]] = {}
 
         for field_name in MetadataComparison.METADATA_FIELDS:
             # 直接从元数据对象提取字段值
@@ -245,7 +245,7 @@ class MetadataComparison:
             return None
         if isinstance(value, list):
             # 移除空项，转换为集合用于比较
-            return frozenset(v for v in value if v)
+            return frozenset(v for v in value if v)  # type: ignore[misc]
         if isinstance(value, str):
             return value.strip() if value else None
         return value
@@ -340,9 +340,9 @@ class MetadataComparison:
         if value is None or value == "":
             return "(无)"
         if isinstance(value, list):
-            formatted = ", ".join(str(v) for v in value[:3])
-            if len(value) > 3:
-                formatted += f" 等{len(value)}项"
+            formatted = ", ".join(str(v) for v in value[:3])  # type: ignore[misc]
+            if len(value) > 3:  # type: ignore[arg-type]
+                formatted += f" 等{len(value)}项"  # type: ignore[arg-type]
             return formatted[:max_len]
         if isinstance(value, (int, float)):
             return str(value)
@@ -369,7 +369,7 @@ class MetadataComparison:
         Returns:
             可用于Jellyfin API更新的字典
         """
-        updates = {}
+        updates: Dict[str, Any] = {}
 
         for field_name, field_info in comparison.items():
             action = field_info["action"]
@@ -392,14 +392,14 @@ class MetadataComparison:
         return updates
 
     @staticmethod
-    def _merge_list_field(local_val: Any, remote_val: Any) -> List[str]:
+    def _merge_list_field(local_val: Any, remote_val: Any) -> List[Any]:
         """合并列表字段（去重排序）"""
-        local_list = local_val if isinstance(local_val, list) else ([local_val] if local_val else [])
-        remote_list = remote_val if isinstance(remote_val, list) else ([remote_val] if remote_val else [])
+        local_list: List[Any] = local_val if isinstance(local_val, list) else ([local_val] if local_val else [])  # type: ignore[assignment]
+        remote_list: List[Any] = remote_val if isinstance(remote_val, list) else ([remote_val] if remote_val else [])  # type: ignore[assignment]
 
         # 合并并去重，保持顺序
         # 使用 dict.fromkeys() 来保持顺序的同时去重
-        merged = list(dict.fromkeys(local_list + remote_list))
+        merged = list(dict.fromkeys(local_list + remote_list))  # type: ignore[arg-type]
         # 排序
         try:
             merged.sort()
@@ -524,7 +524,7 @@ class JellyfinMetadataUpdater:
         Returns:
             Jellyfin API可接受的格式
         """
-        jellyfin_updates = {}
+        jellyfin_updates: Dict[str, Any] = {}
 
         # 字段映射：内部字段名 -> Jellyfin API字段名
         field_mapping = {
@@ -565,7 +565,7 @@ class JellyfinMetadataUpdater:
             elif internal_field == "director":
                 # 导演添加到 People 数组，Type="Director"
                 if isinstance(value, list):
-                    for director in value:
+                    for director in value:  # type: ignore[misc]
                         if director:
                             people_list.append({"Name": director, "Type": "Director", "Role": ""})
                 elif isinstance(value, str) and value:
@@ -574,7 +574,7 @@ class JellyfinMetadataUpdater:
             elif internal_field == "actors":
                 # 演员添加到 People 数组，Type="Actor"
                 if isinstance(value, list):
-                    for actor in value:
+                    for actor in value:  # type: ignore[misc]
                         if actor:
                             people_list.append({"Name": actor, "Type": "Actor", "Role": ""})
 
@@ -582,7 +582,7 @@ class JellyfinMetadataUpdater:
                 # 制作公司：Jellyfin使用Studios数组，每个元素是 {'Name': 'studio_name'} 格式
                 if isinstance(value, list):
                     # 如果已经是列表，转换为Jellyfin格式
-                    jellyfin_updates["Studios"] = [{"Name": s} for s in value]
+                    jellyfin_updates["Studios"] = [{"Name": s} for s in value]  # type: ignore[misc]
                 elif isinstance(value, str) and value:
                     # 如果是字符串，转换为单元素数组
                     jellyfin_updates["Studios"] = [{"Name": value}]

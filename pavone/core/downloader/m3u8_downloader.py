@@ -157,7 +157,7 @@ class M3U8Downloader(BaseDownloader):
         if not progress_callback:
             self.logger.warning("未设置进度回调函数，无法跟踪下载进度")
 
-            def dummy_progress_callback(x):
+            def dummy_progress_callback(x: ProgressInfo) -> None:
                 pass
 
             progress_callback = dummy_progress_callback
