@@ -3,6 +3,7 @@
 提供插件化的扩展功能
 """
 
+from .av01_plugin import AV01Plugin
 from .base import BasePlugin
 from .extractors import ExtractorPlugin
 from .manager import PluginManager, plugin_manager
@@ -15,6 +16,7 @@ __all__ = [
     "ExtractorPlugin",
     "MetadataPlugin",
     "SearchPlugin",
+    "AV01Plugin",
     "MissAVPlugin",
     "PluginManager",
     "plugin_manager",
