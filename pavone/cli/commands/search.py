@@ -5,6 +5,7 @@ Search command - 搜索命令
 import click
 
 from ...config.settings import get_config
+from ...manager import get_search_manager
 from ...plugins.manager import get_plugin_manager
 from .utils import apply_proxy_config, common_proxy_option, echo_error, echo_info, echo_success
 
@@ -30,8 +31,11 @@ def search(keyword: str, proxy: str):
         plugin_manager = get_plugin_manager()
         plugin_manager.load_plugins(plugin_dir=plugin_config.plugin_dir)
 
-        # 执行搜索
-        results = plugin_manager.search(
+        # 获取搜索管理器
+        search_manager = get_search_manager(plugin_manager)
+
+        # 执行搜索（使用去重功能）
+        results = search_manager.search_with_dedup(
             keyword,
             limit=search_config.max_results_per_site,
             enable_sites=search_config.enabled_sites,

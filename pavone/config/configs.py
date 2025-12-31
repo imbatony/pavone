@@ -34,6 +34,7 @@ class OrganizeConfig:
     auto_organize: bool = True
     naming_pattern: str = "{code}"  # 命名模式, 例如 "{code}" 或 "{code} - {title}"
     folder_structure: str = "{code}"  # 文件夹结构, 例如 "{code}"
+    on_conflict: str = "rename"  # 文件名冲突处理策略: rename, skip, overwrite
     create_nfo: bool = True
     download_cover: bool = True
 

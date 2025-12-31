@@ -76,7 +76,7 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
         if code:
             # 如果是FC2编号，转换格式
             if code.startswith("FC2") or code.startswith("fc2"):
-                code = code[:3] + "-PPV-" + code[3:]
+                code = code[:3] + "-PPV" + code[3:]
             code = code.lower()
             url = f"{self.base_url}/ja/{code}"
             res = self.fetch(url)

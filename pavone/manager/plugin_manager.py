@@ -12,22 +12,22 @@ from types import ModuleType
 from typing import Any, Dict, List, Optional, Type
 
 from ..config.settings import config_manager
-from .av01_plugin import AV01Plugin
-from .base import BasePlugin
-from .extractors import (
+from ..plugins.av01_plugin import AV01Plugin
+from ..plugins.base import BasePlugin
+from ..plugins.extractors import (
     ExtractorPlugin,
     M3U8DirectExtractor,
     MP4DirectExtractor,
 )
-from .jtable_plugin import JTablePlugin
-from .memojav_plugin import MemojavPlugin
-from .metadata import (
+from ..plugins.jtable_plugin import JTablePlugin
+from ..plugins.memojav_plugin import MemojavPlugin
+from ..plugins.metadata import (
     MetadataPlugin,
     PPVDataBankMetadata,
     SupFC2Metadata,
 )
-from .missav_plugin import MissAVPlugin
-from .search import JellyfinSearch, SearchPlugin
+from ..plugins.missav_plugin import MissAVPlugin
+from ..plugins.search import SearchPlugin
 
 
 class PluginManager:
@@ -77,7 +77,6 @@ class PluginManager:
                 "AV01Plugin": AV01Plugin,
                 "PPVDataBankMetadata": PPVDataBankMetadata,
                 "SupFC2Metadata": SupFC2Metadata,
-                "JellyfinSearch": JellyfinSearch,
             }
 
             loaded_plugins: list[str] = []
@@ -317,7 +316,7 @@ class PluginManager:
                 plugin.set_priority(priority)  # type: ignore
 
                 # 如果是提取器插件，重新排序
-                from .extractors import ExtractorPlugin
+                from ..plugins.extractors import ExtractorPlugin
 
                 if isinstance(plugin, ExtractorPlugin):
                     self.extractor_plugins.sort(key=lambda p: getattr(p, "priority", 50))

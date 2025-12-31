@@ -5,7 +5,7 @@ param(
     [string]$Command,
     
     [Parameter(Position=1)]
-    [string[]]$Args
+    [string[]]$Arguments
 )
 
 # 设置控制台输出编码为 UTF-8
@@ -33,19 +33,31 @@ switch ($Command) {
     
     "test" {
         Write-Host "🧪 运行单元测试 (不包括集成测试)..." -ForegroundColor Green
-        uv run pytest tests/ -v -m "not integration" --tb=short
+        if ($Arguments) {
+            uv run pytest -v -m "not integration" --tb=short $Arguments
+        } else {
+            uv run pytest tests/ -v -m "not integration" --tb=short
+        }
         Test-CommandSuccess "单元测试完成"
     }
     
     "test-all" {
         Write-Host "🧪 运行所有测试 (包括集成测试)..." -ForegroundColor Green
-        uv run pytest tests/ -v --tb=short
+        if ($Arguments) {
+            uv run pytest -v --tb=short $Arguments
+        } else {
+            uv run pytest tests/ -v --tb=short
+        }
         Test-CommandSuccess "所有测试完成"
     }
     
     "test-cov" {
         Write-Host "🧪 运行测试并生成覆盖率报告..." -ForegroundColor Green
-        uv run pytest tests/ -v -m "not integration" --cov=pavone --cov-report=html --cov-report=term-missing
+        if ($Arguments) {
+            uv run pytest -v -m "not integration" --cov=pavone --cov-report=html --cov-report=term-missing $Arguments
+        } else {
+            uv run pytest tests/ -v -m "not integration" --cov=pavone --cov-report=html --cov-report=term-missing
+        }
         Test-CommandSuccess "测试覆盖率报告已生成到 htmlcov/"
     }
     
@@ -170,8 +182,8 @@ switch ($Command) {
     
     "run" {
         Write-Host "▶️  运行 PAVOne..." -ForegroundColor Green
-        if ($Args) {
-            uv run pavone $Args
+        if ($Arguments) {
+            uv run pavone $Arguments
         } else {
             uv run pavone --help
         }
@@ -205,9 +217,9 @@ switch ($Command) {
   clean        - 清理缓存文件
 
 🧪 测试命令:
-  test         - 运行单元测试 (不包括集成测试)
-  test-all     - 运行所有测试 (包括集成测试)
-  test-cov     - 运行测试并生成覆盖率报告
+  test [args]      - 运行单元测试 (不包括集成测试)
+  test-all [args]  - 运行所有测试 (包括集成测试)
+  test-cov [args]  - 运行测试并生成覆盖率报告
 
 🎨 代码质量:
   format       - 格式化代码 (black + isort)
@@ -224,12 +236,15 @@ switch ($Command) {
   build        - 构建项目
 
 示例:
-  .\dev.ps1 install          # 安装依赖
-  .\dev.ps1 format           # 格式化代码
-  .\dev.ps1 test             # 运行单元测试
-  .\dev.ps1 check            # 运行所有检查
-  .\dev.ps1 ci               # 本地模拟 CI
-  .\dev.ps1 run search av01  # 运行 pavone 命令
+  .\dev.ps1 install                         # 安装依赖
+  .\dev.ps1 format                          # 格式化代码
+  .\dev.ps1 test                            # 运行单元测试
+  .\dev.ps1 test tests/test_filename_parser.py  # 运行指定测试文件
+  .\dev.ps1 test -k test_extract            # 运行名称匹配的测试
+  .\dev.ps1 test --maxfail=1                # 第一个失败后停止
+  .\dev.ps1 check                           # 运行所有检查
+  .\dev.ps1 ci                              # 本地模拟 CI
+  .\dev.ps1 run search av01                 # 运行 pavone 命令
 "@ -ForegroundColor Cyan
     }
 }

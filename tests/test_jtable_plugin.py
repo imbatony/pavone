@@ -5,8 +5,7 @@ JTable 插件测试
 import os
 import unittest
 from datetime import datetime
-from typing import List, Optional
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from pavone.models.metadata import MovieMetadata
 from pavone.models.operation import OperationItem
@@ -69,7 +68,7 @@ class TestJTablePlugin(unittest.TestCase):
                 self.assertFalse(self.plugin.can_handle(url))
 
     @patch("pavone.plugins.jtable_plugin.JTablePlugin.fetch")
-    def test_extract_success(self, mock_fetch):
+    def test_extract_success(self, mock_fetch: MagicMock) -> None:
         """测试成功提取下载选项"""
         # Mock HTTP 响应
         mock_response = Mock()
@@ -94,7 +93,7 @@ class TestJTablePlugin(unittest.TestCase):
         self.assertTrue(has_metadata)
 
     @patch("pavone.plugins.jtable_plugin.JTablePlugin.fetch")
-    def test_extract_no_m3u8(self, mock_fetch):
+    def test_extract_no_m3u8(self, mock_fetch: MagicMock) -> None:
         """测试没有m3u8链接的情况"""
         # Mock HTTP 响应，不包含 m3u8
         mock_response = Mock()
@@ -146,7 +145,7 @@ class TestJTablePlugin(unittest.TestCase):
                 self.assertFalse(self.plugin.can_extract(identifier))
 
     @patch("pavone.plugins.jtable_plugin.JTablePlugin.fetch")
-    def test_extract_metadata_with_url(self, mock_fetch):
+    def test_extract_metadata_with_url(self, mock_fetch: MagicMock) -> None:
         """测试从URL提取元数据"""
         # Mock HTTP 响应
         mock_response = Mock()
@@ -158,15 +157,18 @@ class TestJTablePlugin(unittest.TestCase):
 
         self.assertIsNotNone(metadata)
         self.assertIsInstance(metadata, MovieMetadata)
+        assert metadata is not None  # Type narrowing for pyright
         self.assertEqual(metadata.code, "DASS-247")
         self.assertEqual(metadata.site, "Jable")
         self.assertIn("黒川すみれ", metadata.title)
         self.assertIsNotNone(metadata.cover)
+        assert metadata.actors is not None  # Type narrowing
         self.assertGreater(len(metadata.actors), 0)
+        assert metadata.genres is not None  # Type narrowing
         self.assertGreater(len(metadata.genres), 0)
 
     @patch("pavone.plugins.jtable_plugin.JTablePlugin.fetch")
-    def test_extract_metadata_with_code(self, mock_fetch):
+    def test_extract_metadata_with_code(self, mock_fetch: MagicMock) -> None:
         """测试从视频代码提取元数据"""
         # Mock HTTP 响应
         mock_response = Mock()
@@ -178,6 +180,7 @@ class TestJTablePlugin(unittest.TestCase):
 
         self.assertIsNotNone(metadata)
         self.assertIsInstance(metadata, MovieMetadata)
+        assert metadata is not None  # Type narrowing for pyright
         self.assertEqual(metadata.code, "DASS-247")
 
         # 验证构造的URL
@@ -186,7 +189,7 @@ class TestJTablePlugin(unittest.TestCase):
         self.assertIn("dass-247", called_url.lower())
 
     @patch("pavone.plugins.jtable_plugin.JTablePlugin.fetch")
-    def test_extract_metadata_failure(self, mock_fetch):
+    def test_extract_metadata_failure(self, mock_fetch: MagicMock) -> None:
         """测试提取元数据失败的情况"""
         # Mock HTTP 响应为空
         mock_response = Mock()
@@ -200,102 +203,103 @@ class TestJTablePlugin(unittest.TestCase):
 
     # ==================== 私有方法测试 ====================
 
-    def test_extract_m3u8_url(self):
+    def test_extract_m3u8_url(self) -> None:
         """测试m3u8链接提取"""
-        m3u8_url = self.plugin._extract_m3u8_url(self.test_html_content)
+        m3u8_url = self.plugin._extract_m3u8_url(self.test_html_content)  # type: ignore[reportPrivateUsage]
         self.assertIsNotNone(m3u8_url)
+        assert m3u8_url is not None  # Type narrowing
         self.assertTrue(m3u8_url.startswith("http"))
         self.assertIn("m3u8", m3u8_url.lower() if "m3u8" in m3u8_url.lower() else "")
 
-    def test_extract_m3u8_url_no_match(self):
+    def test_extract_m3u8_url_no_match(self) -> None:
         """测试没有m3u8链接的情况"""
         html_without_m3u8 = "<html><body>No m3u8 here</body></html>"
-        m3u8_url = self.plugin._extract_m3u8_url(html_without_m3u8)
+        m3u8_url = self.plugin._extract_m3u8_url(html_without_m3u8)  # type: ignore[reportPrivateUsage]
         self.assertIsNone(m3u8_url)
 
-    def test_extract_code_title(self):
+    def test_extract_code_title(self) -> None:
         """测试标题和代码提取"""
-        code, title = self.plugin._extract_code_title(self.test_html_content)
+        code, title = self.plugin._extract_code_title(self.test_html_content)  # type: ignore[reportPrivateUsage]
         self.assertEqual(code, "DASS-247")
         self.assertEqual(
             title,
             "媚薬絶頂への恐怖に悪堕ちする誇り高き女捜査官。 黒川すみれ 美咲かんな",
         )
 
-    def test_extract_code_title_no_space(self):
+    def test_extract_code_title_no_space(self) -> None:
         """测试没有空格分隔的标题"""
         html_no_space = '<meta property="og:title" content="DASS-247媚薬絶頂への恐怖に悪堕ちする誇り高き女捜査官。">'
-        code, title = self.plugin._extract_code_title(html_no_space)
+        code, _title = self.plugin._extract_code_title(html_no_space)  # type: ignore[reportPrivateUsage]
         self.assertEqual(code, "DASS-247")
 
-    def test_extract_code_title_no_title(self):
+    def test_extract_code_title_no_title(self) -> None:
         """测试没有标题的情况"""
         html_no_title = "<html><body>No title here</body></html>"
-        code, title = self.plugin._extract_code_title(html_no_title)
+        code, title = self.plugin._extract_code_title(html_no_title)  # type: ignore[reportPrivateUsage]
         # 应该返回默认值
         self.assertIsNotNone(code)
         self.assertIsNotNone(title)
 
-    def test_extract_actors(self):
+    def test_extract_actors(self) -> None:
         """测试演员提取"""
-        actors = self.plugin._extract_actors(self.test_html_content)
+        actors = self.plugin._extract_actors(self.test_html_content)  # type: ignore[reportPrivateUsage]
         self.assertIsInstance(actors, list)
         self.assertGreater(len(actors), 0)
         # HTML中可能只包含部分演员
         self.assertTrue("黒川すみれ" in actors or "美咲かんな" in actors, f"Expected actors not found. Got: {actors}")
 
-    def test_extract_actors_no_match(self):
+    def test_extract_actors_no_match(self) -> None:
         """测试没有演员信息的情况"""
         html_no_actors = "<html><body>No actors here</body></html>"
-        actors = self.plugin._extract_actors(html_no_actors)
+        actors = self.plugin._extract_actors(html_no_actors)  # type: ignore[reportPrivateUsage]
         self.assertEqual(actors, [])
 
-    def test_extract_release_date(self):
+    def test_extract_release_date(self) -> None:
         """测试发布日期提取"""
-        release_date = self.plugin._extract_release_date(self.test_html_content)
+        release_date = self.plugin._extract_release_date(self.test_html_content)  # type: ignore[reportPrivateUsage]
         self.assertIsInstance(release_date, datetime)
         # 验证日期格式
         self.assertGreater(release_date.year, 2000)
 
-    def test_extract_release_date_no_match(self):
+    def test_extract_release_date_no_match(self) -> None:
         """测试没有发布日期的情况"""
         html_no_date = "<html><body>No date here</body></html>"
-        release_date = self.plugin._extract_release_date(html_no_date)
+        release_date = self.plugin._extract_release_date(html_no_date)  # type: ignore[reportPrivateUsage]
         # 应该返回当前日期
         self.assertIsInstance(release_date, datetime)
 
-    def test_extract_genres(self):
+    def test_extract_genres(self) -> None:
         """测试类型提取"""
-        genres = self.plugin._extract_genres(self.test_html_content)
+        genres = self.plugin._extract_genres(self.test_html_content)  # type: ignore[reportPrivateUsage]
         self.assertIsInstance(genres, list)
         # 根据实际HTML内容验证
         if len(genres) > 0:
             self.assertIsInstance(genres[0], str)
 
-    def test_extract_genres_no_match(self):
+    def test_extract_genres_no_match(self) -> None:
         """测试没有类型信息的情况"""
         html_no_genres = "<html><body>No genres here</body></html>"
-        genres = self.plugin._extract_genres(html_no_genres)
+        genres = self.plugin._extract_genres(html_no_genres)  # type: ignore[reportPrivateUsage]
         self.assertEqual(genres, [])
 
-    def test_extract_tags(self):
+    def test_extract_tags(self) -> None:
         """测试标签提取"""
-        tags = self.plugin._extract_tags(self.test_html_content)
+        tags = self.plugin._extract_tags(self.test_html_content)  # type: ignore[reportPrivateUsage]
         self.assertIsInstance(tags, list)
         # 根据实际HTML内容验证
         if len(tags) > 0:
             self.assertIsInstance(tags[0], str)
 
-    def test_extract_tags_no_match(self):
+    def test_extract_tags_no_match(self) -> None:
         """测试没有标签的情况"""
         html_no_tags = "<html><body>No tags here</body></html>"
-        tags = self.plugin._extract_tags(html_no_tags)
+        tags = self.plugin._extract_tags(html_no_tags)  # type: ignore[reportPrivateUsage]
         self.assertEqual(tags, [])
 
-    def test_extract_all_metadata(self):
+    def test_extract_all_metadata(self) -> None:
         """测试完整元数据提取"""
         url = "https://jp.jable.tv/videos/dass-247/"
-        metadata_dict = self.plugin._extract_all_metadata(self.test_html_content, url)
+        metadata_dict = self.plugin._extract_all_metadata(self.test_html_content, url)  # type: ignore[reportPrivateUsage]
 
         self.assertIsInstance(metadata_dict, dict)
         self.assertIn("code", metadata_dict)

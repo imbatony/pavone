@@ -1,30 +1,16 @@
 {
-    "python.defaultInterpreterPath": "./venv/Scripts/python.exe",
-    "python.analysis.typeCheckingMode": "standard",
-    "python.analysis.autoSearchPaths": true,
-    "python.analysis.extraPaths": [
-        ".",
-        "./pavone"
-    ],
-    "python.analysis.include": [
-        "pavone/**",
-        "tests/**"
-    ],
+    "python.defaultInterpreterPath": "./.venv/Scripts/python.exe",
+    "python.analysis.useLibraryCodeForTypes": true,
     "python.analysis.exclude": [
-        "**/__pycache__",
-        ".venv",
-        "venv",
-        "build",
-        "dist",
-        "*.egg-info"
+        "**/tests/**"
     ],
-    "python.analysis.stubPath": "typings",
-    "python.analysis.diagnosticMode": "workspace",
-    "python.analysis.useLibraryCodeForTypes": true,    "python.analysis.completeFunctionParens": true,
-    "python.formatting.provider": "none",
-    "python.formatting.autopep8Enabled": false,
-    "python.formatting.blackEnabled": false,
-    "python.formatting.yapfEnabled": false,
+    "python.analysis.ignore": [
+        "**/tests/**"
+    ],
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingTypeStubs": "none"
+    },
+    "python.analysis.completeFunctionParens": true,
     "editor.formatOnSave": false,
     "editor.formatOnType": false,
     "editor.formatOnPaste": false,

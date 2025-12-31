@@ -7,6 +7,7 @@ from ..config.logging_config import get_logger
 from ..config.settings import Config
 from ..core import (
     DummyOperator,
+    FileMover,
     HTTPDownloader,
     M3U8Downloader,
     MetadataSaver,
@@ -47,6 +48,7 @@ class ExecutionManager:
         self.http_downloader = HTTPDownloader(config)
         self.m3u8_downloader = M3U8Downloader(config)
         self.metadata_saver = MetadataSaver(config)
+        self.file_mover = FileMover(config)
         # 初始化 Jellyfin 助手
         self.jellyfin_helper = None
         if JellyfinDownloadHelper and config.jellyfin.enabled:
@@ -442,18 +444,21 @@ class ExecutionManager:
         elif item.opt_type == OperationType.SAVE_METADATA:
             # 如果是元数据类型，使用MetadataSaver
             return self.metadata_saver
+        elif item.opt_type == OperationType.MOVE:
+            # 如果是移动操作，使用FileMover
+            return self.file_mover
         else:
             self.logger.warning(f"未找到合适的执行器，使用DummyOperator作为占位符: {item.get_description()}")
             return DummyOperator(self.config)
 
-    def _execute_download(
+    def _execute_operation(
         self,
         selected_item: OperationItem,
         silent: bool = False,
         parent: Optional[OperationItem] = None,
     ) -> bool:
         """
-        执行下载或处理操作
+        执行操作项（下载、文件移动等）
 
         Args:
             selected_item: 用户选择的选项
@@ -478,8 +483,17 @@ class ExecutionManager:
             if not self._handle_jellyfin_duplicate_check(selected_item):
                 return False
 
-        # 设置目标
-        self._set_target_path_for_item(selected_item, parent)
+        # 设置目标路径
+        # 对于 MOVE 操作，如果已经设置了 target_path 且没有父项（根项），则不覆盖
+        # 这样可以保留 organize 命令通过 build_operation 设置的路径
+        if selected_item.opt_type == OperationType.MOVE and parent is None and selected_item.get_target_path():
+            # 根 MOVE 项已有 target_path，不覆盖，但仍需设置 custom_filename_prefix
+            naming_pattern = self.config.organize.naming_pattern
+            name_prefix = selected_item.get_filename_prefix(file_name_pattern=naming_pattern)
+            selected_item.set_custom_filename_prefix(name_prefix)
+        else:
+            # 其他情况正常设置目标路径
+            self._set_target_path_for_item(selected_item, parent)
         # 设置进度回调函数
         self._set_progress_callback(silent, selected_item)
         # 找到合适的执行器
@@ -510,7 +524,7 @@ class ExecutionManager:
                 self.logger.info(f"跳过图片下载: {child.get_description()}")
                 continue
             # 递归执行子选项
-            if not self._execute_download(child, silent, selected_item):
+            if not self._execute_operation(child, silent, selected_item):
                 self.logger.error(f"子选项执行失败: {child.get_description()}")
                 success = False
 
@@ -520,6 +534,15 @@ class ExecutionManager:
                 self._handle_jellyfin_post_download(selected_item)
 
         return success
+
+    def _execute_download(
+        self, selected_item: OperationItem, silent: bool = False, parent: Optional[OperationItem] = None
+    ) -> bool:
+        """执行下载或处理操作（已废弃，请使用 _execute_operation）
+
+        为了向后兼容保留此方法，实际调用 _execute_operation
+        """
+        return self._execute_operation(selected_item, silent, parent)
 
     def _set_progress_callback(self, silent: bool, selected_item: OperationItem) -> None:
         """
@@ -614,6 +637,18 @@ class ExecutionManager:
 
         target_path = os.path.join(target_folder, file_name)
 
+        # 对于 MOVE 操作，检查源文件和目标文件是否相同
+        if item.opt_type == OperationType.MOVE:
+            source_path = item.get_source_path()
+            if source_path:
+                from pathlib import Path
+
+                source_resolved = Path(source_path).resolve()
+                target_resolved = Path(target_path).resolve()
+                if source_resolved == target_resolved:
+                    self.logger.info(f"文件已在目标位置，无需移动: {target_path}")
+                    return (target_path, name_prefix)
+
         # 检查文件是否已存在
         if os.path.exists(target_path) and not self.config.download.overwrite_existing:
             raise FileExistsError(f"文件已存在: {target_path}. 请检查配置或选择覆盖选项。")
@@ -655,10 +690,35 @@ class ExecutionManager:
                 selected_item.set_custom_filename_prefix(file_name)
 
             # 3. 完成准备
-            return self._execute_download(selected_item, silent)
+            return self._execute_operation(selected_item, silent)
 
         except Exception as e:
             print(f"下载失败: {e}")
+            return False
+
+    def execute_operation(
+        self,
+        operation_item: OperationItem,
+        silent: bool = False,
+    ) -> bool:
+        """执行操作项（公开方法）
+
+        Args:
+            operation_item: 操作项（DOWNLOAD, SAVE_METADATA, MOVE 等）
+            silent: 是否静默模式（不显示进度）
+
+        Returns:
+            是否成功
+
+        说明:
+            这是对外公开的接口，用于执行任意类型的操作项。
+            内部会自动选择合适的执行器（HTTPDownloader, MetadataSaver, FileMover 等）
+            并递归处理所有子项（元数据、图片等）。
+        """
+        try:
+            return self._execute_operation(operation_item, silent=silent, parent=None)
+        except Exception as e:
+            self.logger.error(f"执行操作失败: {e}", exc_info=True)
             return False
 
     def batch_download(self, urls: List[str], slient: bool = True) -> List[Tuple[str, bool]]:
