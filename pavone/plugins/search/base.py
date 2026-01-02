@@ -17,18 +17,16 @@ class SearchPlugin(BasePlugin):
 
     def __init__(
         self,
-        site: str,
         name: str = "SearchPlugin",
         version: str = "1.0.0",
         description: str = "",
         author: str = "",
         priority: int = 50,
     ):
-        super().__init__(name, version, description, author)
+        super().__init__(name, version, description, author, priority)
         self.logger = get_logger(__name__)
         self.config = get_config_manager().get_config()
         self.priority = priority
-        self.site = site
 
     @abstractmethod
     def search(self, keyword: str, limit: int = 20) -> List[SearchResult]:
@@ -45,6 +43,7 @@ class SearchPlugin(BasePlugin):
         # 默认实现可以留空，子类可以重写以提供自定义清理逻辑
         pass
 
+    @abstractmethod
     def get_site_name(self) -> str:
-        """获取站点名称"""
-        return self.site
+        """获取搜索插件对应的网站名称"""
+        pass

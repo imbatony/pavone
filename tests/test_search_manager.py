@@ -34,7 +34,7 @@ class TestSearchManager:
     def test_search_no_plugins(self):
         """测试无可用搜索插件时的行为"""
         mock_pm = Mock()
-        mock_pm.search_plugins = []
+        mock_pm.get_all_search_plugins.return_value = []
         manager = SearchManager(mock_pm)
 
         results = manager.search("test")
@@ -59,7 +59,7 @@ class TestSearchManager:
         ]
 
         mock_pm = Mock()
-        mock_pm.search_plugins = [mock_plugin1, mock_plugin2]
+        mock_pm.get_all_search_plugins.return_value = [mock_plugin1, mock_plugin2]
 
         manager = SearchManager(mock_pm)
         results = manager.search("ABC", limit=10)
@@ -89,7 +89,7 @@ class TestSearchManager:
         ]
 
         mock_pm = Mock()
-        mock_pm.search_plugins = [mock_plugin1, mock_plugin2]
+        mock_pm.get_all_search_plugins.return_value = [mock_plugin1, mock_plugin2]
 
         manager = SearchManager(mock_pm)
 
@@ -115,7 +115,7 @@ class TestSearchManager:
         mock_plugin2.search.return_value = []
 
         mock_pm = Mock()
-        mock_pm.search_plugins = [mock_plugin1, mock_plugin2]
+        mock_pm.get_all_search_plugins.return_value = [mock_plugin1, mock_plugin2]
 
         manager = SearchManager(mock_pm)
         manager.search("ABC", enable_sites=["All"])
@@ -138,7 +138,7 @@ class TestSearchManager:
         ]
 
         mock_pm = Mock()
-        mock_pm.search_plugins = [mock_plugin1, mock_plugin2]
+        mock_pm.get_all_search_plugins.return_value = [mock_plugin1, mock_plugin2]
 
         manager = SearchManager(mock_pm)
         results = manager.search("ABC")
@@ -163,7 +163,7 @@ class TestSearchManagerDedup:
         ]
 
         mock_pm = Mock()
-        mock_pm.search_plugins = [mock_plugin]
+        mock_pm.get_all_search_plugins.return_value = [mock_plugin]
 
         manager = SearchManager(mock_pm)
         results = manager.search_with_dedup("ABC")
@@ -184,7 +184,7 @@ class TestSearchManagerDedup:
         ]
 
         mock_pm = Mock()
-        mock_pm.search_plugins = [mock_plugin]
+        mock_pm.get_all_search_plugins.return_value = [mock_plugin]
 
         manager = SearchManager(mock_pm)
         results = manager.search_with_dedup("ABC")
@@ -205,7 +205,7 @@ class TestSearchManagerDedup:
         ]
 
         mock_pm = Mock()
-        mock_pm.search_plugins = [mock_plugin]
+        mock_pm.get_all_search_plugins.return_value = [mock_plugin]
 
         manager = SearchManager(mock_pm)
         results = manager.search_with_dedup("ABC")
@@ -215,7 +215,7 @@ class TestSearchManagerDedup:
     def test_search_with_dedup_empty_results(self):
         """测试空结果时的去重"""
         mock_pm = Mock()
-        mock_pm.search_plugins = []
+        mock_pm.get_all_search_plugins.return_value = []
 
         manager = SearchManager(mock_pm)
         results = manager.search_with_dedup("ABC")
@@ -238,7 +238,7 @@ class TestSearchManagerBestMatch:
         ]
 
         mock_pm = Mock()
-        mock_pm.search_plugins = [mock_plugin]
+        mock_pm.get_all_search_plugins.return_value = [mock_plugin]
 
         manager = SearchManager(mock_pm)
         result = manager.get_best_match("ABC")
@@ -250,7 +250,7 @@ class TestSearchManagerBestMatch:
     def test_get_best_match_no_results(self):
         """测试无结果时的最佳匹配"""
         mock_pm = Mock()
-        mock_pm.search_plugins = []
+        mock_pm.get_all_search_plugins.return_value = []
 
         manager = SearchManager(mock_pm)
         result = manager.get_best_match("ABC")
@@ -274,7 +274,7 @@ class TestSearchManagerBestMatch:
         ]
 
         mock_pm = Mock()
-        mock_pm.search_plugins = [mock_plugin1, mock_plugin2]
+        mock_pm.get_all_search_plugins.return_value = [mock_plugin1, mock_plugin2]
 
         manager = SearchManager(mock_pm)
         result = manager.get_best_match("ABC", enable_sites=["Site2"])
@@ -296,7 +296,7 @@ class TestSearchManagerConvenience:
         ]
 
         mock_pm = Mock()
-        mock_pm.search_plugins = [mock_plugin]
+        mock_pm.get_all_search_plugins.return_value = [mock_plugin]
 
         manager = SearchManager(mock_pm)
         results = manager.search_by_code("ABC-001")
@@ -314,7 +314,7 @@ class TestSearchManagerConvenience:
         mock_plugin2.get_site_name.return_value = "Site2"
 
         mock_pm = Mock()
-        mock_pm.search_plugins = [mock_plugin1, mock_plugin2]
+        mock_pm.get_all_search_plugins.return_value = [mock_plugin1, mock_plugin2]
 
         manager = SearchManager(mock_pm)
         sites = manager.get_available_sites()
@@ -326,7 +326,7 @@ class TestSearchManagerConvenience:
     def test_get_available_sites_empty(self):
         """测试无可用站点时的行为"""
         mock_pm = Mock()
-        mock_pm.search_plugins = []
+        mock_pm.get_all_search_plugins.return_value = []
 
         manager = SearchManager(mock_pm)
         sites = manager.get_available_sites()

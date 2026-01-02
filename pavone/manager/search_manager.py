@@ -10,7 +10,7 @@ from ..config.logging_config import get_logger
 from ..models import SearchResult
 
 if TYPE_CHECKING:
-    from ..plugins.manager import PluginManager
+    from .plugin_manager import PluginManager
 
 
 class SearchManager:
@@ -41,7 +41,7 @@ class SearchManager:
         Returns:
             合并后的搜索结果列表
         """
-        search_plugins = self.plugin_manager.search_plugins
+        search_plugins = self.plugin_manager.get_all_search_plugins()
 
         if not search_plugins:
             self.logger.warning("没有可用的搜索插件")
@@ -164,7 +164,7 @@ class SearchManager:
         Returns:
             可用搜索站点名称列表
         """
-        search_plugins = self.plugin_manager.search_plugins
+        search_plugins = self.plugin_manager.get_all_search_plugins()
         sites = [plugin.get_site_name() for plugin in search_plugins]
         self.logger.debug(f"可用搜索站点: {sites}")
         return sites

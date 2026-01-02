@@ -28,7 +28,11 @@ PLUGIN_AUTHOR = "PAVOne"
 PLUGIN_PRIORITY = 30
 
 # 定义支持的域名
-SUPPORTED_DOMAINS = ["missav.ai", "www.missav.ai", "missav.com", "www.missav.com"]
+SUPPORTED_DOMAINS = [
+    "missav.ai", "www.missav.ai",
+    "missav.com", "www.missav.com",
+    "missav.ws", "www.missav.ws"
+]
 
 SITE_NAME = "MissAV"
 
@@ -56,8 +60,6 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
             author=PLUGIN_AUTHOR,
             priority=PLUGIN_PRIORITY,
         )
-        # 设置 SearchPlugin 需要的属性
-        self.site = SITE_NAME
         # 其他属性
         self.supported_domains = SUPPORTED_DOMAINS
         self.site_name = SITE_NAME
@@ -79,7 +81,7 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
                 code = code[:3] + "-PPV" + code[3:]
             code = code.lower()
             url = f"{self.base_url}/ja/{code}"
-            res = self.fetch(url)
+            res = self.fetch(url, no_exceptions=True)
             if res and res.status_code == 200:
                 result = self._parse_video_page(res.text, code)
                 if result:
@@ -87,7 +89,7 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
 
         # 使用搜索功能
         search_url = f"{self.base_url}/ja/search/{keyword}"
-        res = self.fetch(search_url)
+        res = self.fetch(search_url, no_exceptions=True)
         if res and res.status_code == 200:
             results = self._parse_search_results(res.text, limit, keyword)
             return results
@@ -526,6 +528,9 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
         """从HTML中提取视频标语"""
         return HTMLMetadataExtractor.extract_og_title(html)
 
+    def get_site_name(self) -> str:
+        """获取搜索插件对应的网站名称"""
+        return SITE_NAME
 
 def register_plugin():
     """注册MissAV统一插件"""

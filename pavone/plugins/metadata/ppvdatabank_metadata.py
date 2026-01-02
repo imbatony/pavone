@@ -5,13 +5,15 @@ PPVDataBank元数据提取器插件
 """
 
 import re
-from typing import Optional
+from typing import List, Optional
 
 from ...models import MovieMetadata
 from ...utils.html_metadata_utils import HTMLMetadataExtractor
 from ...utils.metadata_builder import MetadataBuilder
 from .fc2_base import FC2BaseMetadata
 
+from ...models import SearchResult
+from ..search.base import SearchPlugin
 # 定义插件名称和版本
 PLUGIN_NAME = "PPVDataBankMetadata"
 PLUGIN_VERSION = "1.0.0"
@@ -19,7 +21,7 @@ PLUGIN_DESCRIPTION = "提取 ppvdatabank.com 的FC2视频元数据"
 PLUGIN_AUTHOR = "PAVOne"
 
 # 定义插件优先级
-PLUGIN_PRIORITY = 30
+PLUGIN_PRIORITY = 20
 
 # 定义支持的域名
 SUPPORTED_DOMAINS = ["ppvdatabank.com", "www.ppvdatabank.com"]
@@ -27,7 +29,7 @@ SUPPORTED_DOMAINS = ["ppvdatabank.com", "www.ppvdatabank.com"]
 SITE_NAME = "PPVDataBank"
 
 
-class PPVDataBankMetadata(FC2BaseMetadata):
+class PPVDataBankMetadata(FC2BaseMetadata, SearchPlugin):
     """
     PPVDataBank元数据提取器
     继承自 FC2BaseMetadata，提供从 ppvdatabank.com 提取FC2视频元数据的功能。
@@ -35,19 +37,21 @@ class PPVDataBankMetadata(FC2BaseMetadata):
 
     def __init__(self):
         """初始化PPVDataBank元数据提取器"""
-        super().__init__()
-        self.name = PLUGIN_NAME
-        self.version = PLUGIN_VERSION
-        self.description = PLUGIN_DESCRIPTION
-        self.priority = PLUGIN_PRIORITY
+        super().__init__(
+            name=PLUGIN_NAME,
+            version=PLUGIN_VERSION,
+            description=PLUGIN_DESCRIPTION,
+            author=PLUGIN_AUTHOR,
+            priority=PLUGIN_PRIORITY,
+        )
         self.supported_domains = SUPPORTED_DOMAINS
-        self.author = PLUGIN_AUTHOR
+        self.site_name = SITE_NAME
 
     def can_extract(self, identifier: str) -> bool:
         """检查是否能处理给定的identifier
 
         支持两种格式：
-        1. URL: https://ppvdatabank.com/article_search.php?id=2941579
+        1. URL: https://ppvdatabank.com/article/1680807/
         2. 视频代码: FC2-2941579 或 FC2-PPV-2941579
         """
         # 检查是否为URL
@@ -61,6 +65,71 @@ class PPVDataBankMetadata(FC2BaseMetadata):
             return bool(re.match(code_pattern, identifier_stripped))
 
         return False
+    
+    def search(self, keyword: str, limit: int = 20) -> List[SearchResult]:
+        """搜索功能"""
+        results: List[SearchResult] = []
+        # 如果是纯数字ID或FC2代码格式，构建对应URL进行搜索
+        # 纯数字
+        fc2_id: Optional[str] = None
+        if re.match(r"^\d+$", keyword.strip()):
+            fc2_id = keyword.strip()
+        # FC2代码格式
+        elif re.match(self.FC2_CODE_WITH_PREFIX_PATTERN, keyword.strip().upper()):
+            fc2_id = self._extract_fc2_id(keyword)
+        if not fc2_id:
+            self.logger.warning(f"无法从关键词中提取FC2 ID: {keyword}")
+            return results
+        fc_url = self.get_url_from_fc2_id(fc2_id)
+        if fc_url:
+            res = self.fetch(url=fc_url, no_exceptions=True)
+            if res:
+                # get title from fetched page if possible
+                title = self._extract_title_from_page(res.text) or ""
+                result = SearchResult(
+                    title=title,
+                    url=fc_url,
+                    site=SITE_NAME,
+                    keyword=keyword,
+                    code = self._build_fc2_code(fc2_id),
+                    description="",
+                )
+                results.append(result)
+
+        return results
+
+    def _extract_title_from_page(self, page_content: str) -> Optional[str]:
+        """
+        从页面内容中提取视频标题
+
+        Args:
+            page_content: HTML页面内容
+
+        Returns:
+            提取的视频标题，如果无法提取则返回 None
+        """
+        title_match = re.search(r"<title>(.*?)</title>", page_content, re.IGNORECASE)
+        if title_match:
+            title = title_match.group(1).strip()
+            # 清理标题中的多余信息
+            title = re.sub(r"-\s*FC2\s*Video\s*Portal.*$", "", title).strip()
+            return title
+        return None
+
+    def get_url_from_fc2_id(self, fc2_id: str) -> Optional[str]:
+        """
+        根据FC2 ID构建对应的视频URL
+
+        Args:
+            fc2_id: FC2纯数字ID
+
+        Returns:
+            对应的视频URL，如果无法构建则返回 None
+        """
+        if not fc2_id or not fc2_id.isdigit():
+            return None
+        
+        return f"https://ppvdatabank.com/article/{fc2_id}/"
 
     def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
         """从给定的identifier提取元数据
@@ -312,3 +381,7 @@ class PPVDataBankMetadata(FC2BaseMetadata):
         except Exception as e:
             self.logger.debug(f"提取背景图片异常: {str(e)}")
             return None
+
+    def get_site_name(self) -> str:
+        """获取搜索插件对应的网站名称"""
+        return SITE_NAME

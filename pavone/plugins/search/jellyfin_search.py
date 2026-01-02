@@ -18,7 +18,7 @@ PLUGIN_NAME = "JellyfinSearch"
 PLUGIN_VERSION = "1.0.0"
 PLUGIN_DESCRIPTION = "在 Jellyfin 库中搜索视频"
 PLUGIN_AUTHOR = "PAVOne"
-
+PLUGIN_PRIORITY = 40
 SITE_NAME = "Jellyfin"
 
 
@@ -33,12 +33,13 @@ class JellyfinSearch(SearchPlugin):
         author: str = PLUGIN_AUTHOR,
     ):
         super().__init__(
-            site=SITE_NAME,
             name=name,
             version=version,
             description=description,
             author=author,
+            priority=PLUGIN_PRIORITY,
         )
+        self.site = SITE_NAME
         self.client: Optional[JellyfinClientWrapper] = None
         self.library_manager: Optional[LibraryManager] = None
         self.logger = get_logger(__name__)
@@ -91,12 +92,13 @@ class JellyfinSearch(SearchPlugin):
             # 将 JellyfinItem 转换为 SearchResult
             results: List[SearchResult] = []
             for item in items:
+                item_url = self.client.get_item_web_url(item.id)
                 result = SearchResult(
                     site=SITE_NAME,
                     keyword=keyword,
                     title=item.name,
                     description=f"Jellyfin 库项 - {item.type}",
-                    url=f"jellyfin://{item.id}",
+                    url=item_url,
                     code=self._extract_code_from_item(item),
                 )
                 results.append(result)
@@ -144,6 +146,10 @@ class JellyfinSearch(SearchPlugin):
             self.client = None
         if self.library_manager:
             self.library_manager = None
+    
+    def get_site_name(self) -> str:
+        """获取搜索插件对应的网站名称"""
+        return SITE_NAME
 
     def __repr__(self) -> str:
         status = "可用" if (self.client and self.library_manager) else "不可用"

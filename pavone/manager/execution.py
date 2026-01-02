@@ -14,7 +14,7 @@ from ..core import (
     Operator,
 )
 from ..models import ItemType, OperationItem, OperationType
-from ..plugins.manager import PluginManager, get_plugin_manager
+from .plugin_manager import PluginManager, get_plugin_manager
 from .progress import create_console_progress_callback, create_silent_progress_callback
 
 # Jellyfin 集成

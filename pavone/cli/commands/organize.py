@@ -11,7 +11,7 @@ from ...config.settings import get_config
 from ...manager.execution import create_exe_manager
 from ...manager.metadata_manager import get_metadata_manager
 from ...manager.search_manager import get_search_manager
-from ...plugins.manager import get_plugin_manager
+from ...manager.plugin_manager import get_plugin_manager
 from ...utils.file_operation_builder import FileOperationBuilder
 from ...utils.filename_parser import FilenameParser
 from .utils import confirm_action, echo_error, echo_info, echo_success, echo_warning

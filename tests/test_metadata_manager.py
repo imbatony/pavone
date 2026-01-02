@@ -45,7 +45,7 @@ class TestMetadataManager:
 
     def test_init_without_plugin_manager(self):
         """测试不提供 plugin_manager 时使用全局实例"""
-        with patch("pavone.manager.plugin_manager.get_plugin_manager") as mock_get:
+        with patch("pavone.manager.metadata_manager.get_plugin_manager") as mock_get:
             mock_plugin_manager = MagicMock()
             mock_get.return_value = mock_plugin_manager
 

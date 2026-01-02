@@ -823,5 +823,28 @@ class JellyfinClientWrapper:
             self.logger.error(f"远程图片下载失败: {e}")
             raise JellyfinAPIError(f"远程图片下载失败: {e}")
 
+    def get_item_web_url(self, item_id: str) -> str:
+        """
+        获取项的直接访问 URL
+
+        Args:
+            item_id: 项 ID
+
+        Returns:
+            直接访问 URL 字符串
+
+        Raises:
+            JellyfinAPIError: API 调用失败
+        """
+        try:
+            # 拼接访问 URL {base_url}/web/#/details?id={item_id}
+            base_url = self.config.server_url.rstrip("/")
+            url = f"{base_url}/web/#/details?id={item_id}"
+            self.logger.debug(f"获取项 URL: {url}")
+            return url  # type: ignore[return-value]
+        except Exception as e:
+            self.logger.error(f"获取项 {item_id} 的 URL 失败: {e}")
+            raise JellyfinAPIError(f"获取项 URL 失败: {e}")
+
     def __repr__(self) -> str:
         return f"JellyfinClientWrapper(server={self.config.server_url}, authenticated={self._authenticated})"

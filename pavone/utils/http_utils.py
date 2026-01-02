@@ -18,6 +18,7 @@ class HttpUtils:
         timeout: int = 30,
         verify_ssl: bool = False,
         max_retry: Optional[int] = None,
+        no_exceptions: bool = False,
     ) -> requests.Response:
         """统一的网页获取方法，自动处理代理配置和SSL验证
 
@@ -62,6 +63,7 @@ class HttpUtils:
 
         # 实现重试机制
         last_exception = None
+        last_response: Optional[requests.Response] = None
         for attempt in range(max_retry + 1):
             try:
                 # 发起请求
@@ -72,6 +74,7 @@ class HttpUtils:
                     timeout=timeout,
                     verify=verify_ssl,  # SSL验证设置
                 )
+                last_response = response
                 response.raise_for_status()
 
                 # 请求成功，记录日志（仅在重试后成功时）
@@ -96,6 +99,9 @@ class HttpUtils:
                             logger.error(f"网页获取失败 {url} (第{attempt + 1}次尝试): {e}")
 
         # 所有重试都失败了，抛出最后一个异常
+        if no_exceptions:
+            # 如果设置了不抛出异常，返回一个空响应对象
+            return last_response or requests.Response()
         raise requests.RequestException(f"获取网页失败 {url}: {last_exception}")
 
     @staticmethod

@@ -10,8 +10,9 @@ from ..config.logging_config import get_logger
 from ..models import MovieMetadata, SearchResult
 
 if TYPE_CHECKING:
-    from ..manager.plugin_manager import PluginManager
     from ..plugins.metadata.base import MetadataPlugin
+
+from .plugin_manager import PluginManager, get_plugin_manager
 
 
 class MetadataManager:
@@ -34,8 +35,6 @@ class MetadataManager:
             plugin_manager: 插件管理器实例。如果为 None，将使用全局实例
         """
         if plugin_manager is None:
-            from .plugin_manager import get_plugin_manager
-
             plugin_manager = get_plugin_manager()
 
         self.plugin_manager = plugin_manager

@@ -6,7 +6,7 @@ import click
 from ...config.settings import get_config
 from ...jellyfin.client import JellyfinClientWrapper
 from ...models import BaseMetadata, ItemMetadata
-from ...plugins.manager import get_plugin_manager
+from ...manager.plugin_manager import get_plugin_manager
 from .enrich_helper import ImageManager, JellyfinMetadataUpdater, MetadataComparison
 from .utils import (
     apply_proxy_config,

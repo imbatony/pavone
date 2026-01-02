@@ -22,13 +22,13 @@ class BasePlugin(ABC):
         version: Optional[str] = "1.0.0",
         description: Optional[str] = "",
         author: Optional[str] = "",
-        priority: Optional[int] = 50,
+        priority: Optional[int] = 50, 
     ):
         self.name = name or self.__class__.__name__
         self.version = version
         self.description = description
         self.author = author
-        self.priority = priority or 50  # 默认优先级为50
+        self.priority = priority or 50  # 默认优先级为50, 范围0-100，数值越小优先级越高
         self.logger = get_logger(__name__)
         self.config = get_config_manager().get_config()
 
@@ -55,6 +55,7 @@ class BasePlugin(ABC):
         headers: Optional[Dict[str, str]] = None,
         timeout: int = 10,
         verify_ssl: bool = True,
+        no_exceptions: bool = False,
     ) -> requests.Response:
         return HttpUtils.fetch(
             download_config=self.config.download,
@@ -64,6 +65,7 @@ class BasePlugin(ABC):
             headers=headers,
             timeout=timeout,
             verify_ssl=verify_ssl,
+            no_exceptions=no_exceptions,
         )
 
     def can_handle_domain(self, url: str, supported_domains: List[str]) -> bool:

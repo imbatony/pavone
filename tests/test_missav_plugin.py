@@ -41,6 +41,8 @@ class TestMissAVPlugin(unittest.TestCase):
         self.assertIn("www.missav.ai", self.plugin.supported_domains)
         self.assertIn("missav.com", self.plugin.supported_domains)
         self.assertIn("www.missav.com", self.plugin.supported_domains)
+        self.assertIn("missav.ws", self.plugin.supported_domains)
+        self.assertIn("www.missav.ws", self.plugin.supported_domains)
 
     def test_initialize(self):
         """测试初始化方法"""
@@ -140,6 +142,8 @@ class TestMissAVPlugin(unittest.TestCase):
             "https://www.missav.ai/dm18/sdab-183",
             "https://missav.com/dm18/sdab-183",
             "https://www.missav.com/dm18/sdab-183",
+            "https://missav.ws/dm5/en/sero-308-3",
+            "https://www.missav.ws/dm5/en/sero-308-3",
             "http://missav.ai/some-video",
             "http://www.missav.ai/some-video",
         ]
