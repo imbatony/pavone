@@ -19,7 +19,7 @@ class DownloadConfig:
     output_dir: str = "./downloads"
     auto_select: bool = True  # 是否自动选择下载链接
     max_concurrent_downloads: int = 4
-    retry_times: int = 3
+    retry_times: int = 3  # 总尝试次数（包括首次尝试）
     retry_interval: int = 3000  # 重试间隔，单位为毫秒
     timeout: int = 30
     cache_dir: Optional[str] = None  # 缓存目录，默认为None, 如果为None则使用系统默认缓存目录

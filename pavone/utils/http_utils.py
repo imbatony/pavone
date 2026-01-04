@@ -62,9 +62,10 @@ class HttpUtils:
         proxies = HttpUtils.get_proxies(proxy_config)
 
         # 实现重试机制
+        # retry_times 表示总尝试次数（包括首次尝试）
         last_exception = None
         last_response: Optional[requests.Response] = None
-        for attempt in range(max_retry + 1):
+        for attempt in range(max_retry):
             try:
                 # 发起请求
                 response = requests.get(
@@ -86,7 +87,7 @@ class HttpUtils:
             except requests.RequestException as e:
                 last_exception = e
 
-                if attempt < max_retry:
+                if attempt < max_retry - 1:
                     # 不是最后一次尝试，记录警告并等待重试
                     retry_delay = retry_interval_ms / 1000.0  # 转换为秒
                     time.sleep(retry_delay)
