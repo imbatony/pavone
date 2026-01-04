@@ -515,11 +515,14 @@ class JellyfinMetadataUpdater:
     """Jellyfin元数据更新器"""
 
     @staticmethod
-    def convert_metadata_for_jellyfin(updates: Dict[str, Any]) -> Dict[str, Any]:
+    def convert_metadata_for_jellyfin(
+        updates: Dict[str, Any], existing_people: Optional[list[Dict[str, Any]]] = None
+    ) -> Dict[str, Any]:
         """将合并后的元数据转换为Jellyfin API格式
 
         Args:
             updates: 合并后的元数据更新字典
+            existing_people: 现有的 People 数据（可选），用于保留原有的演员和导演信息
 
         Returns:
             Jellyfin API可接受的格式
@@ -546,7 +549,11 @@ class JellyfinMetadataUpdater:
         }
 
         # 收集需要合并到 People 数组的人员信息
-        people_list: list[Dict[str, Any]] = []
+        # 从现有数据开始，保留原有的人员信息
+        people_list: list[Dict[str, Any]] = list(existing_people) if existing_people else []
+
+        # 用于跟踪已添加的人员（避免重复）
+        existing_people_set = {(p.get("Name", ""), p.get("Type", "")) for p in people_list}
 
         for internal_field, jellyfin_field in field_mapping.items():
             if internal_field not in updates:
@@ -566,17 +573,20 @@ class JellyfinMetadataUpdater:
                 # 导演添加到 People 数组，Type="Director"
                 if isinstance(value, list):
                     for director in value:  # type: ignore[misc]
-                        if director:
+                        if director and (director, "Director") not in existing_people_set:
                             people_list.append({"Name": director, "Type": "Director", "Role": ""})
-                elif isinstance(value, str) and value:
+                            existing_people_set.add((director, "Director"))
+                elif isinstance(value, str) and value and (value, "Director") not in existing_people_set:
                     people_list.append({"Name": value, "Type": "Director", "Role": ""})
+                    existing_people_set.add((value, "Director"))
 
             elif internal_field == "actors":
                 # 演员添加到 People 数组，Type="Actor"
                 if isinstance(value, list):
                     for actor in value:  # type: ignore[misc]
-                        if actor:
+                        if actor and (actor, "Actor") not in existing_people_set:
                             people_list.append({"Name": actor, "Type": "Actor", "Role": ""})
+                            existing_people_set.add((actor, "Actor"))
 
             elif internal_field == "studio":
                 # 制作公司：Jellyfin使用Studios数组，每个元素是 {'Name': 'studio_name'} 格式
@@ -614,8 +624,17 @@ class JellyfinMetadataUpdater:
                 echo_warning("没有需要更新的字段")
                 return False
 
-            # 转换为Jellyfin格式
-            jellyfin_updates = JellyfinMetadataUpdater.convert_metadata_for_jellyfin(updates)
+            # 获取现有项数据，以便保留现有的 People 信息
+            existing_people = None
+            try:
+                existing_item = client.get_item(item_id)
+                if existing_item and "People" in existing_item:
+                    existing_people = existing_item["People"]
+            except Exception as e:
+                echo_warning(f"获取现有人员信息失败（将创建新的）: {e}")
+
+            # 转换为Jellyfin格式，传入现有的 People 数据
+            jellyfin_updates = JellyfinMetadataUpdater.convert_metadata_for_jellyfin(updates, existing_people)
 
             if not jellyfin_updates:
                 echo_warning("转换后没有有效的更新字段")
