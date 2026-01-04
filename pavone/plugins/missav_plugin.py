@@ -75,7 +75,8 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
                 code = code[:3] + "-PPV" + code[3:]
             code = code.lower()
             url = f"{self.base_url}/ja/{code}"
-            res = self.fetch(url, no_exceptions=True)
+            # 搜索时减少重试次数，快速失败
+            res = self.fetch(url, no_exceptions=True, max_retry=1)
             if res is not None and getattr(res, "status_code", None) == 200:
                 result = self._parse_video_page(res.text, code)
                 if result:
