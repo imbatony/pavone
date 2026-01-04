@@ -95,13 +95,18 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
 
     def _parse_video_page(self, html: str, code: str) -> SearchResult:
         """解析视频页面，提取视频信息"""
+        # 标准化 code：转换为大写并移除 -PPV
+        normalized_code = code.upper()
+        if normalized_code.startswith("FC2-PPV-"):
+            normalized_code = normalized_code.replace("FC2-PPV-", "FC2-")
+        
         return SearchResult(
             site=self.site_name,
             keyword=code,
-            title=f"{self.site_name} Video Result for {code}",
-            description=f"Video result for {code} on {self.site_name}",
+            title=f"{self.site_name} Video Result for {normalized_code}",
+            description=f"Video result for {normalized_code} on {self.site_name}",
             url=f"{self.base_url}/ja/{code}",
-            code=code,
+            code=normalized_code,
         )
 
     def _parse_search_results(self, html: str, limit: int, keyword: str) -> List[SearchResult]:
@@ -116,13 +121,18 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
         matches = matches[:limit]
         for match in matches:
             url, alt, title = match
+            # 标准化 code：移除 FC2-PPV 中的 -PPV 部分
+            code = alt.upper()
+            if code.startswith("FC2-PPV-"):
+                code = code.replace("FC2-PPV-", "FC2-")
+            
             result = SearchResult(
                 site=self.site_name,
                 keyword=keyword,
                 title=title,
                 description=f"Search result for {title} on {self.site_name}",
                 url=url,
-                code=alt.upper(),
+                code=code,
             )
             results.append(result)
         return results

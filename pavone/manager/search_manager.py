@@ -89,27 +89,20 @@ class SearchManager:
         if not results:
             return []
 
-        # 去重逻辑：基于URL和代码
+        # 去重逻辑：仅基于 URL 去重
+        # 不基于 code 去重，因为同一番号在不同网站上提供的元数据/资源可能不同
         seen_urls: set[str] = set()
-        seen_codes: set[str] = set()
         deduped_results: List[SearchResult] = []
 
         for result in results:
-            # 检查URL去重
+            # 仅检查 URL 去重
             if result.url and result.url in seen_urls:
                 self.logger.debug(f"跳过重复URL: {result.url}")
                 continue
 
-            # 检查代码去重
-            if result.code and result.code in seen_codes:
-                self.logger.debug(f"跳过重复代码: {result.code}")
-                continue
-
-            # 记录已见的URL和代码
+            # 记录已见的 URL
             if result.url:
                 seen_urls.add(result.url)
-            if result.code:
-                seen_codes.add(result.code)
 
             deduped_results.append(result)
 

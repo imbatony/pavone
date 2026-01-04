@@ -27,7 +27,7 @@ from ..plugins.metadata import (
     SupFC2Metadata,
 )
 from ..plugins.missav_plugin import MissAVPlugin
-from ..plugins.search import SearchPlugin
+from ..plugins.search import JellyfinSearch, SearchPlugin
 
 
 class PluginManager:
@@ -77,6 +77,7 @@ class PluginManager:
                 "AV01Plugin": AV01Plugin,
                 "PPVDataBankMetadata": PPVDataBankMetadata,
                 "SupFC2Metadata": SupFC2Metadata,
+                "JellyfinSearch": JellyfinSearch,
             }
 
             loaded_plugins: list[str] = []
