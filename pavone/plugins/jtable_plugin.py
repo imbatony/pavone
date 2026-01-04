@@ -55,7 +55,7 @@ class JTablePlugin(ExtractorPlugin, MetadataPlugin):
         self.supported_domains = SUPPORTED_DOMAINS
         self.site_name = SITE_NAME
         self.base_url = JTABLE_BASE_URL
-        self.logger = get_logger(__name__)
+        # logger already initialized in base classes using subclass module name
 
     def initialize(self) -> bool:
         """初始化插件"""

@@ -29,7 +29,8 @@ class BasePlugin(ABC):
         self.description = description
         self.author = author
         self.priority = priority or 50  # 默认优先级为50, 范围0-100，数值越小优先级越高
-        self.logger = get_logger(__name__)
+        # 使用子类的模块名作为 logger 名称，这样每个插件都有自己的 logger
+        self.logger = get_logger(self.__class__.__module__)
         self.config = get_config_manager().get_config()
 
     @abstractmethod
@@ -56,6 +57,7 @@ class BasePlugin(ABC):
         timeout: int = 10,
         verify_ssl: bool = True,
         no_exceptions: bool = False,
+        max_retry: Optional[int] = None,
     ) -> requests.Response:
         return HttpUtils.fetch(
             download_config=self.config.download,
@@ -66,6 +68,7 @@ class BasePlugin(ABC):
             timeout=timeout,
             verify_ssl=verify_ssl,
             no_exceptions=no_exceptions,
+            max_retry=max_retry,
         )
 
     def can_handle_domain(self, url: str, supported_domains: List[str]) -> bool:

@@ -335,7 +335,7 @@ class AV01Plugin(ExtractorPlugin, MetadataPlugin):
         )
         self.supported_domains = SUPPORTED_DOMAINS
         self.site_name = SITE_NAME
-        self.logger = get_logger(__name__)
+        # logger already initialized in base classes using subclass module name
 
         # 缓存geo数据
         self._geo_data: Optional[GeoData] = None

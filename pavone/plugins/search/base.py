@@ -24,7 +24,7 @@ class SearchPlugin(BasePlugin):
         priority: int = 50,
     ):
         super().__init__(name, version, description, author, priority)
-        self.logger = get_logger(__name__)
+        # logger 已经在 BasePlugin 中使用子类模块名初始化，这里不需要重复设置
         self.config = get_config_manager().get_config()
         self.priority = priority
 

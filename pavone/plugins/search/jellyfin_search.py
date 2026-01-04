@@ -42,7 +42,7 @@ class JellyfinSearch(SearchPlugin):
         self.site = SITE_NAME
         self.client: Optional[JellyfinClientWrapper] = None
         self.library_manager: Optional[LibraryManager] = None
-        self.logger = get_logger(__name__)
+        # logger already initialized in SearchPlugin base class using subclass module name
 
     def initialize(self) -> bool:
         """初始化 Jellyfin 搜索插件"""

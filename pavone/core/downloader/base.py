@@ -15,7 +15,7 @@ class BaseDownloader(Operator):
         self.organize_config = config.organize
         self.proxy_config = config.proxy
         os.makedirs(config.download.output_dir, exist_ok=True)
-        self.logger = get_logger(__name__)
+        # logger 已经在 Operator 基类中使用子类模块名初始化，这里不需要重复设置
         self.proxies = self.get_proxies()
 
     def get_proxies(self) -> Optional[Dict[str, str]]:
