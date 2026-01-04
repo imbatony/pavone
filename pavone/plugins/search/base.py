@@ -7,7 +7,6 @@ from typing import List
 
 from pavone.config.settings import get_config_manager
 
-from ...config.logging_config import get_logger
 from ...models import SearchResult
 from ..base import BasePlugin
 

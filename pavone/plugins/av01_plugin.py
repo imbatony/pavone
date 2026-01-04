@@ -18,7 +18,6 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, cast
 from urllib.parse import urlparse
 
-from ..config.logging_config import get_logger
 from ..models import MovieMetadata, OperationItem, Quality
 from ..utils import CodeExtractUtils
 from ..utils.metadata_builder import MetadataBuilder

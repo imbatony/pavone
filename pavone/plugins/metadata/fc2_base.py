@@ -5,8 +5,7 @@ FC2 Base Metadata Plugin - FC2元数据提取器基类
 """
 
 import re
-from typing import List, Optional
-
+from typing import Optional
 
 from .base import MetadataPlugin
 

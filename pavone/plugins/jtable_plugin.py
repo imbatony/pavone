@@ -9,7 +9,6 @@ import re
 from datetime import datetime
 from typing import Any, List, Optional, Tuple
 
-from ..config.logging_config import get_logger
 from ..models import MovieMetadata, OperationItem, Quality
 from ..utils import CodeExtractUtils, StringUtils
 from ..utils.html_metadata_utils import HTMLMetadataExtractor

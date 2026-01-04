@@ -7,13 +7,12 @@ PPVDataBank元数据提取器插件
 import re
 from typing import List, Optional
 
-from ...models import MovieMetadata
+from ...models import MovieMetadata, SearchResult
 from ...utils.html_metadata_utils import HTMLMetadataExtractor
 from ...utils.metadata_builder import MetadataBuilder
+from ..search.base import SearchPlugin
 from .fc2_base import FC2BaseMetadata
 
-from ...models import SearchResult
-from ..search.base import SearchPlugin
 # 定义插件名称和版本
 PLUGIN_NAME = "PPVDataBankMetadata"
 PLUGIN_VERSION = "1.0.0"
@@ -65,7 +64,7 @@ class PPVDataBankMetadata(FC2BaseMetadata, SearchPlugin):
             return bool(re.match(code_pattern, identifier_stripped))
 
         return False
-    
+
     def search(self, keyword: str, limit: int = 20) -> List[SearchResult]:
         """搜索功能"""
         results: List[SearchResult] = []
@@ -78,7 +77,7 @@ class PPVDataBankMetadata(FC2BaseMetadata, SearchPlugin):
         elif re.match(self.FC2_CODE_WITH_PREFIX_PATTERN, keyword.strip().upper()):
             fc2_id = self._extract_fc2_id(keyword)
         if not fc2_id:
-            self.logger.warning(f"无法从关键词中提取FC2 ID: {keyword}")
+            self.logger.debug(f"无法从关键词中提取FC2 ID: {keyword}")
             return results
         fc_url = self.get_url_from_fc2_id(fc2_id)
         if fc_url:
@@ -91,7 +90,7 @@ class PPVDataBankMetadata(FC2BaseMetadata, SearchPlugin):
                     url=fc_url,
                     site=SITE_NAME,
                     keyword=keyword,
-                    code = self._build_fc2_code(fc2_id),
+                    code=self._build_fc2_code(fc2_id),
                     description="",
                 )
                 results.append(result)
@@ -128,7 +127,7 @@ class PPVDataBankMetadata(FC2BaseMetadata, SearchPlugin):
         """
         if not fc2_id or not fc2_id.isdigit():
             return None
-        
+
         return f"https://ppvdatabank.com/article/{fc2_id}/"
 
     def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:

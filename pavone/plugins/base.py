@@ -22,7 +22,7 @@ class BasePlugin(ABC):
         version: Optional[str] = "1.0.0",
         description: Optional[str] = "",
         author: Optional[str] = "",
-        priority: Optional[int] = 50, 
+        priority: Optional[int] = 50,
     ):
         self.name = name or self.__class__.__name__
         self.version = version

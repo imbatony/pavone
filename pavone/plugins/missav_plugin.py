@@ -8,7 +8,6 @@ import re
 from re import findall
 from typing import Any, Dict, List, Optional, Tuple
 
-from ..config.logging_config import get_logger
 from ..models import MovieMetadata, OperationItem, Quality, SearchResult
 from ..utils import CodeExtractUtils
 from ..utils.html_metadata_utils import HTMLMetadataExtractor
@@ -28,11 +27,7 @@ PLUGIN_AUTHOR = "PAVOne"
 PLUGIN_PRIORITY = 30
 
 # 定义支持的域名
-SUPPORTED_DOMAINS = [
-    "missav.ai", "www.missav.ai",
-    "missav.com", "www.missav.com",
-    "missav.ws", "www.missav.ws"
-]
+SUPPORTED_DOMAINS = ["missav.ai", "www.missav.ai", "missav.com", "www.missav.com", "missav.ws", "www.missav.ws"]
 
 SITE_NAME = "MissAV"
 
@@ -64,7 +59,6 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
         self.supported_domains = SUPPORTED_DOMAINS
         self.site_name = SITE_NAME
         self.base_url = MISSAV_BASE_URL
-        self.logger = get_logger(__name__)
 
     def initialize(self) -> bool:
         """初始化插件"""
@@ -82,21 +76,21 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
             code = code.lower()
             url = f"{self.base_url}/ja/{code}"
             res = self.fetch(url, no_exceptions=True)
-            if res is not None and getattr(res, 'status_code', None) == 200:
+            if res is not None and getattr(res, "status_code", None) == 200:
                 result = self._parse_video_page(res.text, code)
                 if result:
                     return [result]
 
         # 使用搜索功能
         search_url = f"{self.base_url}/ja/search/{keyword}"
-        res = self.fetch(search_url, no_exceptions=True)
-        if res is not None and getattr(res, 'status_code', None) == 200:
+        # 一般搜索请求不需要太多重试，失败后快速返回
+        res = self.fetch(search_url, no_exceptions=True, max_retry=2)
+        if res is not None and getattr(res, "status_code", None) == 200:
             results = self._parse_search_results(res.text, limit, keyword)
             return results
         else:
-            self.logger.error(
-                "Failed to fetch search results for " f"{keyword}. Status code: {getattr(res, 'status_code', 'No response') if res is not None else 'No response'}"
-            )
+            status = getattr(res, "status_code", "No response") if res is not None else "No response"
+            self.logger.error(f"Failed to fetch search results for {keyword}. Status code: {status}")
             return []
 
     def _parse_video_page(self, html: str, code: str) -> SearchResult:
@@ -531,6 +525,7 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
     def get_site_name(self) -> str:
         """获取搜索插件对应的网站名称"""
         return SITE_NAME
+
 
 def register_plugin():
     """注册MissAV统一插件"""

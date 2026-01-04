@@ -8,7 +8,6 @@ from typing import List, Optional
 
 from pavone.jellyfin.models import JellyfinItem
 
-from ...config.logging_config import get_logger
 from ...jellyfin import JellyfinClientWrapper, LibraryManager
 from ...models import SearchResult
 from .base import SearchPlugin
@@ -146,7 +145,7 @@ class JellyfinSearch(SearchPlugin):
             self.client = None
         if self.library_manager:
             self.library_manager = None
-    
+
     def get_site_name(self) -> str:
         """获取搜索插件对应的网站名称"""
         return SITE_NAME
