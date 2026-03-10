@@ -6,6 +6,7 @@
 from .av01_plugin import AV01Plugin
 from .base import BasePlugin
 from .extractors import ExtractorPlugin
+from .javrate_plugin import JavratePlugin
 from .jtable_plugin import JTablePlugin
 from .memojav_plugin import MemojavPlugin
 from .metadata import MetadataPlugin
@@ -21,6 +22,7 @@ __all__ = [
     "MissAVPlugin",
     "JTablePlugin",
     "MemojavPlugin",
+    "JavratePlugin",
     "JellyfinSearch",
 ]
 
