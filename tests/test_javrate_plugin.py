@@ -140,7 +140,7 @@ class TestJavratePlugin(unittest.TestCase):
     def test_plugin_initialization(self):
         """测试插件初始化"""
         self.assertEqual(self.plugin.name, "Javrate")
-        self.assertEqual(self.plugin.version, "2.0.0")
+        self.assertEqual(self.plugin.version, "2.1.0")
         self.assertEqual(self.plugin.priority, 30)
         self.assertIn("javrate.com", self.plugin.supported_domains)
         self.assertIn("www.javrate.com", self.plugin.supported_domains)

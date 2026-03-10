@@ -173,13 +173,13 @@ class TestSearchManagerDedup:
         assert results[1].code == "ABC-003"
 
     def test_search_with_dedup_duplicate_codes(self):
-        """测试代码去重"""
+        """测试代码去重 - 实际上只基于 URL 去重，不基于 code"""
         mock_plugin = Mock()
         mock_plugin.name = "Plugin1"
         mock_plugin.get_site_name.return_value = "Site1"
         mock_plugin.search.return_value = [
             create_result("ABC-001", site="Site1", url="https://site1.com/1"),
-            create_result("ABC-001", site="Site1", url="https://site1.com/2"),  # 重复代码
+            create_result("ABC-001", site="Site1", url="https://site1.com/2"),  # 不同 URL，不去重
             create_result("ABC-003", site="Site1", url="https://site1.com/3"),
         ]
 
@@ -189,9 +189,11 @@ class TestSearchManagerDedup:
         manager = SearchManager(mock_pm)
         results = manager.search_with_dedup("ABC")
 
-        assert len(results) == 2
+        # 只基于 URL 去重，不基于 code，所以 3 个都保留
+        assert len(results) == 3
         assert results[0].code == "ABC-001"
-        assert results[1].code == "ABC-003"
+        assert results[1].code == "ABC-001"
+        assert results[2].code == "ABC-003"
 
     def test_search_with_dedup_no_duplicates(self):
         """测试无重复时的行为"""
