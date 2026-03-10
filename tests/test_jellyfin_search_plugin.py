@@ -80,6 +80,7 @@ class TestJellyfinSearchPluginSearch:
 
         mock_client = MagicMock()
         mock_client.search_items.return_value = [mock_item]
+        mock_client.get_item_web_url.return_value = "jellyfin://test-id-123"
         mock_client_wrapper.return_value = mock_client
 
         plugin = JellyfinSearch()

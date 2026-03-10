@@ -16,12 +16,12 @@
     },    
     "stubPath": "typings",
     "venvPath": ".",
-    "venv": "venv",
+    "venv": ".venv",
     "pythonVersion": "3.10",
     "pythonPlatform": "All",
     "executionEnvironments": [
         {
-            "root": ".",
+            "root": "pavone",
             "pythonVersion": "3.10",
             "pythonPlatform": "All",
             "extraPaths": [
@@ -32,7 +32,6 @@
     "typeCheckingMode": "standard",
     "useLibraryCodeForTypes": true,
     "autoImportCompletions": true,
-    "autoSearchPaths": true,
     "reportMissingImports": "error",
     "reportMissingTypeStubs": "information",
     "reportImportCycles": "error",
@@ -58,7 +57,6 @@
     "reportIncompatibleMethodOverride": "error",
     "reportIncompatibleVariableOverride": "error",
     "reportInconsistentConstructor": "error",
-    "reportOverlappingOverloads": "error",
     "reportMissingSuperCall": "none",
     "reportPropertyTypeMismatch": "error",
     "reportFunctionMemberAccess": "warning",

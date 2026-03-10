@@ -60,6 +60,7 @@ class CommonExtraKeys:
     """
 
     ITEM_SUBTYPE = "item_subtype"  # 子类型, 如 COVER, POSTER, THUMBNAIL, BACKDROP 等
+    SOURCE_PATH = "source_path"  # 源文件路径（用于 MOVE 操作）
     TARGET_PATH = "target_path"  # 目标路径
     CUSTOM_HEADERS = "cus_headers"  # 自定义 HTTP 头部, 用于下载时的请求头部
     CUSTOM_FILENAME_PREFIX = "custom_filename_prefix"  # 自定义文件名, 用于下载时指定文件名

@@ -28,7 +28,8 @@ class Operator(ABC):
         """
         self.config = config
         self.operator_name = operator_name
-        self.logger = get_logger(__name__)
+        # 使用子类的模块名作为 logger 名称
+        self.logger = get_logger(self.__class__.__module__)
 
     @abstractmethod
     def execute(self, item: OperationItem) -> bool:

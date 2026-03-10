@@ -8,7 +8,7 @@ import click
 
 from ...config.settings import get_config
 from ...manager.execution import create_exe_manager
-from ...plugins.manager import get_plugin_manager
+from ...manager.plugin_manager import get_plugin_manager
 from .utils import (
     apply_proxy_config,
     common_download_options,

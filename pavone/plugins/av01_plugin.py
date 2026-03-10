@@ -18,12 +18,12 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional, cast
 from urllib.parse import urlparse
 
-from ..config.logging_config import get_logger
 from ..models import MovieMetadata, OperationItem, Quality
 from ..utils import CodeExtractUtils
 from ..utils.metadata_builder import MetadataBuilder
 from ..utils.operation_item_builder import OperationItemBuilder
-from .base import BasePlugin
+from .extractors.base import ExtractorPlugin
+from .metadata.base import MetadataPlugin
 
 
 @dataclass
@@ -316,14 +316,15 @@ GEO_API_URL = "https://www.av01.tv/edge/geo.js?json"
 VIDEO_API_BASE = "https://www.av01.media/api/v1/videos"
 
 
-class AV01Plugin(BasePlugin):
+class AV01Plugin(ExtractorPlugin, MetadataPlugin):
     """
     AV01统一插件
-    同时实现元数据提取和视频下载两种功能
+    同时实现元数据提取和视频下载两种功能（通过多继承）
     """
 
     def __init__(self):
         """初始化AV01插件"""
+        # 多继承情况下，使用 super() 会按照 MRO 顺序调用
         super().__init__(
             name=PLUGIN_NAME,
             version=PLUGIN_VERSION,
@@ -333,7 +334,7 @@ class AV01Plugin(BasePlugin):
         )
         self.supported_domains = SUPPORTED_DOMAINS
         self.site_name = SITE_NAME
-        self.logger = get_logger(__name__)
+        # logger already initialized in base classes using subclass module name
 
         # 缓存geo数据
         self._geo_data: Optional[GeoData] = None
@@ -528,7 +529,7 @@ class AV01Plugin(BasePlugin):
             studio = video_metadata.maker
 
             # 提取分类/标签
-            genres = []
+            genres: list[str] = []
             tags = video_metadata.get_tag_names()
 
             # 封面图片 - 使用带认证的URL构建或 poster 字段
@@ -608,7 +609,7 @@ class AV01Plugin(BasePlugin):
             studio = video_metadata.maker
 
             # 提取分类/标签
-            genres = []
+            genres: list[str] = []
             tags = video_metadata.get_tag_names()
 
             # 封面图片 - 使用带认证的URL构建或 poster 字段

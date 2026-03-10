@@ -121,7 +121,7 @@ def _create_simple_progress_callback() -> ProgressCallback:
             speed_str = format_bytes(int(progress_info.speed)) + "/s"
 
             print(
-                f"\r[{bar}] {progress_info.percentage:.1f}% " f"({downloaded_str}/{total_str}) " f"Speed: {speed_str}",
+                f"\r[{bar}] {progress_info.percentage:.1f}% ({downloaded_str}/{total_str}) Speed: {speed_str}",
                 end="",
                 flush=True,
             )

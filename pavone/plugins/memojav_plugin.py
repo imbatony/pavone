@@ -1,23 +1,25 @@
 """
-Memojav视频提取器插件
+Memojav复合型插件
 
-支持从 memojav.com 网站提取视频下载链接。
+支持从 memojav.com 网站提取视频下载链接和元数据。
 """
 
 import re
 from typing import List, Optional
 from urllib.parse import unquote, urlparse
 
-from ...models import OperationItem, Quality
-from ...utils import CodeExtractUtils
-from ...utils.html_metadata_utils import HTMLMetadataExtractor
-from ...utils.operation_item_builder import OperationItemBuilder
-from .base import ExtractorPlugin
+from ..models import MovieMetadata, OperationItem, Quality
+from ..utils import CodeExtractUtils
+from ..utils.html_metadata_utils import HTMLMetadataExtractor
+from ..utils.metadata_builder import MetadataBuilder
+from ..utils.operation_item_builder import OperationItemBuilder
+from .extractors.base import ExtractorPlugin
+from .metadata.base import MetadataPlugin
 
 # 定义插件名称和版本
-PLUGIN_NAME = "MemojavExtractor"
-PLUGIN_VERSION = "1.0.0"
-PLUGIN_DESCRIPTION = "提取 memojav.com 的视频下载链接"
+PLUGIN_NAME = "Memojav"
+PLUGIN_VERSION = "2.0.0"
+PLUGIN_DESCRIPTION = "提取 memojav.com 的视频下载链接和元数据"
 PLUGIN_AUTHOR = "PAVOne"
 
 # 定义插件优先级
@@ -29,9 +31,9 @@ SUPPORTED_DOMAINS = ["memojav.com", "www.memojav.com"]
 SITE_NAME = "Memojav"
 
 
-class MemojavExtractor(ExtractorPlugin):
+class MemojavPlugin(ExtractorPlugin, MetadataPlugin):
     """
-    提取 memojav.com 的视频下载链接
+    Memojav复合型插件，支持视频下载和元数据提取
     """
 
     def __init__(self):
@@ -45,6 +47,8 @@ class MemojavExtractor(ExtractorPlugin):
         self.supported_domains = SUPPORTED_DOMAINS
         self.site_name = SITE_NAME
 
+    # ==================== ExtractorPlugin 接口 ====================
+
     def can_handle(self, url: str) -> bool:
         """检查是否能处理给定的URL"""
         return self.can_handle_domain(url, self.supported_domains)
@@ -57,8 +61,10 @@ class MemojavExtractor(ExtractorPlugin):
             # 获取内嵌网页内容
             url = url.replace("video", "embed")
             response = self.fetch(url)
-            vid = self.get_vid_from_url(url)
+            vid = self._get_vid_from_url(url)
             code = CodeExtractUtils.extract_code_from_text(vid) or vid
+            # 将 code 转为大写
+            code = code.upper()
             html = response.text
             if not html:
                 self.logger.error("无法获取网页内容")
@@ -97,6 +103,60 @@ class MemojavExtractor(ExtractorPlugin):
             self.logger.error(f"提取视频信息失败: {e}")
             return []
 
+    # ==================== MetadataPlugin 接口 ====================
+
+    def can_extract(self, identifier: str) -> bool:
+        """检查是否能提取给定identifier的元数据"""
+        return self.can_handle(identifier)
+
+    def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
+        """从给定的URL提取元数据"""
+        if not self.can_extract(identifier):
+            return None
+
+        try:
+            # 获取内嵌网页内容
+            url = identifier.replace("video", "embed")
+            response = self.fetch(url)
+            html = response.text
+            if not html:
+                self.logger.error("无法获取网页内容")
+                return None
+
+            # 提取视频 ID
+            vid = self._get_vid_from_url(url)
+            code = CodeExtractUtils.extract_code_from_text(vid) or vid
+            # 将 code 转为大写
+            code = code.upper()
+
+            # 提取标题
+            title = self._extract_title(html)
+            if not title:
+                self.logger.error("未能提取视频标题")
+                return None
+
+            # 提取封面
+            cover_url = self._extract_cover(html)
+
+            # 使用 MetadataBuilder 构建元数据
+            builder = MetadataBuilder()
+            builder.set_title(title, code)
+            builder.set_code(code)
+            builder.set_site(self.site_name)  # 设置 site
+            builder.set_url(identifier)
+            builder.set_identifier(self.site_name, code, identifier)  # 设置 identifier
+
+            if cover_url:
+                builder.set_poster(cover_url)
+
+            return builder.build()
+
+        except Exception as e:
+            self.logger.error(f"提取元数据失败: {e}")
+            return None
+
+    # ==================== 私有辅助方法 ====================
+
     def _extract_m3u8(self, html: str) -> Optional[str]:
         """从HTML中提取m3u8链接"""
         pattern = r'"url":"(https?%3A%2F%2F[^"]+)"'
@@ -120,10 +180,12 @@ class MemojavExtractor(ExtractorPlugin):
             return title
         raise ValueError("未能提取视频代码和标题")
 
-    def get_vid_from_url(self, url: str) -> str:
-        """从URL中提取视频代码"""
+    def _get_vid_from_url(self, url: str) -> str:
+        """从 URL 中提取视频代码"""
         parsed_url = urlparse(url)
         path_parts = parsed_url.path.split("/")
-        if len(path_parts) > 1:
-            return path_parts[-1]
-        raise ValueError("无法从URL中提取视频代码")
+        # 过滤掉空字符串，返回最后一个非空部分
+        non_empty_parts = [p for p in path_parts if p]
+        if non_empty_parts:
+            return non_empty_parts[-1]
+        raise ValueError("无法从 URL 中提取视频代码")

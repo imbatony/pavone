@@ -12,23 +12,23 @@ from types import ModuleType
 from typing import Any, Dict, List, Optional, Type
 
 from ..config.settings import config_manager
-from ..models import SearchResult
-from .av01_plugin import AV01Plugin
-from .base import BasePlugin
-from .extractors import (
+from ..plugins.av01_plugin import AV01Plugin
+from ..plugins.base import BasePlugin
+from ..plugins.extractors import (
     ExtractorPlugin,
-    JTableExtractor,
     M3U8DirectExtractor,
-    MemojavExtractor,
     MP4DirectExtractor,
 )
-from .metadata import (
+from ..plugins.javrate_plugin import JavratePlugin
+from ..plugins.jtable_plugin import JTablePlugin
+from ..plugins.memojav_plugin import MemojavPlugin
+from ..plugins.metadata import (
     MetadataPlugin,
     PPVDataBankMetadata,
     SupFC2Metadata,
 )
-from .missav_plugin import MissAVPlugin
-from .search import SearchPlugin
+from ..plugins.missav_plugin import MissAVPlugin
+from ..plugins.search import JellyfinSearch, SearchPlugin
 
 
 class PluginManager:
@@ -73,11 +73,13 @@ class PluginManager:
                 "MP4DirectExtractor": MP4DirectExtractor,
                 "M3U8DirectExtractor": M3U8DirectExtractor,
                 "MissAVPlugin": MissAVPlugin,
-                "MemojavExtractor": MemojavExtractor,
-                "JTableExtractor": JTableExtractor,
+                "MemojavPlugin": MemojavPlugin,
+                "JavratePlugin": JavratePlugin,
+                "JTablePlugin": JTablePlugin,
                 "AV01Plugin": AV01Plugin,
                 "PPVDataBankMetadata": PPVDataBankMetadata,
                 "SupFC2Metadata": SupFC2Metadata,
+                "JellyfinSearch": JellyfinSearch,
             }
 
             loaded_plugins: list[str] = []
@@ -180,7 +182,7 @@ class PluginManager:
         )
 
     def register_plugin(self, plugin: BasePlugin):
-        """注册插件"""
+        """注册插件（支持多继承的复合型插件）"""
         # 检查插件是否被禁用
         if config_manager.is_plugin_disabled(plugin.name):
             self.logger.info(f"插件 {plugin.name} 已被禁用，跳过注册")
@@ -188,17 +190,34 @@ class PluginManager:
 
         if plugin.initialize():
             self.plugins[plugin.name] = plugin
-            # 检查插件类型并分类
+
+            # 检查插件类型并分类（支持复合型插件，一个插件可以同时是多种类型）
+            # 使用 isinstance 检查，支持多继承
+            registered_types: list[str] = []
+
+            # 检查是否是 ExtractorPlugin
             if isinstance(plugin, ExtractorPlugin):
                 self.extractor_plugins.append(plugin)
                 # 按优先级排序（数值越小优先级越高）
                 self.extractor_plugins.sort(key=lambda p: getattr(p, "priority", 50))
-            elif isinstance(plugin, MetadataPlugin):
-                self.metadata_plugins.append(plugin)
-            elif isinstance(plugin, SearchPlugin):
-                self.search_plugins.append(plugin)
+                registered_types.append("Extractor")
 
-            self.logger.info(f"成功注册插件: {plugin.name}")
+            # 检查是否是 MetadataPlugin
+            if isinstance(plugin, MetadataPlugin):
+                self.metadata_plugins.append(plugin)
+                registered_types.append("Metadata")
+
+            # 检查是否是 SearchPlugin
+            if isinstance(plugin, SearchPlugin):
+                self.search_plugins.append(plugin)
+                registered_types.append("Search")
+
+            if registered_types:
+                types_str = ", ".join(registered_types)
+                self.logger.info(f"成功注册插件: {plugin.name} (类型: {types_str})")
+            else:
+                self.logger.warning(f"插件 {plugin.name} 未继承任何已知插件基类")
+
             return True
         else:
             self.logger.warning(f"插件 {plugin.name} 初始化失败")
@@ -210,18 +229,19 @@ class PluginManager:
             plugin = self.plugins[plugin_name]
             plugin.cleanup()
 
-            if isinstance(plugin, ExtractorPlugin):
+            # 从所有类型列表中移除（支持复合型插件）
+            if isinstance(plugin, ExtractorPlugin) and plugin in self.extractor_plugins:
                 self.extractor_plugins.remove(plugin)
-            elif isinstance(plugin, MetadataPlugin):
+            if isinstance(plugin, MetadataPlugin) and plugin in self.metadata_plugins:
                 self.metadata_plugins.remove(plugin)
-            elif isinstance(plugin, SearchPlugin):
+            if isinstance(plugin, SearchPlugin) and plugin in self.search_plugins:
                 self.search_plugins.remove(plugin)
 
             del self.plugins[plugin_name]
 
     def get_extractor_for_url(self, url: str) -> Optional[ExtractorPlugin]:
         """获取适合的提取器插件（按优先级排序）"""
-        for plugin in self.extractor_plugins:
+        for plugin in sorted(self.extractor_plugins, key=lambda p: getattr(p, "priority", 50)):
             # 运行时类型检查
             if hasattr(plugin, "can_handle") and callable(getattr(plugin, "can_handle")):
                 if plugin.can_handle(url):  # type: ignore
@@ -231,7 +251,7 @@ class PluginManager:
     def get_all_extractors_for_url(self, url: str) -> List[ExtractorPlugin]:
         """获取所有能处理该URL的提取器插件（按优先级排序）"""
         matching_extractors: List[ExtractorPlugin] = []
-        for plugin in self.extractor_plugins:
+        for plugin in sorted(self.extractor_plugins, key=lambda p: getattr(p, "priority", 50)):
             # 运行时类型检查
             if hasattr(plugin, "can_handle") and callable(getattr(plugin, "can_handle")):
                 if plugin.can_handle(url):  # type: ignore
@@ -240,7 +260,7 @@ class PluginManager:
 
     def get_metadata_extractor(self, identifier: str) -> Optional[MetadataPlugin]:
         """获取适合的元数据提取插件"""
-        for plugin in self.metadata_plugins:
+        for plugin in sorted(self.metadata_plugins, key=lambda p: getattr(p, "priority", 50)):
             # 运行时类型检查
             if hasattr(plugin, "can_extract") and callable(getattr(plugin, "can_extract")):
                 if plugin.can_extract(identifier):  # type: ignore
@@ -249,7 +269,7 @@ class PluginManager:
 
     def get_all_search_plugins(self) -> List[SearchPlugin]:
         """获取所有搜索插件"""
-        return self.search_plugins.copy()
+        return sorted(self.search_plugins.copy(), key=lambda p: getattr(p, "priority", 50))
 
     def reload_plugins(self):
         """重新加载所有插件"""
@@ -297,13 +317,6 @@ class PluginManager:
             plugin = self.plugins[plugin_name]
             if hasattr(plugin, "set_priority"):
                 plugin.set_priority(priority)  # type: ignore
-
-                # 如果是提取器插件，重新排序
-                from .extractors import ExtractorPlugin
-
-                if isinstance(plugin, ExtractorPlugin):
-                    self.extractor_plugins.sort(key=lambda p: getattr(p, "priority", 50))
-
             self.logger.info(f"已更新插件 {plugin_name} 的优先级为 {priority}")
 
     def get_plugin_info(self) -> Dict[str, Any]:
@@ -339,26 +352,6 @@ class PluginManager:
             return self.search_plugins.copy()
         else:
             return []
-
-    def search(self, keyword: str, limit: int = 20, enable_sites: Optional[List[str]] = None) -> List[SearchResult]:
-        """在所有搜索插件中执行搜索"""
-        if not self.search_plugins:
-            self.logger.warning("没有可用的搜索插件")
-            return []
-
-        results: List[SearchResult] = []
-        is_all_enabled = enable_sites and enable_sites.__len__() == 1 and enable_sites[0] == "All"
-        if enable_sites is None:
-            enable_sites = [plugin.get_site_name() for plugin in self.search_plugins]
-        for plugin in self.search_plugins:
-            if not is_all_enabled and plugin.get_site_name() not in enable_sites:
-                continue
-            try:
-                plugin_results = plugin.search(keyword, limit)
-                results.extend(plugin_results)
-            except Exception as e:
-                self.logger.error(f"搜索插件 {plugin.name} 执行失败: {e}")
-        return results
 
 
 # 全局插件管理器实例

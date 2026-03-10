@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from ..utils import StringUtils
+from ..utils.template_utils import TemplateUtils
 from .constants import (
     CommonExtraKeys,
     ImageExtraKeys,
@@ -137,6 +138,16 @@ class OperationItem:
         """获取自定义文件名"""
         return self._extra.get(CommonExtraKeys.CUSTOM_FILENAME_PREFIX, None)
 
+    def get_source_path(self) -> Optional[str]:
+        """获取源文件路径（用于 MOVE 操作）"""
+        return self._extra.get(CommonExtraKeys.SOURCE_PATH, None)
+
+    def set_source_path(self, source_path: str):
+        """设置源文件路径（用于 MOVE 操作）"""
+        if not source_path:
+            return
+        self._extra[CommonExtraKeys.SOURCE_PATH] = source_path
+
     def get_target_path(self) -> Optional[str]:
         """获取目标路径"""
         return self._extra.get(CommonExtraKeys.TARGET_PATH, None)
@@ -220,22 +231,22 @@ class OperationItem:
 
     def get_target_subfolder(self, output_dir: str, folder_name_pattern: str) -> Optional[str]:
         """获取目标子文件夹"""
-        code: Optional[str] = StringUtils.normalize_string(self.get_code())
-        studio: Optional[str] = StringUtils.normalize_string(self.get_studio())
-        actors: Optional[list[str]] = (
-            [StringUtils.normalize_string(actor) for actor in self.get_actors()] if self.get_actors() else []
-        )
-        title: Optional[str] = StringUtils.normalize_string(self.get_title())
-        year: int = self.get_year()
+        # 构建一个简单的 metadata 对象用于模板解析
+        from .metadata import MovieMetadata
 
-        # 使用配置的文件夹结构模式生成目标路径
-        target_sub_folder = folder_name_pattern.format(
-            code=code,
-            studio=studio,
-            actors=" ".join(actors) if actors else "",
-            title=title or "",
-            year=year,
+        metadata = MovieMetadata(
+            identifier=self.get_code() or "unknown",
+            code=self.get_code() or "",
+            title=self.get_title() or "",
+            studio=self.get_studio() or "",
+            actors=self.get_actors() or [],
+            year=self.get_year() or "",
+            url="",
+            site="",
         )
+
+        # 使用 TemplateUtils 解析模板
+        target_sub_folder = TemplateUtils.resolve_template(folder_name_pattern, metadata)
 
         target_folder = StringUtils.normalize_folder_path(output_dir + "/" + target_sub_folder)
         if not target_folder:
@@ -260,23 +271,22 @@ class OperationItem:
         if not file_name_pattern:
             return self.get_title()
 
-        """获取目标文件名"""
-        code: Optional[str] = StringUtils.normalize_string(self.get_code())
-        studio: Optional[str] = StringUtils.normalize_string(self.get_studio())
-        actors: Optional[list[str]] = (
-            [StringUtils.normalize_string(actor) for actor in self.get_actors()] if self.get_actors() else []
-        )
-        title: Optional[str] = StringUtils.normalize_string(self.get_title())
-        year: int = self.get_year()
+        # 构建 metadata 对象用于模板解析
+        from .metadata import MovieMetadata
 
-        # 使用配置的文件名模式生成目标文件名
-        target_filename = file_name_pattern.format(
-            code=code,
-            studio=studio,
-            actors=" ".join(actors) if actors else "",
-            title=title or "",
-            year=year,
+        metadata = MovieMetadata(
+            identifier=self.get_code() or "unknown",
+            code=self.get_code() or "",
+            title=self.get_title() or "",
+            studio=self.get_studio() or "",
+            actors=self.get_actors() or [],
+            year=self.get_year() or "",
+            url="",
+            site="",
         )
+
+        # 使用 TemplateUtils 解析模板
+        target_filename = TemplateUtils.resolve_template(file_name_pattern, metadata)
 
         if not target_filename:
             raise ValueError("目标文件名不能为空")

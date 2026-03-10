@@ -8,13 +8,14 @@ import re
 from re import findall
 from typing import Any, Dict, List, Optional, Tuple
 
-from ..config.logging_config import get_logger
 from ..models import MovieMetadata, OperationItem, Quality, SearchResult
 from ..utils import CodeExtractUtils
 from ..utils.html_metadata_utils import HTMLMetadataExtractor
 from ..utils.metadata_builder import MetadataBuilder
 from ..utils.operation_item_builder import OperationItemBuilder
-from .base import BasePlugin
+from .extractors.base import ExtractorPlugin
+from .metadata.base import MetadataPlugin
+from .search.base import SearchPlugin
 
 # 定义插件名称和版本
 PLUGIN_NAME = "MissAV"
@@ -26,7 +27,7 @@ PLUGIN_AUTHOR = "PAVOne"
 PLUGIN_PRIORITY = 30
 
 # 定义支持的域名
-SUPPORTED_DOMAINS = ["missav.ai", "www.missav.ai", "missav.com", "www.missav.com"]
+SUPPORTED_DOMAINS = ["missav.ai", "www.missav.ai", "missav.com", "www.missav.com", "missav.ws", "www.missav.ws"]
 
 SITE_NAME = "MissAV"
 
@@ -34,25 +35,30 @@ SITE_NAME = "MissAV"
 MISSAV_BASE_URL = "https://missav.ai"
 
 
-class MissAVPlugin(BasePlugin):
+class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
     """
     MissAV统一插件
-    同时实现搜索、元数据提取和视频下载三种功能
+    同时实现搜索、元数据提取和视频下载三种功能（通过多继承）
     """
 
     def __init__(self):
         """初始化MissAV插件"""
-        super().__init__(
+        # 多继承时，由于 SearchPlugin 有不同的 __init__ 签名，
+        # 我们直接调用 BasePlugin 的初始化，避免 MRO 链的问题
+        from .base import BasePlugin
+
+        BasePlugin.__init__(
+            self,
             name=PLUGIN_NAME,
             version=PLUGIN_VERSION,
             description=PLUGIN_DESCRIPTION,
             author=PLUGIN_AUTHOR,
             priority=PLUGIN_PRIORITY,
         )
+        # 其他属性
         self.supported_domains = SUPPORTED_DOMAINS
         self.site_name = SITE_NAME
         self.base_url = MISSAV_BASE_URL
-        self.logger = get_logger(__name__)
 
     def initialize(self) -> bool:
         """初始化插件"""
@@ -66,36 +72,42 @@ class MissAVPlugin(BasePlugin):
         if code:
             # 如果是FC2编号，转换格式
             if code.startswith("FC2") or code.startswith("fc2"):
-                code = code[:3] + "-PPV-" + code[3:]
+                code = code[:3] + "-PPV" + code[3:]
             code = code.lower()
             url = f"{self.base_url}/ja/{code}"
-            res = self.fetch(url)
-            if res and res.status_code == 200:
+            # 搜索时减少重试次数，快速失败
+            res = self.fetch(url, no_exceptions=True, max_retry=1)
+            if res is not None and getattr(res, "status_code", None) == 200:
                 result = self._parse_video_page(res.text, code)
                 if result:
                     return [result]
 
         # 使用搜索功能
         search_url = f"{self.base_url}/ja/search/{keyword}"
-        res = self.fetch(search_url)
-        if res and res.status_code == 200:
+        # 一般搜索请求不需要太多重试，失败后快速返回
+        res = self.fetch(search_url, no_exceptions=True, max_retry=2)
+        if res is not None and getattr(res, "status_code", None) == 200:
             results = self._parse_search_results(res.text, limit, keyword)
             return results
         else:
-            self.logger.error(
-                "Failed to fetch search results for " f"{keyword}. Status code: {res.status_code if res else 'No response'}"
-            )
+            status = getattr(res, "status_code", "No response") if res is not None else "No response"
+            self.logger.error(f"Failed to fetch search results for {keyword}. Status code: {status}")
             return []
 
     def _parse_video_page(self, html: str, code: str) -> SearchResult:
         """解析视频页面，提取视频信息"""
+        # 标准化 code：转换为大写并移除 -PPV
+        normalized_code = code.upper()
+        if normalized_code.startswith("FC2-PPV-"):
+            normalized_code = normalized_code.replace("FC2-PPV-", "FC2-")
+
         return SearchResult(
             site=self.site_name,
             keyword=code,
-            title=f"{self.site_name} Video Result for {code}",
-            description=f"Video result for {code} on {self.site_name}",
+            title=f"{self.site_name} Video Result for {normalized_code}",
+            description=f"Video result for {normalized_code} on {self.site_name}",
             url=f"{self.base_url}/ja/{code}",
-            code=code,
+            code=normalized_code,
         )
 
     def _parse_search_results(self, html: str, limit: int, keyword: str) -> List[SearchResult]:
@@ -110,13 +122,18 @@ class MissAVPlugin(BasePlugin):
         matches = matches[:limit]
         for match in matches:
             url, alt, title = match
+            # 标准化 code：移除 FC2-PPV 中的 -PPV 部分
+            code = alt.upper()
+            if code.startswith("FC2-PPV-"):
+                code = code.replace("FC2-PPV-", "FC2-")
+
             result = SearchResult(
                 site=self.site_name,
                 keyword=keyword,
                 title=title,
                 description=f"Search result for {title} on {self.site_name}",
                 url=url,
-                code=alt.upper(),
+                code=code,
             )
             results.append(result)
         return results
@@ -515,6 +532,10 @@ class MissAVPlugin(BasePlugin):
     def _extract_tagline(self, html: str) -> Optional[str]:
         """从HTML中提取视频标语"""
         return HTMLMetadataExtractor.extract_og_title(html)
+
+    def get_site_name(self) -> str:
+        """获取搜索插件对应的网站名称"""
+        return SITE_NAME
 
 
 def register_plugin():

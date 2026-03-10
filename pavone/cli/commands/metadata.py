@@ -5,8 +5,8 @@ import click
 
 from ...config.settings import get_config
 from ...jellyfin.client import JellyfinClientWrapper
+from ...manager.plugin_manager import get_plugin_manager
 from ...models import BaseMetadata, ItemMetadata
-from ...plugins.manager import get_plugin_manager
 from .enrich_helper import ImageManager, JellyfinMetadataUpdater, MetadataComparison
 from .utils import (
     apply_proxy_config,
@@ -48,12 +48,12 @@ def format_metadata_output(metadata: BaseMetadata) -> None:
     echo_success("元数据提取成功\n")
 
     # 手动格式化输出，确保对齐
-    def format_field(name: str, value: str, max_width: int = 60) -> str:
+    def format_field(name: str, value: str, max_width: int = 60, no_truncate: bool = False) -> str:
         """格式化字段，返回对齐的字符串"""
         # 字段名固定显示宽度为16（中文字符宽度）
         name_padded = pad_text(name, 16)
-        # 值截断到指定宽度
-        if len(value) > max_width:
+        # 值截断到指定宽度（链接等字段不截断）
+        if not no_truncate and len(value) > max_width:
             value = value[:max_width] + "..."
         return f"{name_padded} {value}"
 
@@ -73,7 +73,7 @@ def format_metadata_output(metadata: BaseMetadata) -> None:
 
     lines.append(format_field("代码", metadata.code))
     lines.append(format_field("网站", metadata.site))
-    lines.append(format_field("URL", metadata.url))
+    lines.append(format_field("URL", metadata.url, no_truncate=True))
 
     # 如果是MovieMetadata，添加额外字段
     actors = getattr(metadata, "actors", None)
@@ -125,7 +125,7 @@ def format_metadata_output(metadata: BaseMetadata) -> None:
 
     cover = getattr(metadata, "cover", None)
     if cover:
-        lines.append(format_field("封面", cover))
+        lines.append(format_field("封面", cover, no_truncate=True))
 
     # 输出所有行
     for line in lines:
