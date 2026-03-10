@@ -100,7 +100,7 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
         normalized_code = code.upper()
         if normalized_code.startswith("FC2-PPV-"):
             normalized_code = normalized_code.replace("FC2-PPV-", "FC2-")
-        
+
         return SearchResult(
             site=self.site_name,
             keyword=code,
@@ -126,7 +126,7 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
             code = alt.upper()
             if code.startswith("FC2-PPV-"):
                 code = code.replace("FC2-PPV-", "FC2-")
-            
+
             result = SearchResult(
                 site=self.site_name,
                 keyword=keyword,

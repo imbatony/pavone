@@ -628,8 +628,8 @@ class JellyfinMetadataUpdater:
             existing_people = None
             try:
                 existing_item = client.get_item(item_id)
-                if existing_item and "People" in existing_item:
-                    existing_people = existing_item["People"]
+                if existing_item and existing_item.metadata and "People" in existing_item.metadata:
+                    existing_people = existing_item.metadata["People"]
             except Exception as e:
                 echo_warning(f"获取现有人员信息失败（将创建新的）: {e}")
 

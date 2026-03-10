@@ -29,19 +29,14 @@ class TestJavratePlugin(unittest.TestCase):
             "thumbnailUrl": "https://picture.avking.xyz/compressed/20260205/cover_s.webp",
             "duration": "PT2H15M30S",
             "uploadDate": "2026-02-05",
-            "actor": [
-                {"@type": "Person", "name": "雛形美久琉", "url": "https://www.javrate.com/actor/detail/abc123"}
-            ],
-            "identifier": {
-                "@type": "PropertyValue",
-                "name": "code",
-                "Value": "SNOS-080"
-            },
-            "description": "SNOS-080为S1出品,2026年2月5日发行的有碼成人影片由雛形美久琉出演，这是一部精彩的影片"
+            "actor": [{"@type": "Person", "name": "雛形美久琉", "url": "https://www.javrate.com/actor/detail/abc123"}],
+            "identifier": {"@type": "PropertyValue", "name": "code", "Value": "SNOS-080"},
+            "description": "SNOS-080为S1出品,2026年2月5日发行的有碼成人影片由雛形美久琉出演，这是一部精彩的影片",
         }
 
         # 示例 HTML 内容（带 JSON-LD）
-        self.sample_html = """
+        self.sample_html = (
+            """
         <!DOCTYPE html>
         <html>
         <head>
@@ -50,7 +45,9 @@ class TestJavratePlugin(unittest.TestCase):
             <meta property="og:image" content="https://picture.avking.xyz/compressed/20260205/20260205042615834834_92893_s.webp">
             <meta property="og:description" content="SNOS-080为S1出品,2026年2月5日发行的有碼成人影片由雛形美久琉出演">
             <script type="application/ld+json">
-            """ + json.dumps(self.json_ld_data, ensure_ascii=False) + """
+            """
+            + json.dumps(self.json_ld_data, ensure_ascii=False)
+            + """
             </script>
         </head>
         <body>
@@ -89,6 +86,7 @@ class TestJavratePlugin(unittest.TestCase):
         </body>
         </html>
         """
+        )
 
         # 不含 JSON-LD 的 HTML（回退测试）
         self.sample_html_no_jsonld = """
@@ -422,7 +420,7 @@ class TestJavratePlugin(unittest.TestCase):
 
     def test_extract_code_from_title(self):
         """测试从标题提取视频代码"""
-        html = '<title>ABC-123 Test Title</title>'
+        html = "<title>ABC-123 Test Title</title>"
         result = self.plugin._extract_code(html)
         self.assertEqual(result, "ABC-123")
 
@@ -438,7 +436,7 @@ class TestJavratePlugin(unittest.TestCase):
 
     def test_extract_studio(self):
         """测试提取出品厂商 - 从 data-issuer-name 属性"""
-        html = '''
+        html = """
         <h4>出品廠商 :</h4>
         <div class="company-tag">
             <a href="/issuer/麻豆傳媒" class="issuer-link" data-issuer-id="abc" data-issuer-name="麻豆傳媒">
@@ -450,24 +448,24 @@ class TestJavratePlugin(unittest.TestCase):
                 </a>
             </span>
         </div>
-        '''
+        """
         result = self.plugin._extract_studio(html)
         self.assertEqual(result, "麻豆傳媒")
 
     def test_extract_studio_simple(self):
         """测试提取出品厂商 - 简单结构"""
-        html = '''
+        html = """
         <a href="/issuer/S1" title="S1" data-issuer-name="S1">S1</a>
-        '''
+        """
         result = self.plugin._extract_studio(html)
         self.assertEqual(result, "S1")
 
     def test_extract_actors(self):
         """测试提取演员列表"""
-        html = '''
+        html = """
         <a href="https://www.javrate.com/actor/detail/abc123">雛形美久琉</a>
         <a href="https://www.javrate.com/actor/detail/def456">另一演员</a>
-        '''
+        """
         result = self.plugin._extract_actors(html)
         self.assertIsNotNone(result)
         self.assertIn("雛形美久琉", result)
@@ -475,10 +473,10 @@ class TestJavratePlugin(unittest.TestCase):
 
     def test_extract_genres(self):
         """测试提取分类标签"""
-        html = '''
+        html = """
         <a href="https://www.javrate.com/keywords/movie/苗條">苗條</a>
         <a href="https://www.javrate.com/keywords/movie/童顏">童顏</a>
-        '''
+        """
         result = self.plugin._extract_genres(html)
         self.assertIsNotNone(result)
         self.assertIn("苗條", result)
@@ -566,7 +564,7 @@ class TestJavratePlugin(unittest.TestCase):
                 {"@type": "Person", "name": "演员A"},
                 {"@type": "Person", "name": "演员B"},
                 {"@type": "Person", "name": "演员C"},
-            ]
+            ],
         }
         result = self.plugin._extract_actors("", json_ld)
         self.assertIsNotNone(result)
