@@ -28,6 +28,7 @@ from .utils import (
 @click.argument("url")
 @common_interaction_options
 @click.option("--filename", "-f", type=str, help="指定输出文件名")
+@click.option("--skip-failed", is_flag=True, default=False, help="M3U8下载时自动跳过失败分片并继续合并")
 @common_output_options
 @common_network_options
 @common_download_options
@@ -36,6 +37,7 @@ def download(
     auto_select: bool,
     silent: bool,
     filename: Optional[str],
+    skip_failed: bool,
     output_dir: Optional[str],
     header: tuple[str, str],
     proxy: Optional[str],
@@ -46,6 +48,12 @@ def download(
 ):
     """下载指定URL的视频"""
     try:
+        # 将 skip_failed 存入 click context
+        ctx = click.get_current_context()
+        if ctx.obj is None:
+            ctx.obj = {}
+        ctx.obj["skip_failed"] = skip_failed
+
         # 获取配置
         config = get_config()
         download_config = config.download

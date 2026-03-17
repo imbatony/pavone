@@ -14,8 +14,13 @@ from ..core import (
     Operator,
 )
 from ..models import ItemType, OperationItem, OperationType
+from ..utils.signal_handler import get_interrupt_handler
 from .plugin_manager import PluginManager, get_plugin_manager
-from .progress import create_console_progress_callback, create_silent_progress_callback
+from .progress import (
+    create_console_progress_callback,
+    create_segment_progress_callback,
+    create_silent_progress_callback,
+)
 
 # Jellyfin 集成
 try:
@@ -501,8 +506,16 @@ class ExecutionManager:
         # 执行
         success = operator.execute(selected_item)
         if not success:
-            self.logger.error(f"执行失败: {selected_item.get_description()}")
-            return False
+            # T017: M3U8 分片失败交互处理
+            from ..core import M3U8Downloader
+
+            if isinstance(operator, M3U8Downloader):
+                segment_results = operator.get_last_segment_results()
+                if segment_results:
+                    success = self._handle_m3u8_segment_failure(operator, segment_results)
+            if not success:
+                self.logger.error(f"执行失败: {selected_item.get_description()}")
+                return False
 
         # 注意：不在这里处理 Jellyfin 移动，改为在所有子项完成后再处理
 
@@ -535,6 +548,90 @@ class ExecutionManager:
 
         return success
 
+    def _handle_m3u8_segment_failure(
+        self,
+        downloader: "M3U8Downloader",
+        segment_results: list,
+    ) -> bool:
+        """处理 M3U8 分片部分失败: 交互式选择重试/跳过/取消.
+
+        Args:
+            downloader: M3U8下载器实例
+            segment_results: SegmentResult 列表
+
+        Returns:
+            bool: 是否最终成功 (合并完成)
+        """
+        failed = [r for r in segment_results if not r.success]
+        total = len(segment_results)
+        failed_count = len(failed)
+
+        # 全部失败 — 直接报告失败, 不提供跳过选项 (FR-009)
+        if failed_count == total:
+            click.echo(f"\n❌ 所有 {total} 个分片均下载失败, 无法继续", err=True)
+            return False
+
+        click.echo(f"\n⚠️  {failed_count}/{total} 个分片下载失败", err=True)
+        for r in failed[:5]:
+            click.echo(f"   - 分片 {r.index}: {r.error_message or '未知错误'}", err=True)
+        if failed_count > 5:
+            click.echo(f"   ... 及其他 {failed_count - 5} 个", err=True)
+
+        # 检查是否有 --skip-failed 标志 (通过 click context)
+        skip_failed = False
+        try:
+            ctx = click.get_current_context(silent=True)
+            if ctx and ctx.obj:
+                skip_failed = ctx.obj.get("skip_failed", False)
+        except RuntimeError:
+            pass
+
+        # 检测 stdin 是否可用
+        import sys
+
+        is_interactive = sys.stdin.isatty() and not skip_failed
+
+        if skip_failed:
+            click.echo("ℹ️  --skip-failed 已启用, 自动跳过失败分片并合并", err=True)
+            return downloader.merge_available_segments()
+
+        if not is_interactive:
+            click.echo("ℹ️  非交互式环境, 自动取消下载 (使用 --skip-failed 可自动跳过)", err=True)
+            return False
+
+        # 交互式选择
+        while True:
+            try:
+                click.echo("\n请选择操作:", err=True)
+                click.echo("  [R] 重试失败分片", err=True)
+                click.echo("  [S] 跳过失败分片并合并", err=True)
+                click.echo("  [C] 取消下载", err=True)
+                choice = click.prompt("选择", type=click.Choice(["R", "S", "C", "r", "s", "c"]), err=True)
+                choice = choice.upper()
+            except (KeyboardInterrupt, EOFError):
+                click.echo("\n已取消", err=True)
+                return False
+
+            if choice == "R":
+                retry_success = downloader.retry_failed_segments()
+                if retry_success:
+                    # 所有分片现在都成功了, 走正常合并流程
+                    return downloader.merge_available_segments()
+                else:
+                    # 仍有失败, 更新结果并重新询问
+                    segment_results = downloader.get_last_segment_results() or []
+                    failed = [r for r in segment_results if not r.success]
+                    failed_count = len(failed)
+                    if failed_count == 0:
+                        return downloader.merge_available_segments()
+                    click.echo(f"\n仍有 {failed_count}/{total} 个分片失败", err=True)
+                    continue
+            elif choice == "S":
+                return downloader.merge_available_segments()
+            else:  # C
+                click.echo("已取消下载", err=True)
+                return False
+
     def _execute_download(
         self, selected_item: OperationItem, silent: bool = False, parent: Optional[OperationItem] = None
     ) -> bool:
@@ -556,7 +653,12 @@ class ExecutionManager:
         """
         # 只有当下载类型为STREAM或者VIDEO时才传递进度回调
         if selected_item.item_type in (ItemType.STREAM, ItemType.VIDEO):
-            callback = create_console_progress_callback() if not silent else create_silent_progress_callback()
+            if selected_item.item_type == ItemType.STREAM:
+                # M3U8: 使用分片级进度回调
+                callback = create_segment_progress_callback() if not silent else create_silent_progress_callback()
+            else:
+                # HTTP: 使用字节级进度回调
+                callback = create_console_progress_callback() if not silent else create_silent_progress_callback()
             selected_item.set_progress_callback(callback)
 
     def _set_target_path_for_item(self, item: OperationItem, parent_item: Optional[OperationItem]) -> None:
@@ -675,6 +777,10 @@ class ExecutionManager:
         try:
             print(f"正在分析URL: {url}")
 
+            # 注册中断处理器
+            interrupt_handler = get_interrupt_handler()
+            interrupt_handler.register()
+
             # 1. 提取下载选项
             items = self._extract_items(url)
 
@@ -690,11 +796,21 @@ class ExecutionManager:
                 selected_item.set_custom_filename_prefix(file_name)
 
             # 3. 完成准备
-            return self._execute_operation(selected_item, silent)
+            result = self._execute_operation(selected_item, silent)
+
+            # 检查是否被中断
+            if interrupt_handler.is_interrupted():
+                click.echo("\n⚠️ 下载已中断, 已保存的缓存可用于断点续传", err=True)
+                interrupt_handler.reset()
+                return False
+
+            return result
 
         except Exception as e:
             print(f"下载失败: {e}")
             return False
+        finally:
+            get_interrupt_handler().reset()
 
     def execute_operation(
         self,
@@ -716,10 +832,23 @@ class ExecutionManager:
             并递归处理所有子项（元数据、图片等）。
         """
         try:
-            return self._execute_operation(operation_item, silent=silent, parent=None)
+            # 注册中断处理器
+            interrupt_handler = get_interrupt_handler()
+            interrupt_handler.register()
+
+            result = self._execute_operation(operation_item, silent=silent, parent=None)
+
+            if interrupt_handler.is_interrupted():
+                click.echo("\n⚠️ 下载已中断, 已保存的缓存可用于断点续传", err=True)
+                interrupt_handler.reset()
+                return False
+
+            return result
         except Exception as e:
             self.logger.error(f"执行操作失败: {e}", exc_info=True)
             return False
+        finally:
+            get_interrupt_handler().reset()
 
     def batch_download(self, urls: List[str], slient: bool = True) -> List[Tuple[str, bool]]:
         """

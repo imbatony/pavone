@@ -147,6 +147,101 @@ def create_silent_progress_callback() -> ProgressCallback:
     return progress_callback
 
 
+def create_segment_progress_callback() -> ProgressCallback:
+    """创建 M3U8 分片级进度显示回调函数.
+
+    显示: [分片进度条] 30/100 段 | 30% | 2.5 段/秒 | 剩余约 28 秒
+    """
+    if _HAS_RICH:
+        return _create_rich_segment_progress_callback()
+    else:
+        return _create_simple_segment_progress_callback()
+
+
+def _create_rich_segment_progress_callback() -> ProgressCallback:
+    """使用 Rich 创建分片级进度条."""
+    progress = Progress(  # type: ignore
+        TextColumn("[bold cyan]M3U8", justify="right"),  # type: ignore
+        BarColumn(bar_width=None),  # type: ignore
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),  # type: ignore
+        "•",
+        TextColumn("{task.completed}/{task.total} 段"),  # type: ignore
+        "•",
+        TextColumn("{task.fields[seg_speed]:.1f} 段/秒"),  # type: ignore
+        "•",
+        TimeRemainingColumn(),  # type: ignore
+    )
+
+    task_id: Optional[Any] = None
+    progress.start()
+
+    def progress_callback(progress_info: ProgressInfo) -> None:
+        nonlocal task_id
+
+        if progress_info.status_message:
+            progress.console.print(f"[yellow]ℹ️  {progress_info.status_message}[/yellow]")
+
+        total_seg = progress_info.total_segments
+        completed_seg = progress_info.completed_segments
+        seg_speed = progress_info.segment_speed
+
+        if task_id is None:
+            if total_seg > 0:
+                task_id = progress.add_task("M3U8", total=total_seg, seg_speed=0.0)
+            else:
+                task_id = progress.add_task("M3U8", total=None, seg_speed=0.0)
+
+        if task_id is not None:
+            update_kwargs: dict[str, Any] = {"seg_speed": seg_speed}
+            if total_seg > 0:
+                update_kwargs["completed"] = completed_seg
+                update_kwargs["total"] = total_seg
+            else:
+                update_kwargs["completed"] = completed_seg
+
+            progress.update(task_id, **update_kwargs)
+
+            if total_seg > 0 and completed_seg >= total_seg:
+                progress.stop()
+
+    progress_callback._progress = progress  # type: ignore
+    return progress_callback
+
+
+def _create_simple_segment_progress_callback() -> ProgressCallback:
+    """简单的分片级进度显示 (Rich 不可用时)."""
+    last_status: str = ""
+
+    def progress_callback(progress_info: ProgressInfo) -> None:
+        nonlocal last_status
+
+        if progress_info.status_message and progress_info.status_message != last_status:
+            print(f"\nℹ️  {progress_info.status_message}")
+            last_status = progress_info.status_message
+
+        total_seg = progress_info.total_segments
+        completed_seg = progress_info.completed_segments
+        seg_speed = progress_info.segment_speed
+
+        if total_seg > 0:
+            pct = (completed_seg / total_seg) * 100
+            bar_len = 40
+            filled = int(bar_len * completed_seg / total_seg)
+            bar = "█" * filled + "-" * (bar_len - filled)
+            remaining = (total_seg - completed_seg) / seg_speed if seg_speed > 0 else 0
+            print(
+                f"\r[{bar}] {completed_seg}/{total_seg} 段 | {pct:.0f}% | {seg_speed:.1f} 段/秒 | 剩余约 {remaining:.0f}秒",
+                end="",
+                flush=True,
+            )
+            if completed_seg >= total_seg:
+                print()
+        else:
+            print(f"\r下载中... {completed_seg} 段 | {seg_speed:.1f} 段/秒", end="", flush=True)
+
+    return progress_callback
+
+
 def create_status_only_progress(status_message: str) -> ProgressInfo:
     """
     创建仅包含状态消息的ProgressInfo对象

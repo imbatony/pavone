@@ -1,29 +1,21 @@
 """
 插件系统
 提供插件化的扩展功能
+
+插件通过 PluginManager 自动发现加载, 无需在此手动导入注册.
+此模块仅导出基类类型, 供外部引用和类型检查使用.
 """
 
-from .av01_plugin import AV01Plugin
 from .base import BasePlugin
 from .extractors import ExtractorPlugin
-from .javrate_plugin import JavratePlugin
-from .jtable_plugin import JTablePlugin
-from .memojav_plugin import MemojavPlugin
 from .metadata import MetadataPlugin
-from .missav_plugin import MissAVPlugin
-from .search import JellyfinSearch, SearchPlugin
+from .search import SearchPlugin
 
 __all__ = [
     "BasePlugin",
     "ExtractorPlugin",
     "MetadataPlugin",
     "SearchPlugin",
-    "AV01Plugin",
-    "MissAVPlugin",
-    "JTablePlugin",
-    "MemojavPlugin",
-    "JavratePlugin",
-    "JellyfinSearch",
 ]
 
 

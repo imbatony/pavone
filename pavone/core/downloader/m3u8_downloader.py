@@ -15,6 +15,7 @@ import requests
 from pavone.config.settings import Config
 
 from ...models import OperationItem, ProgressCallback, ProgressInfo
+from ...models.progress_info import SegmentResult
 from .base import BaseDownloader
 
 
@@ -137,6 +138,165 @@ class M3U8Downloader(BaseDownloader):
         except Exception as e:
             raise Exception(f"Failed to download segment {segment_index}: {e}")
 
+    def get_last_segment_results(self) -> Optional[list[SegmentResult]]:
+        """获取最近一次下载的分片结果列表 (仅在 execute() 返回 False 时有效)."""
+        return getattr(self, "_last_segment_results", None)
+
+    def retry_failed_segments(self) -> bool:
+        """仅重试失败的分片, 复用已有的缓存和下载机制.
+
+        Returns:
+            bool: 重试后是否所有分片都成功
+        """
+        ctx = getattr(self, "_last_download_context", None)
+        if not ctx:
+            self.logger.error("没有可重试的下载上下文")
+            return False
+
+        segment_urls: list[str] = ctx["segment_urls"]
+        headers: Dict[str, str] = ctx["headers"]
+        temp_dir: str = ctx["temp_dir"]
+        downloaded_segments: dict[int, str] = ctx["downloaded_segments"]
+
+        results = self.get_last_segment_results()
+        if not results:
+            return False
+
+        failed_indices = [r.index for r in results if not r.success]
+        if not failed_indices:
+            return True
+
+        self.logger.info(f"重试 {len(failed_indices)} 个失败分片...")
+
+        new_failed: list[SegmentResult] = []
+        for idx in failed_indices:
+            if self._interrupt_handler.is_interrupted():
+                return False
+            segment_file = os.path.join(temp_dir, f"segment_{idx:06d}.ts")
+            url = segment_urls[idx]
+            success = False
+            for attempt in range(self.download_config.retry_times + 1):
+                if self._interrupt_handler.is_interrupted():
+                    return False
+                try:
+                    _, segment_data = self._download_segment(url, headers, idx)
+                    with open(segment_file, "wb") as f:
+                        f.write(segment_data)
+                    downloaded_segments[idx] = segment_file
+                    success = True
+                    break
+                except Exception as e:
+                    if attempt < self.download_config.retry_times:
+                        time.sleep(self.download_config.retry_interval / 1000.0)
+                    else:
+                        new_failed.append(SegmentResult(index=idx, success=False, error_message=str(e)))
+
+            if not success and not any(r.index == idx for r in new_failed):
+                new_failed.append(SegmentResult(index=idx, success=False, error_message="All retries failed"))
+
+        # 更新结果
+        updated_results: list[SegmentResult] = []
+        for r in results:
+            if r.index in failed_indices:
+                match = next((nr for nr in new_failed if nr.index == r.index), None)
+                if match:
+                    updated_results.append(match)
+                else:
+                    updated_results.append(SegmentResult(index=r.index, success=True))
+            else:
+                updated_results.append(r)
+        self._last_segment_results = updated_results
+
+        return len(new_failed) == 0
+
+    def merge_available_segments(self) -> bool:
+        """合并所有已成功下载的分片 (跳过缺失的), 生成输出文件.
+
+        Returns:
+            bool: 合并是否成功
+        """
+        ctx = getattr(self, "_last_download_context", None)
+        if not ctx:
+            self.logger.error("没有可合并的下载上下文")
+            return False
+
+        downloaded_segments: dict[int, str] = ctx["downloaded_segments"]
+        output_file: str = ctx["output_file"]
+        total_segments: int = ctx["total_segments"]
+        total_downloaded_bytes: int = ctx["total_downloaded_bytes"]
+        progress_callback: ProgressCallback = ctx["progress_callback"]
+
+        # 收集已有分片 (按顺序)
+        segment_files: list[str] = []
+        skipped: list[int] = []
+        for i in range(total_segments):
+            segment_file = downloaded_segments.get(i)
+            if segment_file and os.path.exists(segment_file):
+                segment_files.append(segment_file)
+            else:
+                skipped.append(i)
+
+        if not segment_files:
+            self.logger.error("没有可合并的分片")
+            return False
+
+        if skipped:
+            self.logger.info(f"跳过 {len(skipped)} 个缺失分片: {skipped[:10]}{'...' if len(skipped) > 10 else ''}")
+
+        actual_count = len(segment_files)
+        progress_callback(
+            ProgressInfo(
+                total_size=0,
+                downloaded=total_downloaded_bytes,
+                speed=0.0,
+                status_message=f"正在合并 {actual_count}/{total_segments} 个视频分段...",
+            )
+        )
+
+        # 尝试 ffmpeg 合并
+        import shutil
+        import subprocess
+        import tempfile
+
+        ffmpeg_success = False
+        if shutil.which("ffmpeg"):
+            try:
+                with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
+                    for seg in segment_files:
+                        f.write(f"file '{os.path.abspath(seg)}'\n")
+                    filelist_path = f.name
+                cmd = ["ffmpeg", "-f", "concat", "-safe", "0", "-i", filelist_path, "-c", "copy", "-y", output_file]
+                process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                _, stderr = process.communicate()
+                ffmpeg_success = process.returncode == 0
+                if not ffmpeg_success:
+                    self.logger.warning(f"ffmpeg failed: {stderr.decode('utf-8', errors='replace')}")
+                os.unlink(filelist_path)
+            except Exception as e:
+                self.logger.warning(f"ffmpeg error: {e}")
+
+        if not ffmpeg_success:
+            with open(output_file, "wb") as output:
+                for sf in segment_files:
+                    with open(sf, "rb") as f:
+                        output.write(f.read())
+
+        # 清理缓存
+        temp_dir = ctx["temp_dir"]
+        try:
+            for sf in downloaded_segments.values():
+                if os.path.exists(sf):
+                    os.remove(sf)
+            os.rmdir(temp_dir)
+        except Exception as e:
+            self.logger.warning(f"Failed to clean up: {e}")
+
+        self.logger.info(f"合并完成: {actual_count}/{total_segments} 个分片 → {output_file}")
+        progress_callback(
+            ProgressInfo(total_size=total_segments, downloaded=actual_count, speed=0.0, status_message="✅ 合并完成！")
+        )
+        return True
+
     def execute(self, item: OperationItem) -> bool:  # noqa: C901
         """
         下载M3U8视频
@@ -228,19 +388,32 @@ class M3U8Downloader(BaseDownloader):
                         downloaded=total_downloaded_bytes,
                         speed=0.0,
                         status_message=f"发现 {existing_segments} 个已存在的分段，正在恢复下载...",
+                        total_segments=total_segments,
+                        completed_segments=existing_segments,
+                        segment_speed=0.0,
                     )
                 )
             else:
                 # 显示开始下载状态
                 progress_callback(
                     ProgressInfo(
-                        total_size=0, downloaded=0, speed=0.0, status_message=f"开始下载 {total_segments} 个视频分段..."
+                        total_size=0,
+                        downloaded=0,
+                        speed=0.0,
+                        status_message=f"开始下载 {total_segments} 个视频分段...",
+                        total_segments=total_segments,
+                        completed_segments=0,
+                        segment_speed=0.0,
                     )
                 )
 
             def download_with_progress(segment_info: Tuple[int, str]) -> bool:
                 nonlocal total_downloaded_bytes
                 nonlocal successful_downloads
+
+                # T006: 提交任务前检查中断标志
+                if self._interrupt_handler.is_interrupted():
+                    return False
 
                 index, url = segment_info
 
@@ -252,18 +425,29 @@ class M3U8Downloader(BaseDownloader):
                         # 更新进度（已存在的分段在初始化时已统计）
                         elapsed_time = time.time() - download_start_time
                         speed = total_downloaded_bytes / elapsed_time if elapsed_time > 0 else 0.0
+                        seg_speed = successful_downloads / elapsed_time if elapsed_time > 0 else 0.0
                         progress_info = ProgressInfo(
                             total_size=0,
                             downloaded=total_downloaded_bytes,
                             speed=speed,
+                            total_segments=total_segments,
+                            completed_segments=successful_downloads,
+                            segment_speed=seg_speed,
                         )
                         progress_callback(progress_info)
                     return True
 
                 # 使用配置的重试次数进行重试
                 for attempt in range(self.download_config.retry_times + 1):
+                    # T007: 每次重试前检查中断标志
+                    if self._interrupt_handler.is_interrupted():
+                        return False
+
                     try:
                         segment_index, segment_data = self._download_segment(url, headers, index)
+                        # 写入前再次检查中断
+                        if self._interrupt_handler.is_interrupted():
+                            return False
                         # 更新总字节数
                         with self._lock:
                             successful_downloads += 1
@@ -276,6 +460,7 @@ class M3U8Downloader(BaseDownloader):
                             # 计算下载速度
                             elapsed_time = time.time() - download_start_time
                             speed = total_downloaded_bytes / elapsed_time if elapsed_time > 0 else 0.0
+                            seg_speed = successful_downloads / elapsed_time if elapsed_time > 0 else 0.0
                             downloaded_segments[segment_index] = segment_file
                             # 更新进度
 
@@ -283,6 +468,9 @@ class M3U8Downloader(BaseDownloader):
                                 total_size=0,
                                 downloaded=total_downloaded_bytes,
                                 speed=speed,
+                                total_segments=total_segments,
+                                completed_segments=successful_downloads,
+                                segment_speed=seg_speed,
                             )
                             progress_callback(progress_info)
 
@@ -312,13 +500,37 @@ class M3U8Downloader(BaseDownloader):
                 futures = [executor.submit(download_with_progress, info) for info in segment_infos]
 
                 for future in as_completed(futures):
+                    # T006: as_completed 循环中检查中断标志
+                    if self._interrupt_handler.is_interrupted():
+                        executor.shutdown(wait=False, cancel_futures=True)
+                        self.logger.info("下载被用户中断")
+                        return False
                     future.result()  # 等待完成
 
             # 检查是否有失败的下载
             if failed_downloads:
                 self.logger.warning(f"Failed to download {len(failed_downloads)} segments")
-                # 可以选择重试失败的段
-                return False  # 合并所有视频段，优先使用ffmpeg
+                # 构建 SegmentResult 列表供调用方决策
+                segment_results: list[SegmentResult] = []
+                for i in range(total_segments):
+                    if i in downloaded_segments:
+                        segment_results.append(SegmentResult(index=i, success=True))
+                    else:
+                        error_msg = next((url for idx, url in failed_downloads if idx == i), "unknown")
+                        segment_results.append(SegmentResult(index=i, success=False, error_message=f"Failed: {error_msg}"))
+                # 存储状态供 retry/merge 使用
+                self._last_segment_results = segment_results
+                self._last_download_context = {
+                    "segment_urls": segment_urls,
+                    "headers": headers,
+                    "temp_dir": temp_dir,
+                    "output_file": output_file,
+                    "total_segments": total_segments,
+                    "downloaded_segments": downloaded_segments,
+                    "total_downloaded_bytes": total_downloaded_bytes,
+                    "progress_callback": progress_callback,
+                }
+                return False
             self.logger.info("Merging video segments...")
 
             # 显示合并状态

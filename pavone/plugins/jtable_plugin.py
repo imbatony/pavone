@@ -11,7 +11,14 @@ from typing import Any, List, Optional, Tuple
 
 from ..models import MovieMetadata, OperationItem, Quality
 from ..utils import CodeExtractUtils, StringUtils
-from ..utils.html_metadata_utils import HTMLMetadataExtractor
+from ..utils.html_metadata_utils import (
+    extract_actors,
+    extract_cover,
+    extract_date,
+    extract_genres,
+    extract_m3u8_url,
+    extract_title,
+)
 from ..utils.metadata_builder import MetadataBuilder
 from ..utils.operation_item_builder import OperationItemBuilder
 from .extractors.base import ExtractorPlugin
@@ -148,7 +155,7 @@ class JTablePlugin(ExtractorPlugin, MetadataPlugin):
             包含所有元数据的字典
         """
         # 提取封面
-        cover = HTMLMetadataExtractor.extract_og_image(html)
+        cover = extract_cover(html)
 
         # 提取代码和标题
         code, title = self._extract_code_title(html)
@@ -255,111 +262,60 @@ class JTablePlugin(ExtractorPlugin, MetadataPlugin):
     # ==================== 私有辅助方法 ====================
 
     def _extract_m3u8_url(self, html: str) -> Optional[str]:
-        """从HTML中提取m3u8链接
-
-        Args:
-            html: HTML内容
-
-        Returns:
-            m3u8 URL或None
-        """
-        pattern = r"var hlsUrl = '(https?://[^']+)'"
-        match = re.search(pattern, html)
-        return match.group(1) if match else None
+        """从HTML中提取m3u8链接"""
+        return extract_m3u8_url(html, patterns=[r"var hlsUrl = '(https?://[^']+)'"])
 
     def _extract_code_title(self, html: str) -> Tuple[str, str]:
-        """从HTML中提取视频标题和代码
-
-        Args:
-            html: HTML内容
-
-        Returns:
-            (code, title)，其中 title 不包含代码前缀
-        """
+        """从HTML中提取视频标题和代码"""
         default_title = "Jable Video"
         default_code = StringUtils.sha_256_hash(default_title)
 
-        title = HTMLMetadataExtractor.extract_og_title(html)
+        title = extract_title(html)
         if not title:
             self.logger.warning("未找到视频标题，使用默认值")
             return (default_code, default_title)
 
-        # 分离编号和标题
-        # 格式通常是: "CODE-123 标题内容"
         title_parts = title.split(" ", 1)
         if len(title_parts) == 2:
             code = CodeExtractUtils.extract_code_from_text(title_parts[0])
             if not code:
                 code = default_code
-            # 返回代码和纯标题（不含代码前缀）
             return (code, title_parts[1])
         else:
-            # 如果没有空格分隔，尝试提取代码
             code = CodeExtractUtils.extract_code_from_text(title)
             if not code:
                 code = default_code
             return (code, title)
 
     def _extract_actors(self, html: str) -> List[str]:
-        """从HTML中提取演员信息
-
-        Args:
-            html: HTML内容
-
-        Returns:
-            演员列表
-        """
-        # <span class="placeholder rounded-circle" data-toggle="tooltip"
-        #       data-placement="bottom" title="演员名">...</span>
-        pattern = r'<span class="placeholder rounded-circle" data-toggle="tooltip" data-placement="bottom" title="([^"]+)">'
-        matches = re.findall(pattern, html)
-        return matches if matches else []
+        """从HTML中提取演员信息"""
+        return extract_actors(
+            html,
+            patterns=[
+                r'<span class="placeholder rounded-circle" data-toggle="tooltip" data-placement="bottom" title="([^"]+)">'
+            ],
+        )
 
     def _extract_release_date(self, html: str) -> datetime:
-        """从HTML中提取发布日期
-
-        Args:
-            html: HTML内容
-
-        Returns:
-            日期对象，解析失败返回当前日期
-        """
-        # <span class="inactive-color">発売された 2024-09-28</span>
-        pattern = r'<span class="inactive-color">発売された\s*([^<]+)</span>'
-        match = re.search(pattern, html)
-        if match:
-            date_str = match.group(1).strip()
+        """从HTML中提取发布日期"""
+        date_str = extract_date(html, patterns=[r'<span class="inactive-color">発売された\s*([^<]+)</span>'])
+        if date_str:
             try:
-                return datetime.strptime(date_str, "%Y-%m-%d")
+                return datetime.strptime(date_str.strip(), "%Y-%m-%d")
             except ValueError:
                 self.logger.warning(f"无法解析发布日期: {date_str}")
-
-        return datetime.now()  # 如果解析失败，返回当前日期
+        return datetime.now()
 
     def _extract_genres(self, html: str) -> List[str]:
-        """从HTML中提取视频类型
-
-        Args:
-            html: HTML内容
-
-        Returns:
-            类型列表
-        """
-        # <a href="https://jp.jable.tv/categories/bdsm/" class="cat">ビーディーエスエム</a>
-        pattern = r'<a href="https://jp\.jable\.tv/categories/[^"]+" class="cat">([^<]+)</a>'
-        matches = re.findall(pattern, html)
-        return matches if matches else []
+        """从HTML中提取视频类型"""
+        return extract_genres(
+            html,
+            patterns=[r'<a href="https://jp\.jable\.tv/categories/[^"]+" class="cat">([^<]+)</a>'],
+        )
 
     def _extract_tags(self, html: str) -> List[str]:
-        """从HTML中提取标签
-
-        Args:
-            html: HTML内容
-
-        Returns:
-            标签列表
-        """
-        # <a href="https://jp.jable.tv/tags/girl/">少女</a>
-        pattern = r'<a href="https://jp\.jable\.tv/tags/[^"]+">([^<]+)</a>'
-        matches = re.findall(pattern, html)
-        return matches if matches else []
+        """从HTML中提取标签"""
+        return extract_genres(
+            html,
+            patterns=[r'<a href="https://jp\.jable\.tv/tags/[^"]+">([^<]+)</a>'],
+        )

@@ -12,23 +12,10 @@ from types import ModuleType
 from typing import Any, Dict, List, Optional, Type
 
 from ..config.settings import config_manager
-from ..plugins.av01_plugin import AV01Plugin
 from ..plugins.base import BasePlugin
-from ..plugins.extractors import (
-    ExtractorPlugin,
-    M3U8DirectExtractor,
-    MP4DirectExtractor,
-)
-from ..plugins.javrate_plugin import JavratePlugin
-from ..plugins.jtable_plugin import JTablePlugin
-from ..plugins.memojav_plugin import MemojavPlugin
-from ..plugins.metadata import (
-    MetadataPlugin,
-    PPVDataBankMetadata,
-    SupFC2Metadata,
-)
-from ..plugins.missav_plugin import MissAVPlugin
-from ..plugins.search import JellyfinSearch, SearchPlugin
+from ..plugins.extractors import ExtractorPlugin
+from ..plugins.metadata import MetadataPlugin
+from ..plugins.search import SearchPlugin
 
 
 class PluginManager:
@@ -65,51 +52,43 @@ class PluginManager:
         else:
             self.logger.warning(f"插件目录不存在: {plugin_dir}")
 
-    def _load_builtin_plugins(self):
-        """加载内置插件"""
+    def _load_builtin_plugins(self) -> None:
+        """通过自动发现加载 pavone.plugins 包下的所有插件."""
         try:
-            # 定义内置插件映射
-            builtin_plugins: dict[str, type[BasePlugin]] = {
-                "MP4DirectExtractor": MP4DirectExtractor,
-                "M3U8DirectExtractor": M3U8DirectExtractor,
-                "MissAVPlugin": MissAVPlugin,
-                "MemojavPlugin": MemojavPlugin,
-                "JavratePlugin": JavratePlugin,
-                "JTablePlugin": JTablePlugin,
-                "AV01Plugin": AV01Plugin,
-                "PPVDataBankMetadata": PPVDataBankMetadata,
-                "SupFC2Metadata": SupFC2Metadata,
-                "JellyfinSearch": JellyfinSearch,
-            }
+            # 使用 pkgutil 直接扫描包路径, 避免触发 __init__ 的延迟导入导致循环依赖
+            plugins_pkg_path = str(Path(__file__).parent.parent / "plugins")
+            plugins_pkg_name = "pavone.plugins"
 
-            loaded_plugins: list[str] = []
-
-            for name, plugin_class in builtin_plugins.items():
-                # 检查插件是否被禁用
-                if config_manager.is_plugin_disabled(name):
-                    self.logger.info(f"跳过禁用的内置插件: {name}")
+            loaded_count = 0
+            for importer, module_name, ispkg in pkgutil.iter_modules([plugins_pkg_path], plugins_pkg_name + "."):
+                # 跳过 __init__, base, 子包入口 (extractors, metadata, search 的 __init__ 通过子模块扫描)
+                short_name = module_name.rsplit(".", 1)[-1]
+                if short_name.startswith("_") or short_name == "base":
                     continue
 
-                try:
-                    plugin = plugin_class()
+                if ispkg:
+                    # 对子包递归扫描其模块
+                    try:
+                        sub_pkg_path = str(Path(plugins_pkg_path) / short_name)
+                        for _, sub_mod_name, sub_ispkg in pkgutil.iter_modules([sub_pkg_path], module_name + "."):
+                            if not sub_ispkg and not sub_mod_name.rsplit(".", 1)[-1].startswith("_"):
+                                try:
+                                    mod = importlib.import_module(sub_mod_name)
+                                    loaded_count += self._discover_plugins_in_module(mod)
+                                except Exception as e:
+                                    self.logger.warning(f"加载模块 {sub_mod_name} 失败: {e}")
+                    except Exception as e:
+                        self.logger.warning(f"加载子包 {module_name} 失败: {e}")
+                else:
+                    try:
+                        mod = importlib.import_module(module_name)
+                        loaded_count += self._discover_plugins_in_module(mod)
+                    except Exception as e:
+                        self.logger.warning(f"加载模块 {module_name} 失败: {e}")
 
-                    # 应用配置中的优先级设置
-                    plugin_priority = plugin.priority
-                    plugin_priority = config_manager.get_plugin_priority(name, plugin_priority)
-                    plugin.set_priority(plugin_priority)
-
-                    self.register_plugin(plugin)
-                    loaded_plugins.append(plugin.name)
-                    self.logger.info(f"已加载内置插件: {plugin.name} (优先级: {plugin_priority})")
-
-                except Exception as e:
-                    self.logger.error(f"加载内置插件 {name} 失败: {e}")
-
-            if loaded_plugins:
-                self.logger.info(f"成功加载 {len(loaded_plugins)} 个内置插件: {', '.join(loaded_plugins)}")
-
-        except ImportError as e:
-            self.logger.error(f"导入内置插件失败: {e}")
+            self.logger.info(f"自动发现完成: 共加载 {loaded_count} 个插件")
+        except Exception as e:
+            self.logger.error(f"插件自动发现失败: {e}")
 
     def _load_plugins_from_directory(self, plugin_dir: str, skip_dirs: Optional[set[str]] = None):
         """从指定目录加载插件"""
@@ -145,8 +124,13 @@ class PluginManager:
         except Exception as e:
             self.logger.error(f"加载包 {package_path} 失败: {e}")
 
-    def _discover_plugins_in_module(self, module: ModuleType):
-        """在模块中发现并加载插件类"""
+    def _discover_plugins_in_module(self, module: ModuleType) -> int:
+        """在模块中发现并加载插件类.
+
+        Returns:
+            int: 成功加载的插件数量
+        """
+        loaded = 0
         for name, obj in inspect.getmembers(module, inspect.isclass):
             # 检查是否是插件类
             if self._is_plugin_class(obj) and obj.__module__ == module.__name__ and not inspect.isabstract(obj):
@@ -168,10 +152,31 @@ class PluginManager:
                         )
                         plugin_instance.set_priority(priority)
 
+                    # T025: 类名冲突检测
+                    existing = self.plugins.get(plugin_instance.name)
+                    if existing is not None:
+                        existing_priority = getattr(existing, "priority", 50)
+                        new_priority = getattr(plugin_instance, "priority", 50)
+                        if new_priority < existing_priority:
+                            self.logger.warning(
+                                f"插件名冲突: '{plugin_instance.name}' — "
+                                f"替换旧插件 (优先级 {existing_priority}) 为新插件 (优先级 {new_priority})"
+                            )
+                            self.unregister_plugin(existing.name)
+                        else:
+                            self.logger.warning(
+                                f"插件名冲突: '{plugin_instance.name}' — "
+                                f"保留旧插件 (优先级 {existing_priority}), 跳过新插件 (优先级 {new_priority})"
+                            )
+                            continue
+
                     self.register_plugin(plugin_instance)
+                    loaded += 1
                     self.logger.info(f"自动加载插件: {plugin_instance.name}")
                 except Exception as e:
-                    self.logger.error(f"实例化插件 {name} 失败: {e}")
+                    # T025: 单个插件加载失败不影响其他插件
+                    self.logger.warning(f"实例化插件 {name} 失败 (已跳过): {e}")
+        return loaded
 
     def _is_plugin_class(self, cls: Type[Any]) -> bool:
         return issubclass(cls, (ExtractorPlugin, MetadataPlugin, SearchPlugin)) and cls not in (

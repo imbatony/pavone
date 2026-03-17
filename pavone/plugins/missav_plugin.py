@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from ..models import MovieMetadata, OperationItem, Quality, SearchResult
 from ..utils import CodeExtractUtils
-from ..utils.html_metadata_utils import HTMLMetadataExtractor
+from ..utils.html_metadata_utils import HTMLMetadataExtractor, extract_actors, extract_cover, extract_date
 from ..utils.metadata_builder import MetadataBuilder
 from ..utils.operation_item_builder import OperationItemBuilder
 from .extractors.base import ExtractorPlugin
@@ -385,7 +385,7 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
     def _extract_actors(self, html: str) -> List[str]:
         """从HTML中提取演员列表"""
         try:
-            return re.findall(r'<meta property="og:video:actor" content="([^"]+)"', html)
+            return extract_actors(html, patterns=[r'<meta property="og:video:actor" content="([^"]+)"'])
         except Exception as e:
             self.logger.debug(f"提取演员异常: {str(e)}")
             return []
@@ -414,8 +414,7 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
     def _extract_release_date(self, html: str) -> Optional[str]:
         """从HTML中提取发布日期"""
         try:
-            date_match = re.search(r'<meta property="og:video:release_date" content="([^"]+)"', html)
-            return date_match.group(1) if date_match else None
+            return extract_date(html, patterns=[r'<meta property="og:video:release_date" content="([^"]+)"'])
         except Exception as e:
             self.logger.debug(f"提取发布日期异常: {str(e)}")
             return None
@@ -523,7 +522,7 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
 
     def _extract_cover_image(self, html: str) -> Optional[str]:
         """从HTML中提取封面图片链接"""
-        return HTMLMetadataExtractor.extract_og_image(html)
+        return extract_cover(html)
 
     def _extract_description(self, html: str) -> Optional[str]:
         """从HTML中提取视频描述"""

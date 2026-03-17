@@ -13,7 +13,7 @@ import requests
 
 from ..models import MovieMetadata, OperationItem, Quality
 from ..utils import CodeExtractUtils
-from ..utils.html_metadata_utils import HTMLMetadataExtractor
+from ..utils.html_metadata_utils import HTMLMetadataExtractor, extract_cover, extract_title
 from ..utils.http_utils import HttpUtils
 from ..utils.metadata_builder import MetadataBuilder
 from ..utils.operation_item_builder import OperationItemBuilder
@@ -300,7 +300,7 @@ class JavratePlugin(ExtractorPlugin, MetadataPlugin):
                 return thumbnail
 
         # 回退: 尝试提取og:image
-        cover_url = HTMLMetadataExtractor.extract_og_image(html)
+        cover_url = extract_cover(html)
         if cover_url:
             return cover_url
 
@@ -335,7 +335,7 @@ class JavratePlugin(ExtractorPlugin, MetadataPlugin):
                 return name
 
         # 回退: 尝试从og:title提取
-        title = HTMLMetadataExtractor.extract_og_title(html)
+        title = extract_title(html)
         if title:
             if " " in title:
                 parts = title.split(" ", 1)

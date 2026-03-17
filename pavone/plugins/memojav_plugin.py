@@ -4,13 +4,12 @@ Memojav复合型插件
 支持从 memojav.com 网站提取视频下载链接和元数据。
 """
 
-import re
 from typing import List, Optional
 from urllib.parse import unquote, urlparse
 
 from ..models import MovieMetadata, OperationItem, Quality
 from ..utils import CodeExtractUtils
-from ..utils.html_metadata_utils import HTMLMetadataExtractor
+from ..utils.html_metadata_utils import extract_cover, extract_m3u8_url, extract_title
 from ..utils.metadata_builder import MetadataBuilder
 from ..utils.operation_item_builder import OperationItemBuilder
 from .extractors.base import ExtractorPlugin
@@ -159,24 +158,22 @@ class MemojavPlugin(ExtractorPlugin, MetadataPlugin):
 
     def _extract_m3u8(self, html: str) -> Optional[str]:
         """从HTML中提取m3u8链接"""
-        pattern = r'"url":"(https?%3A%2F%2F[^"]+)"'
-        match = re.search(pattern, html)
-        if match:
-            return unquote(match.group(1))
+        result = extract_m3u8_url(html, patterns=[r'"url":"(https?%3A%2F%2F[^"]+)"'])
+        if result:
+            return unquote(result)
         return None
 
     def _extract_cover(self, html: str) -> Optional[str]:
         """从HTML中提取封面图片链接"""
-        return HTMLMetadataExtractor.extract_og_image(html)
+        return extract_cover(html)
 
     def _extract_title(self, html: str) -> str:
         """从HTML中提取视频代码和标题"""
-        # <meta name="title" content="SONE-768 | During the summer vacation of adolescence, childhood friends playfully kiss each other... I got excited watching and ended up having a French kissing threesome Airi Nagisa Sakika Shirakami">
-        pattern = r'<meta name="title" content="([^"]+)"'
-        match = re.search(pattern, html)
-        if match:
-            title = match.group(1)
-            title = title.split("|", maxsplit=1)[1].strip()
+        title = extract_title(html, patterns=[r'<meta name="title" content="([^"]+)"'])
+        if title:
+            parts = title.split("|", maxsplit=1)
+            if len(parts) == 2:
+                return parts[1].strip()
             return title
         raise ValueError("未能提取视频代码和标题")
 

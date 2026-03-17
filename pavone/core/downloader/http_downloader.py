@@ -89,6 +89,9 @@ class HTTPDownloader(BaseDownloader):
                     if chunk:
                         f.write(chunk)
                         downloaded += len(chunk)
+                        # T009: 每个 chunk 写入后检查中断标志
+                        if self._interrupt_handler.is_interrupted():
+                            return True, downloaded  # 保留已写入的 .part 文件
 
             return True, downloaded
 
@@ -204,6 +207,11 @@ class HTTPDownloader(BaseDownloader):
                         f.write(chunk)
                         downloaded += len(chunk)
 
+                        # T010: 检查中断标志
+                        if self._interrupt_handler.is_interrupted():
+                            self.logger.info("单线程下载被用户中断")
+                            return True  # 保留已写入数据
+
                         # 更新进度信息
                         if progress_callback:
                             elapsed_time = time.time() - start_time
@@ -259,6 +267,11 @@ class HTTPDownloader(BaseDownloader):
                     future_to_index[future] = index
                 # 等待所有任务完成
                 for future in as_completed(future_to_index):
+                    # T008: 检查中断标志
+                    if self._interrupt_handler.is_interrupted():
+                        executor.shutdown(wait=False, cancel_futures=True)
+                        self.logger.info("多线程下载被用户中断, .part 文件已保留")
+                        return False
                     index = future_to_index[future]
                     try:
                         success, chunk_downloaded = future.result()  # type: ignore[misc]

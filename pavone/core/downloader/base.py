@@ -2,6 +2,7 @@ import os
 from typing import Dict, Optional
 
 from ...config.settings import Config
+from ...utils.signal_handler import get_interrupt_handler
 from ..base import Operator
 
 
@@ -16,6 +17,7 @@ class BaseDownloader(Operator):
         os.makedirs(config.download.output_dir, exist_ok=True)
         # logger 已经在 Operator 基类中使用子类模块名初始化，这里不需要重复设置
         self.proxies = self.get_proxies()
+        self._interrupt_handler = get_interrupt_handler()
 
     def get_proxies(self) -> Optional[Dict[str, str]]:
         """获取代理配置"""
