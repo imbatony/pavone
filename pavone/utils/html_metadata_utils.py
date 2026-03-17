@@ -209,3 +209,169 @@ class HTMLMetadataExtractor:
         """
         matches = re.finditer(pattern, html, re.IGNORECASE | re.DOTALL)
         return [match.group(group).strip() for match in matches]
+
+
+# ============================================================================
+# T028: 独立提取函数 — 插件按需调用, 通过参数适配不同站点
+# ============================================================================
+
+_extractor = HTMLMetadataExtractor
+
+
+def extract_title(
+    html: str,
+    selectors: Optional[list[str]] = None,
+    patterns: Optional[list[str]] = None,
+) -> Optional[str]:
+    """提取标题: 先尝试 OG 标签, 再尝试自定义选择器/正则.
+
+    Args:
+        html: HTML 内容
+        selectors: CSS 选择器列表 (需要 BeautifulSoup, 暂不使用)
+        patterns: 自定义正则列表, 每个应包含一个捕获组
+    """
+    # 1. OG 标签
+    result = _extractor.extract_og_title(html)
+    if result:
+        return result
+
+    # 2. 自定义正则
+    if patterns:
+        for pattern in patterns:
+            result = _extractor.extract_with_pattern(html, pattern)
+            if result:
+                return result
+
+    # 3. <title> 标签 fallback
+    result = _extractor.extract_with_pattern(html, r"<title[^>]*>([^<]+)</title>")
+    return result
+
+
+def extract_code(
+    html: str,
+    patterns: Optional[list[str]] = None,
+) -> Optional[str]:
+    """提取番号/识别码.
+
+    Args:
+        html: HTML 内容
+        patterns: 自定义正则列表
+    """
+    if patterns:
+        for pattern in patterns:
+            result = _extractor.extract_with_pattern(html, pattern)
+            if result:
+                return result.strip().upper()
+    return None
+
+
+def extract_cover(
+    html: str,
+    selectors: Optional[list[str]] = None,
+    patterns: Optional[list[str]] = None,
+) -> Optional[str]:
+    """提取封面图 URL: 先尝试 OG image, 再尝试自定义.
+
+    Args:
+        html: HTML 内容
+        selectors: 未使用 (预留)
+        patterns: 自定义正则列表
+    """
+    result = _extractor.extract_og_image(html)
+    if result:
+        return result
+
+    if patterns:
+        for pattern in patterns:
+            result = _extractor.extract_with_pattern(html, pattern)
+            if result:
+                return result
+    return None
+
+
+def extract_date(
+    html: str,
+    patterns: Optional[list[str]] = None,
+    formats: Optional[list[str]] = None,
+) -> Optional[str]:
+    """提取日期字符串.
+
+    Args:
+        html: HTML 内容
+        patterns: 自定义正则列表
+        formats: 日期格式列表 (预留, 当前仅返回原始匹配)
+    """
+    # 通用日期模式
+    default_patterns = [
+        r"(\d{4}-\d{2}-\d{2})",  # ISO: 2024-01-15
+        r"(\d{4}/\d{2}/\d{2})",  # Slash: 2024/01/15
+        r"(\d{4}\u5e74\d{1,2}\u6708\d{1,2}\u65e5)",  # JP: 2024年1月15日
+    ]
+
+    all_patterns = (patterns or []) + default_patterns
+    for pattern in all_patterns:
+        result = _extractor.extract_with_pattern(html, pattern)
+        if result:
+            return result
+    return None
+
+
+def extract_actors(
+    html: str,
+    selectors: Optional[list[str]] = None,
+    patterns: Optional[list[str]] = None,
+) -> list[str]:
+    """提取演员列表.
+
+    Args:
+        html: HTML 内容
+        selectors: 未使用 (预留)
+        patterns: 自定义正则, 每个应匹配单个演员名
+    """
+    if patterns:
+        for pattern in patterns:
+            results = _extractor.extract_all_with_pattern(html, pattern)
+            if results:
+                return [r.strip() for r in results if r.strip()]
+    return []
+
+
+def extract_genres(
+    html: str,
+    selectors: Optional[list[str]] = None,
+    patterns: Optional[list[str]] = None,
+) -> list[str]:
+    """提取类型/标签列表.
+
+    Args:
+        html: HTML 内容
+        selectors: 未使用 (预留)
+        patterns: 自定义正则
+    """
+    if patterns:
+        for pattern in patterns:
+            results = _extractor.extract_all_with_pattern(html, pattern)
+            if results:
+                return [r.strip() for r in results if r.strip()]
+    return []
+
+
+def extract_m3u8_url(
+    html: str,
+    patterns: Optional[list[str]] = None,
+) -> Optional[str]:
+    """提取 M3U8 播放列表 URL.
+
+    Args:
+        html: HTML 内容
+        patterns: 自定义正则列表
+    """
+    default_patterns = [
+        r'(https?://[^\s"\'<>]+\.m3u8[^\s"\'<>]*)',
+    ]
+    all_patterns = (patterns or []) + default_patterns
+    for pattern in all_patterns:
+        result = _extractor.extract_with_pattern(html, pattern)
+        if result:
+            return result
+    return None

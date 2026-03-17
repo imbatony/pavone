@@ -30,12 +30,17 @@ pavone download "https://example.com/video.mp4" --silent
 # 指定输出目录
 pavone download "https://example.com/video.mp4" --output-dir "/path/to/downloads"
 
+# M3U8 下载时自动跳过失败分片并合并 (适用于非交互式环境)
+pavone download "https://example.com/video.m3u8" --skip-failed
+
 # 批量下载（从文件读取URL列表）
 pavone batch-download urls.txt --auto-select
 
 # 批量下载（从命令行指定URL）
 pavone batch-download "https://example1.com/video1.mp4" "https://example2.com/video2.mp4"
 ```
+
+> **Ctrl+C 中断**: 下载过程中按 Ctrl+C 可优雅终止, 已下载的分片会保留在缓存中. 重新执行相同命令可自动断点续传.
 
 ## 高级功能
 
