@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pavone"
-version = "0.2.1"
+version = "0.2.2"
 description = "一个集下载,整理等多功能的插件化的AV管理工具"
 authors = [{name = "PAVOne Team"}]
 license = {text = "MIT"}
@@ -45,11 +45,9 @@ dependencies = [
 [project.scripts]
 pavone = "pavone.cli:main"
 
-[tool.setuptools]
-packages = ["pavone"]
-
-[tool.setuptools.package-dir]
-"" = "."
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pavone*"]
 
 [tool.black]
 line-length = 127

@@ -5,6 +5,33 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.2.2] - 2026-03-17
+
+### 新增
+- JavratePlugin v2.1.0 - 支持 javrate.com，使用浏览器自动化绕过 Cloudflare
+- JellyfinSearch 插件 - 支持在本地 Jellyfin 媒体库中搜索视频
+- `organize` 命令 - 实现文件整理功能
+- 搜索结果去重优化
+- 搜索命令输出美化
+
+### 改进
+- 新增 `missav.ws` 域名支持
+- 优化 MissAV 搜索重试次数
+- 修正 `retry_times` 语义为总尝试次数
+- 修复元数据增强时覆盖已有 actors/directors 的问题
+- 重构 logger 初始化，统一所有基类和派生类
+- 代码质量优化和技术债务清理
+
+### 构建 & 配置
+- 修复 setuptools 包发现配置，支持所有子包
+- 新增 `uv tool install` 安装方式
+- 更新 pyrightconfig.json 排除列表
+- 更新 README：补全所有插件信息、安装方式
+
+**完全向后兼容，无需迁移。**
+
+---
+
 ## [0.2.1] - 2025-12-29
 
 ### 新增
@@ -65,6 +92,7 @@
 
 ---
 
+[0.2.2]: https://github.com/imbatony/pavone/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/imbatony/pavone/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/imbatony/pavone/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/imbatony/pavone/releases/tag/v0.1.1
