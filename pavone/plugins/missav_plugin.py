@@ -27,7 +27,7 @@ PLUGIN_AUTHOR = "PAVOne"
 PLUGIN_PRIORITY = 30
 
 # 定义支持的域名
-SUPPORTED_DOMAINS = ["missav.ai", "www.missav.ai", "missav.com", "www.missav.com", "missav.ws", "www.missav.ws"]
+SUPPORTED_DOMAINS = ["missav.ai", "www.missav.ai", "missav.com", "www.missav.com", "missav.ws", "www.missav.ws","missav.live", "www.missav.live"]
 
 SITE_NAME = "MissAV"
 
@@ -222,7 +222,7 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
                 return []
 
             # 提取视频URL
-            video_urls = self._extract_obfuscated_urls(html_content)
+            video_urls = self._extract_obfuscated_urls(html_content, url)
             if not video_urls:
                 self.logger.error(f"未能从页面提取视频链接: {url}")
                 return []
@@ -265,7 +265,7 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
             for _, video_url in video_urls.items():
                 if video_url:
                     quality = Quality.guess(video_url)
-                    op_builder.add_stream(video_url, quality)
+                    op_builder.add_stream(video_url, quality, custom_headers={"Referer": url})
 
             return op_builder.build()
 
@@ -273,21 +273,22 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
             self.logger.error(f"获取页面失败: {e}")
             return []
 
-    def _extract_obfuscated_urls(self, html_content: str) -> Dict[str, str]:
+    def _extract_obfuscated_urls(self, html_content: str, referer: str = "") -> Dict[str, str]:
         """从JavaScript混淆代码中提取视频URL"""
         uuid = self._extract_uuid(html_content)
         if uuid:
             master_url = f"https://surrit.com/{uuid}/playlist.m3u8"
             self.logger.debug(f"提取到UUID: {uuid}, 构建的主播放列表链接: {master_url}")
-            return self._extract_master_playlist(master_url)
+            return self._extract_master_playlist(master_url, referer)
         else:
             self.logger.error("未能从页面中提取UUID，无法获取视频链接")
             return {}
 
-    def _extract_master_playlist(self, master_url: str) -> Dict[str, str]:
+    def _extract_master_playlist(self, master_url: str, referer: str = "") -> Dict[str, str]:
         """从大师链接中提取所有子链接"""
         try:
-            response = self.fetch(master_url, timeout=30, verify_ssl=False)
+            headers = {"Referer": referer} if referer else None
+            response = self.fetch(master_url, headers=headers, timeout=30, verify_ssl=False)
             if response.status_code != 200:
                 self.logger.info(f"获取大师链接失败: {master_url} - 状态码: {response.status_code}")
                 return {}

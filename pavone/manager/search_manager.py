@@ -66,8 +66,7 @@ class SearchManager:
                 results.extend(plugin_results)
                 self.logger.debug(f"插件 {plugin.name} 返回 {len(plugin_results)} 个结果")
             except Exception as e:
-                self.logger.error(f"搜索插件 {plugin.name} 执行失败: {e}", exc_info=True)
-
+                self.logger.warning(f"搜索插件 {plugin.name} 执行失败: {e}")
         self.logger.info(f"搜索关键词 '{keyword}' 共返回 {len(results)} 个结果")
         return results
 

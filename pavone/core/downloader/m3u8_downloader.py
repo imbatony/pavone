@@ -4,9 +4,11 @@ M3U8视频下载器实现
 
 import hashlib
 import os
+import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import urljoin
 
@@ -19,6 +21,15 @@ from ...models.progress_info import SegmentResult
 from .base import BaseDownloader
 
 
+@dataclass
+class M3U8EncryptionInfo:
+    """M3U8 AES加密信息"""
+
+    method: str  # 加密方法，如 AES-128
+    key: bytes  # 解密密钥
+    iv: Optional[bytes]  # 初始化向量
+
+
 class M3U8Downloader(BaseDownloader):
     """M3U8视频下载器"""
 
@@ -26,6 +37,7 @@ class M3U8Downloader(BaseDownloader):
         super().__init__(config)
         self._session = requests.Session()
         self._lock = threading.Lock()
+        self._encryption: Optional[M3U8EncryptionInfo] = None
 
     def _generate_m3u8_hash(self, content: str) -> str:
         """
@@ -70,7 +82,7 @@ class M3U8Downloader(BaseDownloader):
 
     def _parse_m3u8_playlist(self, content: str, base_url: str) -> List[str]:
         """
-        解析M3U8播放列表，提取视频段URL列表
+        解析M3U8播放列表，提取视频段URL列表，并解析加密信息
 
         Args:
             content: M3U8文件内容
@@ -84,8 +96,16 @@ class M3U8Downloader(BaseDownloader):
 
         for line in lines:
             line = line.strip()
-            # 跳过注释行和空行
-            if line.startswith("#") or not line:
+            if not line:
+                continue
+
+            # 解析加密信息
+            if line.startswith("#EXT-X-KEY:"):
+                self._parse_encryption_key(line, base_url)
+                continue
+
+            # 跳过其他注释行
+            if line.startswith("#"):
                 continue
 
             # 如果是相对URL，转换为绝对URL
@@ -95,6 +115,72 @@ class M3U8Downloader(BaseDownloader):
                 segment_urls.append(urljoin(base_url, line))
 
         return segment_urls
+
+    def _parse_encryption_key(self, line: str, base_url: str) -> None:
+        """解析 #EXT-X-KEY 指令并下载密钥"""
+        attrs = line[len("#EXT-X-KEY:") :]
+        method_match = re.search(r'METHOD=([^,]+)', attrs)
+        uri_match = re.search(r'URI="([^"]+)"', attrs)
+        iv_match = re.search(r'IV=0x([0-9a-fA-F]+)', attrs)
+
+        if not method_match:
+            return
+
+        method = method_match.group(1).strip()
+        if method == "NONE":
+            self._encryption = None
+            return
+
+        if method != "AES-128" or not uri_match:
+            self.logger.warning(f"不支持的加密方式: {method}")
+            return
+
+        # 下载密钥
+        key_uri = uri_match.group(1)
+        if not key_uri.startswith("http"):
+            key_uri = urljoin(base_url, key_uri)
+
+        try:
+            resp = self._session.get(
+                key_uri,
+                headers={"User-Agent": "Mozilla/5.0"},
+                proxies=self.proxies,
+                timeout=self.download_config.timeout,
+            )
+            resp.raise_for_status()
+            key = resp.content
+        except Exception as e:
+            self.logger.error(f"下载加密密钥失败: {e}")
+            return
+
+        iv = bytes.fromhex(iv_match.group(1)) if iv_match else None
+
+        self._encryption = M3U8EncryptionInfo(method=method, key=key, iv=iv)
+        self.logger.info(f"检测到 {method} 加密，已获取密钥")
+
+    def _decrypt_segment(self, data: bytes, segment_index: int) -> bytes:
+        """解密AES-128加密的分段数据"""
+        if not self._encryption:
+            return data
+
+        from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+        from cryptography.hazmat.primitives.padding import PKCS7
+
+        key = self._encryption.key
+        iv = self._encryption.iv or segment_index.to_bytes(16, byteorder="big")
+
+        cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
+        decryptor = cipher.decryptor()
+        decrypted = decryptor.update(data) + decryptor.finalize()
+
+        # 移除 PKCS7 填充
+        unpadder = PKCS7(128).unpadder()
+        try:
+            decrypted = unpadder.update(decrypted) + unpadder.finalize()
+        except Exception:
+            pass  # 部分流可能没有标准填充
+
+        return decrypted
 
     def _check_segment_exists(self, segment_path: str) -> bool:
         """
@@ -116,7 +202,7 @@ class M3U8Downloader(BaseDownloader):
 
     def _download_segment(self, url: str, headers: Dict[str, str], segment_index: int) -> Tuple[int, bytes]:
         """
-        下载单个视频段
+        下载单个视频段（如有加密则自动解密）
 
         Args:
             url: 视频段URL
@@ -134,7 +220,11 @@ class M3U8Downloader(BaseDownloader):
                 timeout=self.download_config.timeout,
             )
             response.raise_for_status()
-            return segment_index, response.content
+            data = response.content
+            # 解密
+            if self._encryption:
+                data = self._decrypt_segment(data, segment_index)
+            return segment_index, data
         except Exception as e:
             raise Exception(f"Failed to download segment {segment_index}: {e}")
 
@@ -263,7 +353,8 @@ class M3U8Downloader(BaseDownloader):
             try:
                 with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
                     for seg in segment_files:
-                        f.write(f"file '{os.path.abspath(seg)}'\n")
+                        safe_path = os.path.abspath(seg).replace("\\", "/")
+                        f.write(f"file '{safe_path}'\n")
                     filelist_path = f.name
                 cmd = ["ffmpeg", "-f", "concat", "-safe", "0", "-i", filelist_path, "-c", "copy", "-y", output_file]
                 process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -551,7 +642,8 @@ class M3U8Downloader(BaseDownloader):
                 # 创建临时文件列表
                 with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
                     for segment in segment_files:
-                        f.write(f"file '{os.path.abspath(segment)}'\n")
+                        safe_path = os.path.abspath(segment).replace("\\", "/")
+                        f.write(f"file '{safe_path}'\n")
                     filelist_path = f.name
 
                 try:

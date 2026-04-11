@@ -3,7 +3,7 @@
 """
 
 from abc import abstractmethod
-from typing import Optional
+from typing import List, Optional
 
 from ...models import BaseMetadata
 from ..base import BasePlugin
@@ -60,3 +60,35 @@ class MetadataPlugin(BasePlugin):
             提取到的元数据对象，如果失败返回None
         """
         pass
+
+    def select_portrait_image(self, image_urls: List[str], timeout: int = 15) -> Optional[str]:
+        """从多张图片中选择一张竖图（宽度<高度）
+
+        依次检查给定的图片URL列表，返回第一张宽度小于高度的图片URL。
+        如果都不满足则返回None。
+
+        Args:
+            image_urls: 图片URL列表
+            timeout: 请求超时时间（秒）
+
+        Returns:
+            竖图的URL，如果没有则返回None
+        """
+        import io
+
+        from PIL import Image
+
+        for url in image_urls:
+            try:
+                resp = self.fetch(url, timeout=timeout, no_exceptions=True)
+                if resp.status_code != 200:
+                    continue
+                img = Image.open(io.BytesIO(resp.content))
+                width, height = img.size
+                if width < height:
+                    self.logger.debug(f"选择竖图: {url} ({width}x{height})")
+                    return url
+            except Exception:
+                continue
+        self.logger.debug("未找到竖图")
+        return None

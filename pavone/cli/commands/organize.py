@@ -29,6 +29,7 @@ from .utils import confirm_action, echo_error, echo_info, echo_success, echo_war
 @click.option("--auto", "-a", is_flag=True, help="自动模式，不提示确认")
 @click.option("--no-nfo", is_flag=True, help="不创建 NFO 文件")
 @click.option("--no-cover", is_flag=True, help="不下载封面图片")
+@click.option("--jellyfin", "-j", is_flag=True, help="使用 Jellyfin 库文件夹作为目标目录")
 def organize(
     path: str,
     keyword: Optional[str],
@@ -41,6 +42,7 @@ def organize(
     auto: bool,
     no_nfo: bool,
     no_cover: bool,
+    jellyfin: bool,
 ):
     """整理指定路径下的视频文件
 
@@ -51,6 +53,7 @@ def organize(
         pavone organize /downloads -r --dry-run  # 递归模拟运行
         pavone organize /downloads -o /videos --auto  # 自动模式
         pavone organize video.mp4 --keyword "SSIS-001"  # 手动指定搜索关键词
+        pavone organize /downloads -j  # 整理到 Jellyfin 库文件夹
     """
     try:
         # 获取配置
@@ -71,6 +74,13 @@ def organize(
 
         # 确定输出目录
         base_dir = output_dir or config.download.output_dir
+
+        # 如果指定了 --jellyfin，从 Jellyfin 库选择目标文件夹
+        if jellyfin:
+            selected_dir = _select_jellyfin_library_folder(config)
+            if not selected_dir:
+                return 1
+            base_dir = selected_dir
 
         echo_info(f"开始整理: {path}")
         echo_info(f"文件名模板: {organize_config.naming_pattern}")
@@ -226,6 +236,82 @@ def organize(
 
         traceback.print_exc()
         return 1
+
+
+def _select_jellyfin_library_folder(config: object) -> Optional[str]:
+    """连接 Jellyfin 并让用户选择库文件夹作为输出目录
+
+    Returns:
+        选择的文件夹路径，取消或失败返回 None
+    """
+    from ...jellyfin.client import JellyfinClientWrapper
+    from ...jellyfin.library_manager import LibraryManager
+
+    jellyfin_config = config.jellyfin  # type: ignore
+    if not jellyfin_config.enabled or not jellyfin_config.server_url:
+        echo_error("Jellyfin 未配置或未启用，请先运行: pavone jellyfin config")
+        return None
+
+    try:
+        client = JellyfinClientWrapper(jellyfin_config)
+        client.authenticate()
+        lib_manager = LibraryManager(client)
+        lib_manager.initialize()
+        folders = lib_manager.get_library_folders()
+    except Exception as e:
+        echo_error(f"连接 Jellyfin 失败: {e}")
+        return None
+
+    valid_libraries = {name: paths for name, paths in folders.items() if paths}
+    if not valid_libraries:
+        echo_error("没有找到任何配置了文件夹路径的 Jellyfin 库")
+        return None
+
+    # 展示库列表
+    echo_info("\n可用的 Jellyfin 库:")
+    libraries_list = list(valid_libraries.items())
+    for i, (lib_name, lib_folders) in enumerate(libraries_list, 1):
+        echo_info(f"  {i}. {lib_name}")
+        for f in lib_folders:
+            echo_info(f"     📁 {f}")
+
+    # 选择库
+    from .utils import prompt_int
+
+    try:
+        lib_choice = prompt_int(f"请选择库 (1-{len(libraries_list)})", default=1)
+    except click.Abort:
+        echo_info("已取消")
+        return None
+
+    if lib_choice < 1 or lib_choice > len(libraries_list):
+        echo_error("选择无效")
+        return None
+
+    selected_name, selected_folders = libraries_list[lib_choice - 1]
+
+    # 如果库有多个文件夹，让用户选择
+    if len(selected_folders) > 1:
+        echo_info(f"\n库 '{selected_name}' 有多个文件夹:")
+        for i, f in enumerate(selected_folders, 1):
+            echo_info(f"  {i}. 📁 {f}")
+
+        try:
+            folder_choice = prompt_int(f"请选择文件夹 (1-{len(selected_folders)})", default=1)
+        except click.Abort:
+            echo_info("已取消")
+            return None
+
+        if folder_choice < 1 or folder_choice > len(selected_folders):
+            echo_error("选择无效")
+            return None
+
+        target = selected_folders[folder_choice - 1]
+    else:
+        target = selected_folders[0]
+
+    echo_success(f"已选择: {selected_name} → {target}")
+    return target
 
 
 def _scan_video_files(path: str, recursive: bool) -> List[Path]:

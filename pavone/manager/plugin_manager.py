@@ -265,12 +265,17 @@ class PluginManager:
 
     def get_metadata_extractor(self, identifier: str) -> Optional[MetadataPlugin]:
         """获取适合的元数据提取插件"""
+        extractors = self.get_metadata_extractors(identifier)
+        return extractors[0] if extractors else None
+
+    def get_metadata_extractors(self, identifier: str) -> List[MetadataPlugin]:
+        """获取所有能处理该标识符的元数据提取插件（按优先级排序）"""
+        result: List[MetadataPlugin] = []
         for plugin in sorted(self.metadata_plugins, key=lambda p: getattr(p, "priority", 50)):
-            # 运行时类型检查
             if hasattr(plugin, "can_extract") and callable(getattr(plugin, "can_extract")):
                 if plugin.can_extract(identifier):  # type: ignore
-                    return plugin
-        return None
+                    result.append(plugin)
+        return result
 
     def get_all_search_plugins(self) -> List[SearchPlugin]:
         """获取所有搜索插件"""

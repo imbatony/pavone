@@ -107,13 +107,13 @@ class TestMetadataManagerGetMetadata:
         mock_plugin = MagicMock()
         mock_metadata = create_test_metadata()
         mock_plugin.extract_metadata.return_value = mock_metadata
-        plugin_manager.get_metadata_extractor.return_value = mock_plugin
+        plugin_manager.get_metadata_extractors.return_value = [mock_plugin]
 
         manager = MetadataManager(plugin_manager)
         result = manager.get_metadata("TEST-123")
 
         assert result == mock_metadata
-        plugin_manager.get_metadata_extractor.assert_called_once_with("TEST-123")
+        plugin_manager.get_metadata_extractors.assert_called_once_with("TEST-123")
         mock_plugin.extract_metadata.assert_called_once_with("TEST-123")
 
     def test_get_metadata_from_cache(self):
@@ -128,7 +128,7 @@ class TestMetadataManagerGetMetadata:
 
         assert result == mock_metadata
         # 不应该调用 plugin_manager
-        plugin_manager.get_metadata_extractor.assert_not_called()
+        plugin_manager.get_metadata_extractors.assert_not_called()
 
     def test_get_metadata_cache_by_code(self):
         """测试元数据同时缓存到 identifier 和 code"""
@@ -136,7 +136,7 @@ class TestMetadataManagerGetMetadata:
         mock_plugin = MagicMock()
         mock_metadata = create_test_metadata()
         mock_plugin.extract_metadata.return_value = mock_metadata
-        plugin_manager.get_metadata_extractor.return_value = mock_plugin
+        plugin_manager.get_metadata_extractors.return_value = [mock_plugin]
 
         manager = MetadataManager(plugin_manager)
         # 使用 URL 获取
@@ -150,7 +150,7 @@ class TestMetadataManagerGetMetadata:
     def test_get_metadata_no_plugin(self):
         """测试没有找到合适的插件"""
         plugin_manager = MagicMock()
-        plugin_manager.get_metadata_extractor.return_value = None
+        plugin_manager.get_metadata_extractors.return_value = []
 
         manager = MetadataManager(plugin_manager)
         result = manager.get_metadata("UNKNOWN-123")
@@ -162,7 +162,7 @@ class TestMetadataManagerGetMetadata:
         plugin_manager = MagicMock()
         mock_plugin = MagicMock()
         mock_plugin.extract_metadata.return_value = None
-        plugin_manager.get_metadata_extractor.return_value = mock_plugin
+        plugin_manager.get_metadata_extractors.return_value = [mock_plugin]
 
         manager = MetadataManager(plugin_manager)
         result = manager.get_metadata("TEST-123")
@@ -174,7 +174,7 @@ class TestMetadataManagerGetMetadata:
         plugin_manager = MagicMock()
         mock_plugin = MagicMock()
         mock_plugin.extract_metadata.side_effect = Exception("Test error")
-        plugin_manager.get_metadata_extractor.return_value = mock_plugin
+        plugin_manager.get_metadata_extractors.return_value = [mock_plugin]
 
         manager = MetadataManager(plugin_manager)
         result = manager.get_metadata("TEST-123")
@@ -191,7 +191,7 @@ class TestMetadataManagerSearchResult:
         mock_plugin = MagicMock()
         mock_metadata = create_test_metadata()
         mock_plugin.extract_metadata.return_value = mock_metadata
-        plugin_manager.get_metadata_extractor.return_value = mock_plugin
+        plugin_manager.get_metadata_extractors.return_value = [mock_plugin]
 
         search_result = create_test_search_result()
 
@@ -210,10 +210,10 @@ class TestMetadataManagerSearchResult:
         # URL 失败，code 成功
         def get_extractor_side_effect(identifier):
             if identifier == "TEST-123":
-                return mock_plugin
-            return None
+                return [mock_plugin]
+            return []
 
-        plugin_manager.get_metadata_extractor.side_effect = get_extractor_side_effect
+        plugin_manager.get_metadata_extractors.side_effect = get_extractor_side_effect
 
         search_result = create_test_search_result()
 
@@ -225,7 +225,7 @@ class TestMetadataManagerSearchResult:
     def test_get_metadata_from_search_result_both_failed(self):
         """测试从搜索结果获取元数据失败"""
         plugin_manager = MagicMock()
-        plugin_manager.get_metadata_extractor.return_value = None
+        plugin_manager.get_metadata_extractors.return_value = []
 
         search_result = create_test_search_result()
 
@@ -248,7 +248,7 @@ class TestMetadataManagerBatch:
         metadata3 = create_test_metadata("TEST-003", "Movie 3")
 
         mock_plugin.extract_metadata.side_effect = [metadata1, metadata2, metadata3]
-        plugin_manager.get_metadata_extractor.return_value = mock_plugin
+        plugin_manager.get_metadata_extractors.return_value = [mock_plugin]
 
         manager = MetadataManager(plugin_manager)
         identifiers = ["TEST-001", "TEST-002", "TEST-003"]
@@ -265,7 +265,7 @@ class TestMetadataManagerBatch:
         plugin_manager = MagicMock()
         mock_plugin = MagicMock()
         mock_plugin.extract_metadata.return_value = create_test_metadata()
-        plugin_manager.get_metadata_extractor.return_value = mock_plugin
+        plugin_manager.get_metadata_extractors.return_value = [mock_plugin]
 
         callback_calls = []
 
@@ -287,7 +287,7 @@ class TestMetadataManagerBatch:
         plugin_manager = MagicMock()
         mock_plugin = MagicMock()
         mock_plugin.extract_metadata.return_value = create_test_metadata()
-        plugin_manager.get_metadata_extractor.return_value = mock_plugin
+        plugin_manager.get_metadata_extractors.return_value = [mock_plugin]
 
         def callback(current, total, identifier):
             raise Exception("Callback error")
@@ -310,7 +310,7 @@ class TestMetadataManagerBatch:
         metadata3 = create_test_metadata("TEST-003", "Movie 3")
 
         mock_plugin.extract_metadata.side_effect = [metadata1, None, metadata3]
-        plugin_manager.get_metadata_extractor.return_value = mock_plugin
+        plugin_manager.get_metadata_extractors.return_value = [mock_plugin]
 
         manager = MetadataManager(plugin_manager)
         identifiers = ["TEST-001", "TEST-002", "TEST-003"]
@@ -331,7 +331,7 @@ class TestMetadataManagerBatch:
         metadata2 = create_test_metadata("TEST-002", "Movie 2")
 
         mock_plugin.extract_metadata.side_effect = [metadata1, metadata2]
-        plugin_manager.get_metadata_extractor.return_value = mock_plugin
+        plugin_manager.get_metadata_extractors.return_value = [mock_plugin]
 
         search_results = [
             create_test_search_result("TEST-001", "Movie 1"),

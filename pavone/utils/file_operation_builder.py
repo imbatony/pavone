@@ -120,7 +120,12 @@ class FileOperationBuilder:
             config: 整理配置
         """
         # 导入创建子操作项的辅助函数
-        from ..utils.operation_item_builder import create_cover_item, create_metadata_item
+        from ..utils.operation_item_builder import (
+            create_backdrop_item,
+            create_cover_item,
+            create_metadata_item,
+            create_poster_item,
+        )
 
         # 添加元数据（如果配置允许）
         if config.create_nfo:
@@ -133,6 +138,21 @@ class FileOperationBuilder:
             cover_item = create_cover_item(url=metadata.cover, title=metadata.title or metadata.code)
             operation.append_child(cover_item)
             self.logger.debug(f"添加封面子操作: {metadata.cover}")
+
+        # 添加海报（如果配置允许且有海报 URL）
+        if config.download_cover and metadata.poster:
+            poster_item = create_poster_item(url=metadata.poster, title=metadata.title or metadata.code)
+            operation.append_child(poster_item)
+            self.logger.debug(f"添加海报子操作: {metadata.poster}")
+
+        # 添加背景图（支持多张）
+        if config.download_cover:
+            backdrop_urls = metadata.backdrops or ([metadata.backdrop] if metadata.backdrop else [])
+            for bd_url in backdrop_urls:
+                backdrop_item = create_backdrop_item(url=bd_url, title=metadata.title or metadata.code)
+                operation.append_child(backdrop_item)
+            if backdrop_urls:
+                self.logger.debug(f"添加背景图子操作: {len(backdrop_urls)} 张")
 
     def _build_filename(
         self,

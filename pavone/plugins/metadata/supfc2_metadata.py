@@ -19,7 +19,7 @@ PLUGIN_DESCRIPTION = "提取 supfc2.com 的FC2视频元数据"
 PLUGIN_AUTHOR = "PAVOne"
 
 # 定义插件优先级
-PLUGIN_PRIORITY = 30
+PLUGIN_PRIORITY = 25
 
 # 定义支持的域名
 SUPPORTED_DOMAINS = ["supfc2.com", "www.supfc2.com"]
@@ -76,7 +76,7 @@ class SupFC2Metadata(FC2BaseMetadata):
                     self.logger.error(f"无法从identifier提取FC2 ID: {identifier}")
                     return None
                 # 构建URL，标题部分留空，因为需要从页面获取
-                url = f"https://supfc2.com/detail/FC2-PPV-{fc2_id}/"
+                url = f"https://supfc2.com/detail/FC2-PPV-{fc2_id}/detail"
             else:
                 url = identifier
                 # 从URL提取FC2 ID
@@ -86,7 +86,7 @@ class SupFC2Metadata(FC2BaseMetadata):
                     return None
 
             # 获取页面内容
-            response = self.fetch(url, timeout=30, verify_ssl=False)
+            response = self.fetch(url, timeout=30, verify_ssl=False, max_retry=2)
             html_content = response.text
             if not html_content:
                 self.logger.error(f"获取页面内容失败: {url}")

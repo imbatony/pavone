@@ -53,11 +53,9 @@ class PPVDataBankMetadata(FC2BaseMetadata, SearchPlugin):
         1. URL: https://ppvdatabank.com/article/1680807/
         2. 视频代码: FC2-2941579 或 FC2-PPV-2941579
         """
-        # 检查是否为URL
         if identifier.startswith("http://") or identifier.startswith("https://"):
             return self.can_handle_domain(identifier, self.supported_domains)
 
-        # 检查是否为FC2视频代码
         identifier_stripped = identifier.strip().upper()
         if identifier_stripped.startswith("FC2"):
             code_pattern = r"^FC2(-PPV)?-\d+$"
@@ -81,8 +79,8 @@ class PPVDataBankMetadata(FC2BaseMetadata, SearchPlugin):
             return results
         fc_url = self.get_url_from_fc2_id(fc2_id)
         if fc_url:
-            res = self.fetch(url=fc_url, no_exceptions=True)
-            if res:
+            res = self.fetch(url=fc_url, no_exceptions=True, max_retry=2)
+            if res is not None and res.status_code == 200:
                 # get title from fetched page if possible
                 title = self._extract_title_from_page(res.text) or ""
                 result = SearchResult(
@@ -156,11 +154,11 @@ class PPVDataBankMetadata(FC2BaseMetadata, SearchPlugin):
                 if not video_id:
                     self.logger.error(f"无法从代码提取视频ID: {identifier}")
                     return None
-                # 构建URL
-                url = f"https://ppvdatabank.com/article_search.php?id={video_id}"
+                # 拼接为 article URL
+                url = f"https://ppvdatabank.com/article/{video_id}/"
 
             # 获取页面内容
-            response = self.fetch(url, timeout=30, verify_ssl=False)
+            response = self.fetch(url, timeout=30, verify_ssl=False, max_retry=2)
             html_content = response.text
             if not html_content:
                 self.logger.error(f"获取页面内容失败: {url}")

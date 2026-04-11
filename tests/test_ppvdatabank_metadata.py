@@ -36,9 +36,9 @@ class TestPPVDataBankMetadata:
         assert extractor.can_extract("fc2-ppv-1234567")
 
         # 不支持的代码格式
-        assert not extractor.can_extract("SDMT-415")  # 不是FC2
-        assert not extractor.can_extract("123456")  # 纯数字
-        assert not extractor.can_extract("FC2")  # 没有ID
+        assert not extractor.can_extract("SDMT-415")
+        assert not extractor.can_extract("123456")
+        assert not extractor.can_extract("FC2")
 
     def test_extract_video_id(self, extractor):
         """测试从URL提取视频ID"""

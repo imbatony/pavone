@@ -274,6 +274,13 @@ def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[st
         # 根据video_id或search_keyword查找视频
         target_video_id = video_id
 
+        if not target_video_id and not search_keyword:
+            # 未指定 video_id 和 search_keyword，默认使用番号搜索
+            search_keyword = getattr(remote_metadata, "code", None)
+            if not search_keyword:
+                echo_error("未指定视频ID或搜索关键词，且无法从元数据获取番号")
+                return 1
+
         if search_keyword:
             # 在Jellyfin中搜索视频
             echo_info(f"\n在Jellyfin中搜索: {search_keyword}")
@@ -352,14 +359,20 @@ def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[st
         # 询问是否替换图片
         replace_images = False
         cover_url = getattr(remote_metadata, "cover", None)
+        poster_url = getattr(remote_metadata, "poster", None)
         backdrop_url = getattr(remote_metadata, "backdrop", None)
+        backdrop_urls: list[str] = getattr(remote_metadata, "backdrops", None) or []
+        if not backdrop_urls and backdrop_url:
+            backdrop_urls = [backdrop_url]
 
-        if cover_url or backdrop_url:
+        if cover_url or poster_url or backdrop_urls:
             echo_info("\n发现远程图片资源:")
             if cover_url:
                 echo_info(f"  📷 封面图 (Cover): {cover_url}")
-            if backdrop_url:
-                echo_info(f"  🖼️  背景图 (Backdrop): {backdrop_url}")
+            if poster_url:
+                echo_info(f"  🎬 海报图 (Poster): {poster_url}")
+            if backdrop_urls:
+                echo_info(f"  🖼️  背景图 (Backdrop): {len(backdrop_urls)} 张")
 
             echo_info("")
             replace_images = confirm_action("是否下载并替换 Jellyfin 中的图片？", default=True)
@@ -391,22 +404,38 @@ def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[st
                     except Exception as e2:
                         echo_warning(f"  ✗ 封面图处理失败: {e2}")
 
-            # 下载并上传背景图
-            if backdrop_url:
+            # 下载并上传海报图（作为 Thumb）
+            if poster_url:
                 try:
-                    echo_info(f"  设置背景图: {backdrop_url}")
-                    jf_client.download_remote_image(target_video_id, backdrop_url, "Backdrop")
-                    echo_success("  ✓ 背景图已更新")
+                    echo_info(f"  设置海报图: {poster_url}")
+                    jf_client.download_remote_image(target_video_id, poster_url, "Thumb")
+                    echo_success("  ✓ 海报图已更新")
                 except Exception:
                     # 如果远程下载失败，尝试本地上传
                     echo_warning("  远程下载失败，尝试本地上传...")
                     try:
-                        backdrop_path = ImageManager.download_image(backdrop_url, "backdrop")
+                        poster_path = ImageManager.download_image(poster_url, "poster")
+                        if poster_path:
+                            jf_client.upload_image(target_video_id, str(poster_path), "Thumb")
+                            echo_success("  ✓ 海报图已更新（本地上传）")
+                    except Exception as e2:
+                        echo_warning(f"  ✗ 海报图处理失败: {e2}")
+
+            # 下载并上传背景图（支持多张）
+            for idx, bd_url in enumerate(backdrop_urls):
+                try:
+                    echo_info(f"  设置背景图 [{idx + 1}/{len(backdrop_urls)}]: {bd_url}")
+                    jf_client.download_remote_image(target_video_id, bd_url, "Backdrop")
+                    echo_success(f"  ✓ 背景图 {idx + 1} 已更新")
+                except Exception:
+                    echo_warning("  远程下载失败，尝试本地上传...")
+                    try:
+                        backdrop_path = ImageManager.download_image(bd_url, f"backdrop_{idx}")
                         if backdrop_path:
                             jf_client.upload_image(target_video_id, str(backdrop_path), "Backdrop")
-                            echo_success("  ✓ 背景图已更新（本地上传）")
+                            echo_success(f"  ✓ 背景图 {idx + 1} 已更新（本地上传）")
                     except Exception as e2:
-                        echo_warning(f"  ✗ 背景图处理失败: {e2}")
+                        echo_warning(f"  ✗ 背景图 {idx + 1} 处理失败: {e2}")
         else:
             echo_info("\n跳过图片下载")
 

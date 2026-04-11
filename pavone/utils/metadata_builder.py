@@ -201,6 +201,20 @@ class MetadataBuilder:
             self._data["backdrop"] = backdrop
         return self
 
+    def set_backdrops(self, backdrops: Optional[list[str]]) -> "MetadataBuilder":
+        """
+        设置多张背景图片URL列表
+
+        Args:
+            backdrops: 背景图片URL列表
+
+        Returns:
+            self，支持链式调用
+        """
+        if backdrops:
+            self._data["backdrops"] = backdrops
+        return self
+
     def set_plot(self, plot: Optional[str]) -> "MetadataBuilder":
         """
         设置简介

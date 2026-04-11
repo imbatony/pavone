@@ -60,40 +60,35 @@ class MetadataManager:
             return self._cache[identifier]
 
         # 2. 查找元数据提取器
-        metadata_extractor = self.plugin_manager.get_metadata_extractor(identifier)
+        extractors = self.plugin_manager.get_metadata_extractors(identifier)
 
-        if not metadata_extractor:
+        if not extractors:
             self.logger.warning(f"未找到能处理该标识符的元数据插件: {identifier}")
             return None
 
-        # 3. 提取元数据
-        self.logger.info(f"正在提取元数据: {identifier}")
-        try:
-            metadata = metadata_extractor.extract_metadata(identifier)
+        # 3. 依次尝试各提取器，第一个成功即返回
+        for extractor in extractors:
+            self.logger.info(f"正在提取元数据: {identifier} (插件: {extractor.name})")
+            try:
+                metadata = extractor.extract_metadata(identifier)
+                if metadata:
+                    movie_metadata = cast(MovieMetadata, metadata)
+                    self._cache[identifier] = movie_metadata
+                    if movie_metadata.code and movie_metadata.code != identifier:
+                        self._cache[movie_metadata.code] = movie_metadata
+                    return movie_metadata
+            except Exception as e:
+                self.logger.warning(f"插件 {extractor.name} 提取失败 ({identifier}): {e}")
+                continue
 
-            # 4. 缓存结果
-            if metadata:
-                # 所有实际的元数据插件都应该返回 MovieMetadata
-                # 这里进行类型转换以满足类型检查
-                movie_metadata = cast(MovieMetadata, metadata)
-                self._cache[identifier] = movie_metadata
-                # 如果有 code，也缓存到 code 键
-                if movie_metadata.code and movie_metadata.code != identifier:
-                    self._cache[movie_metadata.code] = movie_metadata
-                return movie_metadata
-
-            return None
-
-        except Exception as e:
-            self.logger.error(f"元数据提取失败 ({identifier}): {e}")
-            return None
+        return None
 
     def get_metadata_from_search_result(self, search_result: SearchResult) -> Optional[MovieMetadata]:
         """从搜索结果获取元数据
 
         流程:
-        1. 优先使用 URL 提取元数据（如果有 extractor）
-        2. 尝试使用 code 提取元数据
+        1. 优先使用 code 提取元数据（专业提取器优先级更高）
+        2. 尝试使用 URL 提取元数据
         3. 如果都失败，返回 None
 
         Args:
@@ -102,15 +97,15 @@ class MetadataManager:
         Returns:
             元数据对象，失败返回 None
         """
-        # 1. 尝试使用 URL
-        if search_result.url:
-            metadata = self.get_metadata(search_result.url)
+        # 1. 优先使用 code（让专业提取器如 supfc2 优先处理）
+        if search_result.code:
+            metadata = self.get_metadata(search_result.code)
             if metadata:
                 return metadata
 
-        # 2. 尝试使用 code
-        if search_result.code:
-            metadata = self.get_metadata(search_result.code)
+        # 2. 尝试使用 URL
+        if search_result.url:
+            metadata = self.get_metadata(search_result.url)
             if metadata:
                 return metadata
 

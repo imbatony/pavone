@@ -103,6 +103,7 @@ class MovieMetadata(BaseMetadata):
     thumbnail: Optional[str] = None  # 缩略图链接
     poster: Optional[str] = None  # 海报链接
     backdrop: Optional[str] = None  # 背景图片链接
+    backdrops: Optional[list[str]] = None  # 多张背景图片链接列表
     actors: Optional[list[str]] = None  # 演员列表
     actors_normalized: Optional[list[str]] = None  # 标准化演员列表
     director: Optional[str] = None  # 导演

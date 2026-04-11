@@ -3,6 +3,8 @@
 """
 
 from .base import MetadataPlugin
+from .caribbeancom_metadata import CaribbeancomMetadata
+from .onepondo_metadata import OnePondoMetadata
 from .ppvdatabank_metadata import PPVDataBankMetadata
 from .supfc2_metadata import SupFC2Metadata
 
@@ -11,6 +13,8 @@ from .supfc2_metadata import SupFC2Metadata
 
 __all__ = [
     "MetadataPlugin",
+    "CaribbeancomMetadata",
+    "OnePondoMetadata",
     "PPVDataBankMetadata",
     "SupFC2Metadata",
 ]
