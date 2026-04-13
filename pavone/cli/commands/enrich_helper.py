@@ -272,14 +272,14 @@ class MetadataComparison:
         updated_count = 0
         merged_count = 0
 
-        print("\n【元数据对比】\n")
+        click.echo("\n【元数据对比】\n")
         local_header = f"{local_source} (本地)"
         remote_header = f"{remote_source} (远程)"
         # 使用 CJK 感知的填充
         local_header_padded = pad_text_cjk(local_header, 30)
         remote_header_padded = pad_text_cjk(remote_header, 30)
-        print(f"{'字段':<16} │ {local_header_padded} │ {remote_header_padded}")
-        print("-" * 80)
+        click.echo(f"{'字段':<16} │ {local_header_padded} │ {remote_header_padded}")
+        click.echo("-" * 80)
 
         for field_name, field_info in comparison.items():
             change = field_info["change"]
@@ -296,14 +296,14 @@ class MetadataComparison:
                 if local_str:
                     local_padded = pad_text_cjk(local_str, 30)
                     remote_padded = pad_text_cjk(remote_str, 30)
-                    print(f"{display_field:<16} │ {local_padded} │ {remote_padded}")
+                    click.echo(f"{display_field:<16} │ {local_padded} │ {remote_padded}")
 
             elif change == FieldChange.ADDED:
                 # 新增字段（绿色，用[新增]标记）
                 remote_str = MetadataComparison._format_value(remote_val)
                 remote_padded = pad_text_cjk(remote_str, 30)
                 none_padded = pad_text_cjk("(无)", 30)
-                print(f"{display_field:<16} │ {none_padded} │ {remote_padded} {colorize_tag('[新增]', 'added')}")
+                click.echo(f"{display_field:<16} │ {none_padded} │ {remote_padded} {colorize_tag('[新增]', 'added')}")
                 added_count += 1
 
             elif change == FieldChange.MODIFIED:
@@ -313,10 +313,10 @@ class MetadataComparison:
                 local_padded = pad_text_cjk(local_str, 30)
                 remote_padded = pad_text_cjk(remote_str, 30)
                 if force:
-                    print(f"{display_field:<16} │ {local_padded} │ {remote_padded} {colorize_tag('[覆盖]', 'modified')}")
+                    click.echo(f"{display_field:<16} │ {local_padded} │ {remote_padded} {colorize_tag('[覆盖]', 'modified')}")
                     updated_count += 1
                 else:
-                    print(f"{display_field:<16} │ {local_padded} │ {remote_padded} {colorize_tag('[保留]', 'modified')}")
+                    click.echo(f"{display_field:<16} │ {local_padded} │ {remote_padded} {colorize_tag('[保留]', 'modified')}")
 
             elif change == FieldChange.UPDATED:
                 # 更新/合并字段（蓝色，用[更新]标记）
@@ -325,13 +325,13 @@ class MetadataComparison:
                 local_padded = pad_text_cjk(local_str, 30)
                 remote_padded = pad_text_cjk(remote_str, 30)
                 if action == "merge":
-                    print(f"{display_field:<16} │ {local_padded} │ {remote_padded} {colorize_tag('[合并]', 'merged')}")
+                    click.echo(f"{display_field:<16} │ {local_padded} │ {remote_padded} {colorize_tag('[合并]', 'merged')}")
                     merged_count += 1
                 else:
-                    print(f"{display_field:<16} │ {local_padded} │ {remote_padded} {colorize_tag('[替换]', 'updated')}")
+                    click.echo(f"{display_field:<16} │ {local_padded} │ {remote_padded} {colorize_tag('[替换]', 'updated')}")
                     updated_count += 1
 
-        print()
+        click.echo()
         return added_count, updated_count, merged_count
 
     @staticmethod
@@ -453,7 +453,7 @@ class ImageManager:
             # 生成文件名
             import hashlib
 
-            url_hash = hashlib.md5(image_url.encode()).hexdigest()[:8]
+            url_hash = hashlib.md5(image_url.encode(), usedforsecurity=False).hexdigest()[:8]
             filename = f"{image_type}_{url_hash}{ext}"
             filepath = temp_dir / filename
 

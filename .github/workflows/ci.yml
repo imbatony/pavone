@@ -6,64 +6,50 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+# 开发工具（black, isort, flake8, pyright, pytest 等）已在 pyproject.toml [dependency-groups] dev 中声明
+# uv sync 会自动安装所有 dev 依赖，无需 uv add --dev
+
 jobs:
   lint-and-type-check:
     name: Lint and Type Check
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-    
+
     - name: Install uv
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
     - name: Cache uv dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/uv
         key: ${{ runner.os }}-uv-${{ hashFiles('**/uv.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-uv-
-          
-    - name: Sync dependencies with uv
-      run: |
-        uv sync
-        
-    - name: Install development dependencies with uv
-      run: |
-        uv add --dev pytest pytest-cov pytest-mock pylint flake8 black isort mypy pyright
-        
+        restore-keys: ${{ runner.os }}-uv-
+
+    - name: Sync dependencies
+      run: uv sync
+
     - name: Run Black (Code formatting check)
-      run: |
-        echo "🎨 Checking code formatting with Black..."
-        uv run black --check --diff pavone/ tests/
-        
+      run: uv run black --check --diff pavone/ tests/
+
     - name: Run isort (Import sorting check)
-      run: |
-        echo "📦 Checking import sorting with isort..."
-        uv run isort --check-only --diff pavone/ tests/
-        
+      run: uv run isort --check-only --diff pavone/ tests/
+
     - name: Run flake8 (Critical errors)
-      run: |
-        echo "🔍 Checking for critical errors with flake8..."
-        uv run flake8 pavone/ tests/ --select=E9,F63,F7,F82
-        
+      run: uv run flake8 pavone/ tests/ --select=E9,F63,F7,F82
+
     - name: Run flake8 (Code quality)
-      run: |
-        echo "📊 Running code quality checks with flake8..."
-        uv run flake8 pavone/ tests/ --exit-zero
-        
+      run: uv run flake8 pavone/ tests/ --exit-zero
+
     - name: Run Pyright (Type checking)
-      run: |
-        echo "🔎 Running type checking with Pyright (Pylance backend)..."
-        uv run pyright pavone/
+      run: uv run pyright pavone/
 
   test:
     name: Unit Tests
@@ -71,44 +57,35 @@ jobs:
     strategy:
       matrix:
         python-version: ['3.10', '3.11', '3.12']
-        
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-        
+
     - name: Install uv
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
     - name: Cache uv dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/uv
         key: ${{ runner.os }}-${{ matrix.python-version }}-uv-${{ hashFiles('**/uv.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-${{ matrix.python-version }}-uv-
-          
-    - name: Sync dependencies with uv
-      run: |
-        uv sync
-        
-    - name: Install test dependencies with uv
-      run: |
-        uv add --dev pytest pytest-cov pytest-mock pytest-xdist
-        
+        restore-keys: ${{ runner.os }}-${{ matrix.python-version }}-uv-
+
+    - name: Sync dependencies
+      run: uv sync
+
     - name: Run tests with coverage
-      run: |
-        echo "🧪 Running unit tests (excluding integration tests)..."
-        uv run pytest tests/ -v -m "not integration" --cov=pavone --cov-report=xml --cov-report=html --cov-report=term-missing
-        
+      run: uv run pytest tests/ -v -m "not integration" --cov=pavone --cov-report=xml --cov-report=term-missing
+
     - name: Upload coverage reports to Codecov
       if: matrix.python-version == '3.11'
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
         flags: unittests
@@ -118,81 +95,69 @@ jobs:
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-        
+
     - name: Install uv
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
     - name: Cache uv dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/uv
         key: ${{ runner.os }}-uv-security-${{ hashFiles('**/uv.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-uv-security-
-          
-    - name: Sync dependencies with uv
-      run: |
-        uv sync
-        
-    - name: Install security tools with uv
-      run: |
-        uv add --dev safety bandit
-        
+        restore-keys: ${{ runner.os }}-uv-security-
+
+    - name: Sync dependencies
+      run: uv sync
+
     - name: Run safety (dependency vulnerability check)
-      run: |
-        uv run safety check --json || true
-        
+      # safety check 已被官方标记为 deprecated; pip 等工具链漏洞不受项目控制
+      run: uv run safety check || true
+      continue-on-error: true
+
     - name: Run bandit (security linting)
-      run: |
-        uv run bandit -r pavone/ -f json || true
+      run: uv run bandit -r pavone/ -ll -ii -f json
 
   build-and-validate:
     name: Build and Validate Package
     runs-on: ubuntu-latest
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-        
+
     - name: Install uv
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
     - name: Cache uv dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/uv
         key: ${{ runner.os }}-uv-build-${{ hashFiles('**/uv.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-uv-build-
-          
-    - name: Install build dependencies with uv
-      run: |
-        uv add --dev build twine wheel
-        
+        restore-keys: ${{ runner.os }}-uv-build-
+
+    - name: Sync dependencies
+      run: uv sync
+
     - name: Build package
-      run: |
-        uv run python -m build
-        
+      run: uv run python -m build
+
     - name: Validate package
-      run: |
-        uv run twine check dist/*
-        
+      run: uv run twine check dist/*
+
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -203,44 +168,34 @@ jobs:
     name: Integration Tests
     runs-on: ubuntu-latest
     needs: [lint-and-type-check, test]
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      
+
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.11'
-        
+
     - name: Install uv
-      run: |
-        curl -LsSf https://astral.sh/uv/install.sh | sh
-        
+      run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
     - name: Cache uv dependencies
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: ~/.cache/uv
         key: ${{ runner.os }}-uv-integration-${{ hashFiles('**/uv.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-uv-integration-
-          
-    - name: Sync dependencies with uv
-      run: |
-        uv sync
-        
-    - name: Install pytest with uv
-      run: |
-        uv add --dev pytest
-        
+        restore-keys: ${{ runner.os }}-uv-integration-
+
+    - name: Sync dependencies
+      run: uv sync
+
     - name: Run CLI integration tests
-      run: |
-        # Test CLI basic functionality
-        uv run python -m pavone.cli --help || true
-        
+      run: uv run python -m pavone.cli --help || true
+
     - name: Test package installation
       run: |
-        # Test that the package can be imported correctly
         uv run python -c "
         try:
             from pavone.core.downloader import HTTPDownloader, M3U8Downloader
@@ -250,51 +205,3 @@ jobs:
             print(f'✗ Import failed: {e}')
             exit(1)
         "
-
-  pr-summary:
-    name: PR Summary
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
-    needs: [lint-and-type-check, test, security-scan, build-and-validate]
-    
-    steps:
-    - name: Comment PR
-      uses: actions/github-script@v6
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        script: |
-          const { owner, repo, number } = context.issue;
-          
-          // Get workflow runs for this PR
-          const runs = await github.rest.actions.listWorkflowRunsForRepo({
-            owner,
-            repo,
-            event: 'pull_request',
-            head_sha: context.payload.pull_request.head.sha
-          });
-          
-          const summary = `
-          ## 🤖 CI/CD Pipeline Summary
-          
-          **Pull Request:** #${number}
-          **Commit:** ${context.payload.pull_request.head.sha.substring(0, 7)}
-          
-          ### ✅ Completed Checks:
-          - **Lint and Type Check**: Code formatting, imports, and type safety
-          - **Unit Tests**: Comprehensive test suite across Python versions
-          - **Security Scan**: Dependency vulnerabilities and security linting
-          - **Package Build**: Distribution package validation
-          
-          ### 📊 Test Coverage:
-          Coverage reports are available in the workflow artifacts.
-          
-          ### 🚀 Ready for Review:
-          All automated checks have passed. This PR is ready for manual review.
-          `;
-          
-          await github.rest.issues.createComment({
-            owner,
-            repo,
-            issue_number: number,
-            body: summary
-          });

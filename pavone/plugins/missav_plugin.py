@@ -174,6 +174,7 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
                 self.logger.warning(f"代码格式identifier暂不直接支持: {identifier}，请使用URL")
                 return None
 
+            # verify_ssl=False: missav 站点 SSL 证书链不稳定，需跳过验证
             response = self.fetch(url, timeout=30, verify_ssl=False)
             html_content = response.text
             if not html_content:
@@ -224,6 +225,7 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
     def extract(self, url: str) -> List[OperationItem]:
         """从 MissAV 页面提取视频下载选项"""
         try:
+            # verify_ssl=False: missav 站点 SSL 证书链不稳定，需跳过验证
             response = self.fetch(url, timeout=30, verify_ssl=False)
             html_content = response.text
             if not html_content:
@@ -297,6 +299,7 @@ class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):
         """从大师链接中提取所有子链接"""
         try:
             headers = {"Referer": referer} if referer else None
+            # verify_ssl=False: missav CDN 的 SSL 证书链不稳定，需跳过验证
             response = self.fetch(master_url, headers=headers, timeout=30, verify_ssl=False)
             if response.status_code != 200:
                 self.logger.info(f"获取大师链接失败: {master_url} - 状态码: {response.status_code}")

@@ -86,6 +86,7 @@ class SupFC2Metadata(FC2BaseMetadata):
                     return None
 
             # 获取页面内容
+            # verify_ssl=False: supfc2 站点 SSL 证书配置不标准，需跳过验证
             response = self.fetch(url, timeout=30, verify_ssl=False, max_retry=2)
             html_content = response.text
             if not html_content:

@@ -16,12 +16,6 @@ from pavone.models.operation import OperationItem
 
 
 @pytest.fixture
-def config():
-    """创建测试配置"""
-    return Config()
-
-
-@pytest.fixture
 def temp_workspace():
     """创建临时工作目录"""
     with TemporaryDirectory() as tmpdir:

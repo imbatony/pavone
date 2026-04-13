@@ -2,8 +2,10 @@
 Jellyfin 相关异常定义
 """
 
+from pavone.core.exceptions import PavoneError
 
-class JellyfinException(Exception):
+
+class JellyfinException(PavoneError):
     """Jellyfin 异常基类"""
 
     pass

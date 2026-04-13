@@ -85,7 +85,7 @@ switch ($Command) {
         if (-not (Test-CommandSuccess "isort 检查")) { $success = $false }
         
         if (-not $success) {
-            Write-Host "`n提示: 运行 '.\dev.ps1 format' 自动修复格式问题" -ForegroundColor Yellow
+            Write-Host "`n提示: 运行 '.\scripts\dev.ps1 format' 自动修复格式问题" -ForegroundColor Yellow
             exit 1
         }
     }
@@ -209,7 +209,7 @@ switch ($Command) {
         Write-Host @"
 🎯 PAVOne 开发脚本
 
-用法: .\dev.ps1 <command> [args]
+用法: .\scripts\dev.ps1 <command> [args]
 
 📦 环境管理:
   install      - 安装项目依赖
@@ -236,15 +236,15 @@ switch ($Command) {
   build        - 构建项目
 
 示例:
-  .\dev.ps1 install                         # 安装依赖
-  .\dev.ps1 format                          # 格式化代码
-  .\dev.ps1 test                            # 运行单元测试
-  .\dev.ps1 test tests/test_filename_parser.py  # 运行指定测试文件
-  .\dev.ps1 test -k test_extract            # 运行名称匹配的测试
-  .\dev.ps1 test --maxfail=1                # 第一个失败后停止
-  .\dev.ps1 check                           # 运行所有检查
-  .\dev.ps1 ci                              # 本地模拟 CI
-  .\dev.ps1 run search av01                 # 运行 pavone 命令
+  .\scripts\dev.ps1 install                         # 安装依赖
+  .\scripts\dev.ps1 format                          # 格式化代码
+  .\scripts\dev.ps1 test                            # 运行单元测试
+  .\scripts\dev.ps1 test tests/test_filename_parser.py  # 运行指定测试文件
+  .\scripts\dev.ps1 test -k test_extract            # 运行名称匹配的测试
+  .\scripts\dev.ps1 test --maxfail=1                # 第一个失败后停止
+  .\scripts\dev.ps1 check                           # 运行所有检查
+  .\scripts\dev.ps1 ci                              # 本地模拟 CI
+  .\scripts\dev.ps1 run search av01                 # 运行 pavone 命令
 "@ -ForegroundColor Cyan
     }
 }

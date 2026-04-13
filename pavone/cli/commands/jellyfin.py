@@ -116,11 +116,11 @@ def libraries():
 
         echo_success(f"找到 {len(libraries)} 个库\n")
 
-        print(pad_text("库名", 20) + " " + pad_text("ID", 40) + " " + pad_text("类型", 8) + " 项数")
-        print("-" * 80)
+        click.echo(pad_text("库名", 20) + " " + pad_text("ID", 40) + " " + pad_text("类型", 8) + " 项数")
+        click.echo("-" * 80)
 
         for lib in libraries:
-            print(
+            click.echo(
                 pad_text(lib.name[:20], 20)
                 + " "
                 + pad_text(lib.id[:40], 40)
@@ -201,18 +201,18 @@ def search(keyword: Optional[str] = None):
 
 def _format_section(title: str, fields: list[tuple[str, Any]]) -> None:
     """格式化一个信息段"""
-    print(title)
+    click.echo(title)
     # 输出表头和分隔符
-    print(pad_text("字段", 16) + " 数值")
-    print("-" * 80)
+    click.echo(pad_text("字段", 16) + " 数值")
+    click.echo("-" * 80)
     # 输出字段
     for field_name, value in fields:
         if value:
             value_str = str(value)
             if len(value_str) > 60:
                 value_str = value_str[:60] + "..."
-            print(pad_text(field_name, 16) + " " + value_str)
-    print()
+            click.echo(pad_text(field_name, 16) + " " + value_str)
+    click.echo()
 
 
 def _get_basic_info_fields(item: JellyfinItem) -> list[tuple[str, str]]:
@@ -438,7 +438,7 @@ def scan(library_name: str):
             # 显示前 10 项
             echo_info("前 10 项:")
             for i, item in enumerate(items[:10], 1):
-                print(f"  {i}. {item.name}")
+                click.echo(f"  {i}. {item.name}")
 
         else:
             echo_warning(f"库 '{library_name}' 未找到")
@@ -561,13 +561,13 @@ def duplicate_check(keyword: str):
 
             quality_info = duplicate_info.quality_info
             echo_info("【视频质量信息】")
-            print(pad_text("路径", 12) + " " + str(quality_info.path)[:60])
-            print(pad_text("大小", 12) + " " + str(quality_info.size))
-            print(pad_text("分辨率", 12) + " " + str(quality_info.resolution))
-            print(pad_text("比特率", 12) + " " + str(quality_info.bitrate))
-            print(pad_text("编码", 12) + " " + str(quality_info.codec))
-            print(pad_text("时长", 12) + " " + str(quality_info.runtime))
-            print(pad_text("添加时间", 12) + " " + str(quality_info.added_date))
+            click.echo(pad_text("路径", 12) + " " + str(quality_info.path)[:60])
+            click.echo(pad_text("大小", 12) + " " + str(quality_info.size))
+            click.echo(pad_text("分辨率", 12) + " " + str(quality_info.resolution))
+            click.echo(pad_text("比特率", 12) + " " + str(quality_info.bitrate))
+            click.echo(pad_text("编码", 12) + " " + str(quality_info.codec))
+            click.echo(pad_text("时长", 12) + " " + str(quality_info.runtime))
+            click.echo(pad_text("添加时间", 12) + " " + str(quality_info.added_date))
 
         else:
             echo_warning(f"未找到与 '{keyword}' 相关的视频")

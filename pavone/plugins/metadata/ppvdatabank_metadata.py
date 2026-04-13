@@ -158,6 +158,7 @@ class PPVDataBankMetadata(FC2BaseMetadata, SearchPlugin):
                 url = f"https://ppvdatabank.com/article/{video_id}/"
 
             # 获取页面内容
+            # verify_ssl=False: ppvdatabank 站点 SSL 证书配置不标准，需跳过验证
             response = self.fetch(url, timeout=30, verify_ssl=False, max_retry=2)
             html_content = response.text
             if not html_content:

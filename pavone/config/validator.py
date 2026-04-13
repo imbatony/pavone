@@ -1,3 +1,5 @@
+import click
+
 """
 配置验证器
 """
@@ -24,7 +26,7 @@ class ConfigValidator:
             return True
 
         except Exception as e:
-            print(f"配置验证失败: {e}")
+            click.echo(f"配置验证失败: {e}")
             return False
 
     def _validate_download_config(self, config: Config):

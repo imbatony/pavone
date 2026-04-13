@@ -81,18 +81,18 @@ def search(keyword: str, proxy: str):
                 code_info = click.style(f" [{result.code}]", fg="white", bold=True)
 
             # 输出主要信息
-            print(f"{number} {site_label}{code_info}")
-            print(f"   {display_title}")
+            click.echo(f"{number} {site_label}{code_info}")
+            click.echo(f"   {display_title}")
 
             # URL - 使用灰色显示
             url_display = result.url
             if len(url_display) > 100:
                 url_display = url_display[:97] + "..."
-            print(click.style(f"   {url_display}", fg="bright_black"))
+            click.echo(click.style(f"   {url_display}", fg="bright_black"))
 
             # 添加空行分隔
             if idx < len(results):
-                print()
+                click.echo()
 
         return 0
 

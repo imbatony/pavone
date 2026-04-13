@@ -3,6 +3,7 @@
 """
 
 import json
+import logging
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any, Optional
@@ -24,6 +25,7 @@ class ConfigManager:
     """配置管理器"""
 
     def __init__(self, config_dir: Optional[str] = None):
+        self.logger = logging.getLogger(__name__)
         if config_dir is None:
             self.config_dir = Path.home() / ".pavone"
         else:
@@ -53,13 +55,13 @@ class ConfigManager:
                 self._load_config_data(data)
 
             except Exception as e:
-                print(f"ERROR: 加载配置失败: {e}")
+                self.logger.error(f"加载配置失败: {e}")
                 # 使用默认配置
                 self.config = Config()
 
         # 验证并修复配置
         if not self.validator.validate_and_fix_config(self.config):
-            print("WARNING: 配置验证失败，使用默认配置")
+            self.logger.warning("配置验证失败，使用默认配置")
             self.config = Config()
             self.save_config()
 
@@ -97,7 +99,7 @@ class ConfigManager:
                 json.dump(config_dict, f, indent=2, ensure_ascii=False)
 
         except Exception as e:
-            print(f"ERROR: 保存配置失败: {e}")
+            self.logger.error(f"保存配置失败: {e}")
 
     def get_config(self) -> Config:
         """获取配置"""

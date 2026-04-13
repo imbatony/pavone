@@ -1,5 +1,7 @@
 from typing import Any, Optional
 
+import click
+
 try:
     from rich.progress import (
         BarColumn,
@@ -108,7 +110,7 @@ def _create_simple_progress_callback() -> ProgressCallback:
 
         # 如果有新的状态消息，显示在新行
         if progress_info.status_message and progress_info.status_message != last_status_message:
-            print(f"\nℹ️  {progress_info.status_message}")
+            click.echo(f"\nℹ️  {progress_info.status_message}")
             last_status_message = progress_info.status_message
 
         if progress_info.total_size > 0:
@@ -120,19 +122,18 @@ def _create_simple_progress_callback() -> ProgressCallback:
             downloaded_str = format_bytes(progress_info.downloaded)
             speed_str = format_bytes(int(progress_info.speed)) + "/s"
 
-            print(
+            click.echo(
                 f"\r[{bar}] {progress_info.percentage:.1f}% ({downloaded_str}/{total_str}) Speed: {speed_str}",
-                end="",
-                flush=True,
+                nl=False,
             )
 
             if progress_info.downloaded >= progress_info.total_size:
-                print()  # 换行
+                click.echo()  # 换行
         else:
             # 无法确定总大小时的简单显示
             downloaded_str = format_bytes(progress_info.downloaded)
             speed_str = format_bytes(int(progress_info.speed)) + "/s"
-            print(f"\r下载中... {downloaded_str} Speed: {speed_str}", end="", flush=True)
+            click.echo(f"\r下载中... {downloaded_str} Speed: {speed_str}", nl=False)
 
     return progress_callback
 
@@ -216,7 +217,7 @@ def _create_simple_segment_progress_callback() -> ProgressCallback:
         nonlocal last_status
 
         if progress_info.status_message and progress_info.status_message != last_status:
-            print(f"\nℹ️  {progress_info.status_message}")
+            click.echo(f"\nℹ️  {progress_info.status_message}")
             last_status = progress_info.status_message
 
         total_seg = progress_info.total_segments
@@ -229,15 +230,14 @@ def _create_simple_segment_progress_callback() -> ProgressCallback:
             filled = int(bar_len * completed_seg / total_seg)
             bar = "█" * filled + "-" * (bar_len - filled)
             remaining = (total_seg - completed_seg) / seg_speed if seg_speed > 0 else 0
-            print(
+            click.echo(
                 f"\r[{bar}] {completed_seg}/{total_seg} 段 | {pct:.0f}% | {seg_speed:.1f} 段/秒 | 剩余约 {remaining:.0f}秒",
-                end="",
-                flush=True,
+                nl=False,
             )
             if completed_seg >= total_seg:
-                print()
+                click.echo()
         else:
-            print(f"\r下载中... {completed_seg} 段 | {seg_speed:.1f} 段/秒", end="", flush=True)
+            click.echo(f"\r下载中... {completed_seg} 段 | {seg_speed:.1f} 段/秒", nl=False)
 
     return progress_callback
 

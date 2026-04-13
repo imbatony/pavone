@@ -16,7 +16,7 @@ class HttpUtils:
         logger: Optional[Logger] = None,
         headers: Optional[Dict[str, str]] = None,
         timeout: int = 30,
-        verify_ssl: bool = False,
+        verify_ssl: bool = True,
         max_retry: Optional[int] = None,
         no_exceptions: bool = False,
     ) -> requests.Response:
@@ -26,7 +26,7 @@ class HttpUtils:
             url: 要获取的URL
             headers: 自定义HTTP头部，如果为None则使用默认浏览器头部
             timeout: 请求超时时间（秒）
-            verify_ssl: 是否验证SSL证书，默认为False忽略SSL错误
+            verify_ssl: 是否验证SSL证书，默认为True启用SSL验证
             max_retry: 最大重试次数，如果为None则使用配置中的值
 
         Returns:
@@ -43,6 +43,8 @@ class HttpUtils:
 
         # 禁用SSL警告（如果需要的话）
         if not verify_ssl:
+            if logger:
+                logger.warning("SSL 证书验证已禁用，存在安全风险")
             try:
                 import urllib3
                 from urllib3.exceptions import InsecureRequestWarning
