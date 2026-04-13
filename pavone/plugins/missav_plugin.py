@@ -27,7 +27,16 @@ PLUGIN_AUTHOR = "PAVOne"
 PLUGIN_PRIORITY = 30
 
 # 定义支持的域名
-SUPPORTED_DOMAINS = ["missav.ai", "www.missav.ai", "missav.com", "www.missav.com", "missav.ws", "www.missav.ws","missav.live", "www.missav.live"]
+SUPPORTED_DOMAINS = [
+    "missav.ai",
+    "www.missav.ai",
+    "missav.com",
+    "www.missav.com",
+    "missav.ws",
+    "www.missav.ws",
+    "missav.live",
+    "www.missav.live",
+]
 
 SITE_NAME = "MissAV"
 

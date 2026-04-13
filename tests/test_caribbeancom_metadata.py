@@ -52,15 +52,11 @@ class TestCaribbeancomMetadata:
     def test_extract_movie_id_from_url(self):
         """测试从URL提取番号"""
         assert (
-            self.extractor._extract_movie_id_from_url(
-                "https://www.caribbeancom.com/moviepages/033026-001/index.html"
-            )
+            self.extractor._extract_movie_id_from_url("https://www.caribbeancom.com/moviepages/033026-001/index.html")
             == "033026-001"
         )
         assert (
-            self.extractor._extract_movie_id_from_url(
-                "https://en.caribbeancom.com/moviepages/112018-001/index.html"
-            )
+            self.extractor._extract_movie_id_from_url("https://en.caribbeancom.com/moviepages/112018-001/index.html")
             == "112018-001"
         )
         assert self.extractor._extract_movie_id_from_url("https://www.caribbeancom.com/ranking/") is None
@@ -69,8 +65,7 @@ class TestCaribbeancomMetadata:
         """测试从番号字符串提取"""
         assert self.extractor._extract_movie_id("033026-001") == "033026-001"
         assert (
-            self.extractor._extract_movie_id("https://www.caribbeancom.com/moviepages/033026-001/index.html")
-            == "033026-001"
+            self.extractor._extract_movie_id("https://www.caribbeancom.com/moviepages/033026-001/index.html") == "033026-001"
         )
         assert self.extractor._extract_movie_id("invalid") is None
 
@@ -180,9 +175,7 @@ class TestCaribbeancomMetadata:
         mock_response.text = html_content
 
         with patch.object(self.extractor, "fetch", return_value=mock_response):
-            metadata = self.extractor.extract_metadata(
-                "https://www.caribbeancom.com/moviepages/033026-001/index.html"
-            )
+            metadata = self.extractor.extract_metadata("https://www.caribbeancom.com/moviepages/033026-001/index.html")
 
         assert metadata is not None
         assert metadata.code == "033026-001"

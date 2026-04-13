@@ -119,9 +119,9 @@ class M3U8Downloader(BaseDownloader):
     def _parse_encryption_key(self, line: str, base_url: str) -> None:
         """解析 #EXT-X-KEY 指令并下载密钥"""
         attrs = line[len("#EXT-X-KEY:") :]
-        method_match = re.search(r'METHOD=([^,]+)', attrs)
+        method_match = re.search(r"METHOD=([^,]+)", attrs)
         uri_match = re.search(r'URI="([^"]+)"', attrs)
-        iv_match = re.search(r'IV=0x([0-9a-fA-F]+)', attrs)
+        iv_match = re.search(r"IV=0x([0-9a-fA-F]+)", attrs)
 
         if not method_match:
             return

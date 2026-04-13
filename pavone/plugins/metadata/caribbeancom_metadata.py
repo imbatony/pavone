@@ -225,7 +225,9 @@ class CaribbeancomMetadata(MetadataPlugin):
             self.logger.debug(f"选择 cover: {best_url} (高度 {max_height})")
         return best_url
 
-    def _extract_gallery_images(self, html: str, movie_id: str, base_domain: str = "https://www.caribbeancom.com") -> List[str]:
+    def _extract_gallery_images(
+        self, html: str, movie_id: str, base_domain: str = "https://www.caribbeancom.com"
+    ) -> List[str]:
         """从 HTML 的画像ギャラリー区域提取大图 URL
 
         支持不同格式的图片链接：
@@ -347,9 +349,9 @@ class CaribbeancomMetadata(MetadataPlugin):
             if desc:
                 return desc
         # movie-info 区域内的 <p>
-        section = re.search(r'movie-info(.*?)</section>', html, re.S)
+        section = re.search(r"movie-info(.*?)</section>", html, re.S)
         if section:
-            p_match = re.search(r'<p[^>]*>(.*?)</p>', section.group(1), re.S)
+            p_match = re.search(r"<p[^>]*>(.*?)</p>", section.group(1), re.S)
             if p_match:
                 desc = re.sub(r"<[^>]+>", "", p_match.group(1)).strip()
                 if desc:
