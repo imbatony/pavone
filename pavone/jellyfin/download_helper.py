@@ -1,3 +1,5 @@
+import click
+
 """
 Jellyfin 下载集成助手
 
@@ -207,15 +209,15 @@ class JellyfinDownloadHelper:
         Args:
             quality_info: VideoQualityInfo 对象
         """
-        print("\n视频质量信息:")
-        print("-" * 60)
-        print(f"路径: {quality_info.path}")
-        print(f"大小: {quality_info.size}")
-        print(f"分辨率: {quality_info.resolution}")
-        print(f"比特率: {quality_info.bitrate}")
-        print(f"编码: {quality_info.codec}")
-        print(f"时长: {quality_info.runtime}")
-        print(f"添加时间: {quality_info.added_date}")
+        click.echo("\n视频质量信息:")
+        click.echo("-" * 60)
+        click.echo(f"路径: {quality_info.path}")
+        click.echo(f"大小: {quality_info.size}")
+        click.echo(f"分辨率: {quality_info.resolution}")
+        click.echo(f"比特率: {quality_info.bitrate}")
+        click.echo(f"编码: {quality_info.codec}")
+        click.echo(f"时长: {quality_info.runtime}")
+        click.echo(f"添加时间: {quality_info.added_date}")
 
     def get_library_folders(self) -> Dict[str, List[str]]:
         """

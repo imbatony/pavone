@@ -24,30 +24,33 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "requests>=2.31.0",
-    "beautifulsoup4>=4.12.0",
-    "click>=8.1.0",
-    "tqdm>=4.65.0",
-    "rich>=13.0.0",
-    "configparser>=5.3.0",
-    "pillow>=10.0.0",
-    "lxml>=4.9.0",
-    "dukpy>=0.5.0",
-    "pydantic>=2.12.4",
+    "requests>=2.31.0,<3",
+    "beautifulsoup4>=4.12.0,<5",
+    "click>=8.1.0,<9",
+    "tqdm>=4.65.0,<5",
+    "rich>=13.0.0,<15",
+    "configparser>=5.3.0,<7",
+    "pillow>=10.0.0,<12",
+    "lxml>=6.0.0,<7",
+    "dukpy>=0.5.0,<1",
+    "pydantic>=2.12.4,<3",
     "setuptools>=80.9.0",
-    "jellyfin-apiclient-python>=0.12.0",
-    "tabulate>=0.9.0",
-    "DrissionPage>=4.1.0",
+    "jellyfin-apiclient-python>=0.12.0,<2",
+    "tabulate>=0.9.0,<1",
+    "DrissionPage>=4.1.0,<5",
 ]
 
 
 
 [project.scripts]
-pavone = "pavone.cli:main"
+pavone = "pavone.cli:cli"
 
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["pavone*"]
+
+[tool.setuptools.package-data]
+pavone = ["py.typed"]
 
 [tool.black]
 line-length = 127
@@ -93,14 +96,14 @@ addopts = [
     "--tb=short",
     "-m", "not integration",  # 默认不运行集成测试
     "-W", "ignore::urllib3.exceptions.InsecureRequestWarning",
-    "-W", "ignore::requests.packages.urllib3.exceptions.InsecureRequestWarning", 
+    "-W", "ignore::requests.packages.urllib3.exceptions.InsecureRequestWarning",
     "-W", "ignore::DeprecationWarning:requests_oauthlib",
     "-W", "ignore::PendingDeprecationWarning",
 ]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "integration: marks tests as integration tests (excluded by default)",
-    "unit: marks tests as unit tests", 
+    "unit: marks tests as unit tests",
     "network: marks tests that require network access",
 ]
 
@@ -190,6 +193,7 @@ dev = [
     "types-lxml",
     "ruff>=0.1.0",
     "pyright>=1.1.407",
+    "pre-commit>=4.5.1",
 ]
 docs = [
     "sphinx>=6.0.0",

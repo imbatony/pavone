@@ -59,6 +59,7 @@ class JellyfinClientWrapper:
         self.client.config.data["auth.ssl"] = "https" in self.config.server_url  # type: ignore[index]
         if not self.config.verify_ssl:
             # 禁用 SSL 验证警告
+            self.logger.warning("Jellyfin 客户端 SSL 证书验证已禁用，存在安全风险")
             import urllib3
 
             urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)

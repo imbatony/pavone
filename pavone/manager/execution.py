@@ -104,12 +104,12 @@ class ExecutionManager:
             ValueError: 如果用户输入无效或取消选择
         """
         if len(items) == 1:
-            print(f"找到1个下载选项: {items[0].get_description()}")
+            click.echo(f"找到1个下载选项: {items[0].get_description()}")
             return items[0]
 
-        print(f"找到 {len(items)} 个下载选项:")
+        click.echo(f"找到 {len(items)} 个下载选项:")
         for i, opt in enumerate(items, 1):
-            print(f"  {i}. {opt.get_description()}")
+            click.echo(f"  {i}. {opt.get_description()}")
 
         while True:
             try:
@@ -121,17 +121,17 @@ class ExecutionManager:
                 choice_num = int(choice)
                 if 1 <= choice_num <= len(items):
                     selected = items[choice_num - 1]
-                    print(f"已选择: {selected.get_description()}")
+                    click.echo(f"已选择: {selected.get_description()}")
                     return selected
                 else:
-                    print(f"请输入1到{len(items)}之间的数字")
+                    click.echo(f"请输入1到{len(items)}之间的数字")
 
             except ValueError as e:
                 if "用户取消了下载" in str(e):
                     raise
-                print("输入无效，请输入数字")
+                click.echo("输入无效，请输入数字")
             except KeyboardInterrupt:
-                print("\n已取消")
+                click.echo("\n已取消")
                 raise ValueError("用户取消了下载")
 
     def _handle_jellyfin_duplicate_check(self, item: OperationItem) -> bool:
@@ -200,9 +200,9 @@ class ExecutionManager:
                             self.logger.info("用户选择跳过")
                             return False
                         else:
-                            print("请输入 y/n/s 中的一个")
+                            click.echo("请输入 y/n/s 中的一个")
                     except KeyboardInterrupt:
-                        print("\n已取消")
+                        click.echo("\n已取消")
                         raise
 
             return True
@@ -337,7 +337,7 @@ class ExecutionManager:
                     else:
                         click.secho(f"❌ 请输入 1 到 {len(libraries_list)} 之间的数字", fg="red")
                 except KeyboardInterrupt:
-                    print("\n已取消")
+                    click.echo("\n已取消")
                     raise
                 except ValueError:
                     click.secho("❌ 输入无效，请输入数字", fg="red")
@@ -363,7 +363,7 @@ class ExecutionManager:
                                 fg="red",
                             )
                     except KeyboardInterrupt:
-                        print("\n已取消")
+                        click.echo("\n已取消")
                         raise
                     except ValueError:
                         click.secho("❌ 输入无效，请输入数字", fg="red")
@@ -423,7 +423,7 @@ class ExecutionManager:
                 self.logger.error("文件夹移动失败")
 
         except KeyboardInterrupt:
-            print("\n已取消")
+            click.echo("\n已取消")
             raise
         except Exception as e:
             self.logger.warning(f"Jellyfin 后下载处理失败: {e}")
@@ -775,7 +775,7 @@ class ExecutionManager:
         """
 
         try:
-            print(f"正在分析URL: {url}")
+            click.echo(f"正在分析URL: {url}")
 
             # 注册中断处理器
             interrupt_handler = get_interrupt_handler()
@@ -787,7 +787,7 @@ class ExecutionManager:
             # 2. 选择下载选项
             if auto_select:
                 selected_item = items[0]
-                print(f"自动选择: {selected_item.get_description()}")
+                click.echo(f"自动选择: {selected_item.get_description()}")
             else:
                 selected_item = self._select_download_item(items)
 
@@ -807,7 +807,7 @@ class ExecutionManager:
             return result
 
         except Exception as e:
-            print(f"下载失败: {e}")
+            click.echo(f"下载失败: {e}")
             return False
         finally:
             get_interrupt_handler().reset()

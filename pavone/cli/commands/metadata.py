@@ -58,8 +58,8 @@ def format_metadata_output(metadata: BaseMetadata) -> None:
         return f"{name_padded} {value}"
 
     # 输出表头
-    print(pad_text("字段", 16) + " 数值")
-    print("-" * 80)
+    click.echo(pad_text("字段", 16) + " 数值")
+    click.echo("-" * 80)
 
     # 构建输出行
     lines: List[str] = []
@@ -129,8 +129,8 @@ def format_metadata_output(metadata: BaseMetadata) -> None:
 
     # 输出所有行
     for line in lines:
-        print(line)
-    print()
+        click.echo(line)
+    click.echo()
 
 
 @click.group()
