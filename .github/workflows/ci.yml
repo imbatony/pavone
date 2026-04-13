@@ -124,7 +124,7 @@ jobs:
       continue-on-error: true
 
     - name: Run bandit (security linting)
-      run: uv run bandit -r pavone/ -f json
+      run: uv run bandit -r pavone/ -ll -ii -f json
 
   build-and-validate:
     name: Build and Validate Package
