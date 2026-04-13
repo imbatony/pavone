@@ -124,8 +124,7 @@ def _create_simple_progress_callback() -> ProgressCallback:
 
             click.echo(
                 f"\r[{bar}] {progress_info.percentage:.1f}% ({downloaded_str}/{total_str}) Speed: {speed_str}",
-                end="",
-                flush=True,
+                nl=False,
             )
 
             if progress_info.downloaded >= progress_info.total_size:
@@ -233,8 +232,7 @@ def _create_simple_segment_progress_callback() -> ProgressCallback:
             remaining = (total_seg - completed_seg) / seg_speed if seg_speed > 0 else 0
             click.echo(
                 f"\r[{bar}] {completed_seg}/{total_seg} 段 | {pct:.0f}% | {seg_speed:.1f} 段/秒 | 剩余约 {remaining:.0f}秒",
-                end="",
-                flush=True,
+                nl=False,
             )
             if completed_seg >= total_seg:
                 click.echo()

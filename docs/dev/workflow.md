@@ -1,50 +1,50 @@
 # 开发工作流
 
-本文档说明如何使用 `dev.ps1` 脚本进行本地开发和测试。
+本文档说明如何使用 `scripts/dev.ps1` 脚本进行本地开发和测试。
 
 ## 快速开始
 
 ```powershell
 # 1. 安装依赖
-.\dev.ps1 install
+.\scripts\dev.ps1 install
 
 # 2. 激活开发环境
-.\dev.ps1 dev
+.\scripts\dev.ps1 dev
 
 # 3. 运行测试
-.\dev.ps1 test
+.\scripts\dev.ps1 test
 ```
 
 ## 可用命令
 
 ### 📦 环境管理
 
-- `.\dev.ps1 install` - 安装项目依赖
-- `.\dev.ps1 dev` - 激活虚拟环境
-- `.\dev.ps1 clean` - 清理缓存文件
+- `.\scripts\dev.ps1 install` - 安装项目依赖
+- `.\scripts\dev.ps1 dev` - 激活虚拟环境
+- `.\scripts\dev.ps1 clean` - 清理缓存文件
 
 ### 🧪 测试命令
 
-- `.\dev.ps1 test` - 运行单元测试（不包括集成测试）**推荐用于日常开发**
-- `.\dev.ps1 test-all` - 运行所有测试（包括集成测试）
-- `.\dev.ps1 test-cov` - 运行测试并生成覆盖率报告
+- `.\scripts\dev.ps1 test` - 运行单元测试（不包括集成测试）**推荐用于日常开发**
+- `.\scripts\dev.ps1 test-all` - 运行所有测试（包括集成测试）
+- `.\scripts\dev.ps1 test-cov` - 运行测试并生成覆盖率报告
 
 ### 🎨 代码质量
 
-- `.\dev.ps1 format` - 格式化代码（black + isort）
-- `.\dev.ps1 format-check` - 检查代码格式（不修改文件）
-- `.\dev.ps1 lint` - 运行 lint 检查（flake8）
-- `.\dev.ps1 type-check` - 运行类型检查（pyright）
-- `.\dev.ps1 check` - 运行完整代码质量检查（format + lint + type-check）
+- `.\scripts\dev.ps1 format` - 格式化代码（black + isort）
+- `.\scripts\dev.ps1 format-check` - 检查代码格式（不修改文件）
+- `.\scripts\dev.ps1 lint` - 运行 lint 检查（flake8）
+- `.\scripts\dev.ps1 type-check` - 运行类型检查（pyright）
+- `.\scripts\dev.ps1 check` - 运行完整代码质量检查（format + lint + type-check）
 
 ### 🚀 CI/CD
 
-- `.\dev.ps1 ci` - 运行完整 CI 流程（本地模拟）
+- `.\scripts\dev.ps1 ci` - 运行完整 CI 流程（本地模拟）
 
 ### 📦 其他
 
-- `.\dev.ps1 run [args]` - 运行 PAVOne CLI
-- `.\dev.ps1 build` - 构建项目包
+- `.\scripts\dev.ps1 run [args]` - 运行 PAVOne CLI
+- `.\scripts\dev.ps1 build` - 构建项目包
 
 ## 开发工作流
 

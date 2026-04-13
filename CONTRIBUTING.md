@@ -40,20 +40,20 @@ uv run pytest
 
 ```bash
 # Windows
-.\dev.ps1 format
+.\scripts\dev.ps1 format
 
 # Linux/macOS
-make format
+make -f scripts/Makefile format
 ```
 
 ### 运行检查
 
 ```bash
 # Windows
-.\dev.ps1 type-check
+.\scripts\dev.ps1 type-check
 
 # Linux/macOS
-make type-check
+make -f scripts/Makefile type-check
 ```
 
 ## 测试
@@ -66,10 +66,10 @@ uv run pytest
 uv run pytest --cov=pavone --cov-report=html
 
 # Windows 快捷方式
-.\dev.ps1 test
+.\scripts\dev.ps1 test
 
 # Linux/macOS
-make test
+make -f scripts/Makefile test
 ```
 
 ### 测试规范
@@ -105,7 +105,7 @@ chore: 更新依赖版本
 
 1. Fork 仓库并创建分支
 2. 编写代码和测试
-3. 确保所有检查通过：`make check` 或 `.\dev.ps1 check`
+3. 确保所有检查通过：`make -f scripts/Makefile check` 或 `.\scripts\dev.ps1 check`
 4. 提交 PR 并在描述中说明变更内容和测试方式
 5. 等待 CI 通过和代码审查
 
@@ -113,7 +113,7 @@ chore: 更新依赖版本
 
 | 平台 | 命令 |
 |------|------|
-| Windows | `.\dev.ps1 <command>` |
-| Linux/macOS | `make <command>` |
+| Windows | `.\scripts\dev.ps1 <command>` |
+| Linux/macOS | `make -f scripts/Makefile <command>` |
 
 可用命令：`install`, `test`, `lint`, `format`, `type-check`, `check`, `ci`

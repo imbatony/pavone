@@ -128,10 +128,10 @@ pavone organize "/path/to/videos" --find-duplicates
 uv sync && uv run pytest
 
 # 使用 make (Linux/macOS)
-make install && make test
+make -f scripts/Makefile install && make -f scripts/Makefile test
 
 # 使用 dev.ps1 (Windows)
-.\dev.ps1 test
+.\scripts\dev.ps1 test
 ```
 
 详细的开发指南请参考 [docs/dev/development.md](docs/dev/development.md)。
