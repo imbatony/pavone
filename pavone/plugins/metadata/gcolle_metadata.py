@@ -73,7 +73,7 @@ class GcolleMetadata(HtmlMetadataPlugin):
                     session = requests.Session()
                     session.cookies.update(dict(resp.cookies))
                     session.headers.update({"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"})
-                    resp = session.get(a["href"], timeout=30)
+                    resp = session.get(str(a["href"]), timeout=30)
                     resp.raise_for_status()
                     break
         return resp

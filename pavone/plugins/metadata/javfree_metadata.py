@@ -84,7 +84,7 @@ class JavfreeMetadata(HtmlMetadataPlugin):
                 m = re.search(r"\[([A-Z]+-\d+)\]", raw_title)
                 if m:
                     code = m.group(1)
-                    title = re.sub(r"\[" + re.escape(code) + r"\]\s*", "", raw_title).strip()
+                    title = re.sub(r"\[" + re.escape(str(code)) + r"\]\s*", "", raw_title).strip()
                 else:
                     title = raw_title
 
