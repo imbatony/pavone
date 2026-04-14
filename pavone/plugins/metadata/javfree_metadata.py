@@ -50,10 +50,11 @@ class JavfreeMetadata(HtmlMetadataPlugin):
     def _resolve(self, identifier: str):
         if identifier.startswith("http://") or identifier.startswith("https://"):
             parsed = urlparse(identifier)
-            m = re.search(r"/(\d+)/fc2-ppv-(\d+)", parsed.path)
+            # Match /post_id/slug format
+            m = re.search(r"/(\d+)/(.+?)/?$", parsed.path)
             if m:
-                dual_id = f"{m.group(1)}-{m.group(2)}"
-                return dual_id, identifier
+                movie_id = m.group(2)
+                return movie_id, identifier
             return None, None
         parts = identifier.strip().split("-")
         if len(parts) == 2 and parts[0].isdigit() and parts[1].isdigit():
@@ -62,23 +63,33 @@ class JavfreeMetadata(HtmlMetadataPlugin):
 
     def _parse(self, soup: BeautifulSoup, movie_id: str, page_url: str) -> Optional[MovieMetadata]:
         fc2_number: Optional[str] = None
+        code: Optional[str] = None
         title: Optional[str] = None
         director: Optional[str] = None
         premiered: Optional[str] = None
 
-        # Title + FC2 number from h1
+        # Title from h1
         h1 = soup.select_one("header.entry-header h1")
+        if not h1:
+            h1 = soup.select_one("h1.entry-title")
         if h1:
             raw_title = h1.get_text(strip=True)
-            # Extract FC2 number
+            # Try FC2 number
             m = re.search(r"FC2[-_]?(?:PPV[-_]?)?(\d+)", raw_title, re.IGNORECASE)
             if m:
                 fc2_number = f"FC2-{m.group(1)}"
-            # Clean title: remove FC2-PPV-xxx prefix
-            title = re.sub(r"(?i)FC2[-_]?(?:PPV[-_]?)?\d+\s*", "", raw_title).strip()
+                title = re.sub(r"(?i)FC2[-_]?(?:PPV[-_]?)?\d+\s*", "", raw_title).strip()
+            else:
+                # Try [CODE-123] bracket format
+                m = re.search(r"\[([A-Z]+-\d+)\]", raw_title)
+                if m:
+                    code = m.group(1)
+                    title = re.sub(r"\[" + re.escape(code) + r"\]\s*", "", raw_title).strip()
+                else:
+                    title = raw_title
 
         # Fallback FC2 number from URL
-        if not fc2_number:
+        if not fc2_number and not code:
             slug = page_url.rstrip("/").split("/")[-1]
             m = re.search(r"fc2-ppv-(\d+)", slug, re.IGNORECASE)
             if m:
@@ -105,7 +116,7 @@ class JavfreeMetadata(HtmlMetadataPlugin):
             cover = backdrops[0]
             backdrops = backdrops[1:]
 
-        display_code = fc2_number or f"FC2-{movie_id.split('-')[-1]}"
+        display_code = code or fc2_number or movie_id.upper()
 
         metadata = (
             MetadataBuilder()

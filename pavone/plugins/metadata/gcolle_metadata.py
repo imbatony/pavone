@@ -11,6 +11,7 @@ import re
 from typing import List, Optional
 from urllib.parse import urlparse
 
+import requests
 from bs4 import BeautifulSoup
 
 from ...models import MovieMetadata
@@ -60,6 +61,22 @@ class GcolleMetadata(HtmlMetadataPlugin):
             movie_id = m.group(1)
             return movie_id, MOVIE_URL_TEMPLATE.format(movie_id=movie_id)
         return None, None
+
+    def _fetch_page(self, url: str) -> requests.Response:
+        """覆写以处理年龄认证页面"""
+        resp = self.fetch(url, timeout=30)
+        # 检查是否命中年龄认证页面（内容过短且包含 age_check 链接）
+        if len(resp.text) < 2000 and "age_check" in resp.text:
+            soup = BeautifulSoup(resp.text, "lxml")
+            for a in soup.find_all("a"):
+                if a.get_text(strip=True) == "はい" and "age_check" in (a.get("href") or ""):
+                    session = requests.Session()
+                    session.cookies.update(dict(resp.cookies))
+                    session.headers.update({"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"})
+                    resp = session.get(a["href"], timeout=30)
+                    resp.raise_for_status()
+                    break
+        return resp
 
     def _parse(self, soup: BeautifulSoup, movie_id: str, page_url: str) -> Optional[MovieMetadata]:
         code = f"GCOLLE-{movie_id}"

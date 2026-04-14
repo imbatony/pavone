@@ -26,7 +26,7 @@ PLUGIN_PRIORITY = 50
 SUPPORTED_DOMAINS = ["muramura.tv", "www.muramura.tv"]
 SITE_NAME = "MuraMura"
 
-MOVIE_ID_PATTERN = r"\d{6}_\d{3}"
+MOVIE_ID_PATTERN = r"\d{6}_\d{3,4}"
 API_URL_TEMPLATE = "https://www.muramura.tv/dyn/phpauto/movie_details/movie_id/{movie_id}.json"
 MOVIE_URL_TEMPLATE = "https://www.muramura.tv/movies/{movie_id}/"
 

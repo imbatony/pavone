@@ -125,25 +125,25 @@ class TokyoHotMetadata(HtmlMetadataPlugin):
             dds = dl.find_all("dd")
             for dt_el, dd_el in zip(dts, dds):
                 key = dt_el.get_text(strip=True)
-                if key == "出演者":
+                if key in ("出演者", "Model"):
                     for a in dd_el.find_all("a"):
                         name = a.get_text(strip=True)
                         if name and name != "不明":
                             actors.append(name)
-                elif key in ("プレイ内容", "タグ"):
+                elif key in ("プレイ内容", "タグ", "Play", "Tags"):
                     for a in dd_el.find_all("a"):
                         tag = a.get_text(strip=True)
                         if tag and tag not in tags:
                             tags.append(tag)
-                elif key == "シリーズ":
+                elif key in ("シリーズ", "Theme"):
                     serial = dd_el.get_text(strip=True) or None
-                elif key == "レーベル":
+                elif key in ("レーベル", "Label"):
                     label = dd_el.get_text(strip=True) or None
-                elif key == "配信開始日":
+                elif key in ("配信開始日", "Release Date"):
                     premiered = self._parse_date(dd_el.get_text(strip=True))
-                elif key == "収録時間":
+                elif key in ("収録時間", "Duration"):
                     runtime = self._parse_runtime(dd_el.get_text(strip=True))
-                elif key == "作品番号":
+                elif key in ("作品番号", "Product ID"):
                     number = dd_el.get_text(strip=True)
 
         display_code = number or movie_id

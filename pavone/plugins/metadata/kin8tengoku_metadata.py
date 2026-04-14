@@ -49,7 +49,7 @@ class Kin8tengokuMetadata(HtmlMetadataPlugin):
     def _resolve(self, identifier: str):
         if identifier.startswith("http://") or identifier.startswith("https://"):
             parsed = urlparse(identifier)
-            m = re.search(r"/moviepages/(\d+)/", parsed.path)
+            m = re.search(r"/moviepages/(\d+)/?", parsed.path)
             if m:
                 movie_id = m.group(1)
                 return movie_id, identifier
