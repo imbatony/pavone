@@ -65,9 +65,7 @@ class FanzaMetadata(HtmlMetadataPlugin):
         """添加年龄验证 Cookie"""
         return self.fetch(url, headers={"Cookie": "age_check_done=1"}, timeout=30)
 
-    def _parse(
-        self, soup: BeautifulSoup, movie_id: str, page_url: str
-    ) -> Optional[BaseMetadata]:
+    def _parse(self, soup: BeautifulSoup, movie_id: str, page_url: str) -> Optional[BaseMetadata]:
         """HTML 解析入口 (用于满足 HtmlMetadataPlugin 抽象方法)"""
         return self._parse_html(soup, movie_id, page_url)
 

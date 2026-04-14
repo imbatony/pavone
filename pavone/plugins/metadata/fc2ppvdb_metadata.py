@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 
 from bs4 import BeautifulSoup
 
-from ...models import BaseMetadata, MovieMetadata
+from ...models import BaseMetadata
 from ...utils.metadata_builder import MetadataBuilder
 from .base import HtmlMetadataPlugin
 
@@ -128,5 +128,3 @@ class Fc2PpvdbMetadata(HtmlMetadataPlugin):
         metadata.official_rating = "JP-18+"
         self.logger.info(f"成功提取元数据: {code}")
         return metadata
-
-

@@ -138,9 +138,7 @@ class HtmlMetadataPlugin(MetadataPlugin):
         ...
 
     @abstractmethod
-    def _parse(
-        self, soup: BeautifulSoup, movie_id: str, page_url: str
-    ) -> Optional[BaseMetadata]:
+    def _parse(self, soup: BeautifulSoup, movie_id: str, page_url: str) -> Optional[BaseMetadata]:
         """从 BeautifulSoup 对象解析元数据"""
         ...
 
@@ -259,9 +257,7 @@ class ApiMetadataPlugin(MetadataPlugin):
         ...
 
     @abstractmethod
-    def _parse(
-        self, data: Dict[str, Any], movie_id: str, page_url: str
-    ) -> Optional[BaseMetadata]:
+    def _parse(self, data: Dict[str, Any], movie_id: str, page_url: str) -> Optional[BaseMetadata]:
         """从 JSON 响应数据解析元数据"""
         ...
 
@@ -315,9 +311,7 @@ class JsonLdMetadataPlugin(HtmlMetadataPlugin):
         """从 JSON-LD + HTML soup 解析元数据"""
         ...
 
-    def _parse(
-        self, soup: BeautifulSoup, movie_id: str, page_url: str
-    ) -> Optional[BaseMetadata]:
+    def _parse(self, soup: BeautifulSoup, movie_id: str, page_url: str) -> Optional[BaseMetadata]:
         """重定向到 _parse_with_jsonld, 保持 HtmlMetadataPlugin 兼容"""
         jsonld_data = self._extract_jsonld(soup)
         return self._parse_with_jsonld(soup, jsonld_data, movie_id, page_url)

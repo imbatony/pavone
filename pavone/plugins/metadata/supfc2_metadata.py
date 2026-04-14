@@ -7,10 +7,10 @@ SupFC2元数据提取器插件
 import re
 from typing import List, Optional, Tuple
 
-from bs4 import BeautifulSoup
 import requests
+from bs4 import BeautifulSoup
 
-from ...models import BaseMetadata, MovieMetadata
+from ...models import BaseMetadata
 from ...utils.html_metadata_utils import HTMLMetadataExtractor
 from ...utils.metadata_builder import MetadataBuilder
 from .fc2_base import FC2BaseMetadata

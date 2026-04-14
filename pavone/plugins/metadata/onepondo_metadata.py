@@ -7,7 +7,6 @@
 
 import re
 from typing import Any, Dict, List, Optional, Tuple
-from urllib.parse import urlparse
 
 from ...models import MovieMetadata
 from ...utils.metadata_builder import MetadataBuilder

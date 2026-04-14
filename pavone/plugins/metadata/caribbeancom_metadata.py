@@ -7,7 +7,6 @@ Caribbeancom元数据提取器插件
 
 import re
 from typing import List, Optional, Tuple
-from urllib.parse import urlparse
 
 import requests
 from bs4 import BeautifulSoup
@@ -104,9 +103,7 @@ class CaribbeancomMetadata(HtmlMetadataPlugin):
             resp.encoding = "euc-jp"
         return resp
 
-    def _parse(
-        self, soup: BeautifulSoup, movie_id: str, page_url: str
-    ) -> Optional[BaseMetadata]:
+    def _parse(self, soup: BeautifulSoup, movie_id: str, page_url: str) -> Optional[BaseMetadata]:
         """从 BeautifulSoup 对象解析元数据"""
         is_premium = any(d in page_url for d in PREMIUM_DOMAINS)
         html = str(soup)

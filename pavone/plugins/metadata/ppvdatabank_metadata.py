@@ -10,7 +10,7 @@ from typing import List, Optional, Tuple
 import requests
 from bs4 import BeautifulSoup
 
-from ...models import BaseMetadata, MovieMetadata, SearchResult
+from ...models import BaseMetadata, SearchResult
 from ...utils.html_metadata_utils import HTMLMetadataExtractor
 from ...utils.metadata_builder import MetadataBuilder
 from ..search.base import SearchPlugin

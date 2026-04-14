@@ -54,9 +54,7 @@ class AvBaseMetadata(HtmlMetadataPlugin):
         # ID 格式: 纯大写字母数字，如 "ABC-123" 或 "dga:pkey12345"
         return bool(re.match(r"^[A-Za-z\d:_-]+$", identifier.strip()) and len(identifier.strip()) > 2)
 
-    def _parse(
-        self, soup: BeautifulSoup, movie_id: str, page_url: str
-    ) -> Optional[BaseMetadata]:
+    def _parse(self, soup: BeautifulSoup, movie_id: str, page_url: str) -> Optional[BaseMetadata]:
         """从 HTML __NEXT_DATA__ 解析元数据 (满足 HtmlMetadataPlugin 抽象方法)"""
         import json
 

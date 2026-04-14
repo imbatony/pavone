@@ -5,6 +5,23 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.3.2] - 2025-07-18
+
+### 新增
+- `HtmlMetadataPlugin` 中间基类 — HTML 解析类插件的通用流程封装（resolve → fetch → parse + 统一错误处理）
+- `ApiMetadataPlugin` 中间基类 — API/JSON 类插件的通用流程封装
+- `JsonLdMetadataPlugin` 中间基类 — JSON-LD 解析类插件的通用流程封装（继承 HtmlMetadataPlugin）
+- `_get_tag_attr` 类型安全工具方法 — 安全获取 BeautifulSoup 标签属性，返回 `Optional[str]`
+
+### 改进
+- 统一 `_abs` 方法至基类（原 16 份独立实现 → 1 份）
+- 统一 `_parse_runtime` 方法至基类，超集合并 3 种变体（原 14 份 → 1 份）
+- 统一 `_parse_date` 方法至基类，超集合并 4 种分隔符格式（原 23 份 → 1 份）
+- 统一 `_parse_iso_duration` 方法至基类（原 5 份 → 1 份）
+- 34 个元数据插件分 8 批迁移至新基类，每批独立验证
+- `FC2BaseMetadata` 改为继承 `HtmlMetadataPlugin`，自动获得模板方法和工具方法
+- 插件总代码行数从 7,148 行降至 6,357 行（减少 11%）
+
 ## [0.2.2] - 2026-03-17
 
 ### 新增

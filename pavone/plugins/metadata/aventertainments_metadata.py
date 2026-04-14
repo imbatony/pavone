@@ -144,4 +144,3 @@ class AvEntertainmentsMetadata(HtmlMetadataPlugin):
         metadata.official_rating = "JP-18+"
         self.logger.info(f"成功提取元数据: {display_code}")
         return metadata
-
