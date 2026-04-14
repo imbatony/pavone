@@ -8,14 +8,14 @@ ID 格式: DDDDDD_DDD (如 011215_178)
 """
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 import requests
 
 from ...models import MovieMetadata
 from ...utils.metadata_builder import MetadataBuilder
-from .base import MetadataPlugin
+from .base import ApiMetadataPlugin
 
 PLUGIN_NAME = "MuramuraMetadata"
 PLUGIN_VERSION = "1.0.0"
@@ -31,7 +31,7 @@ API_URL_TEMPLATE = "https://www.muramura.tv/dyn/phpauto/movie_details/movie_id/{
 MOVIE_URL_TEMPLATE = "https://www.muramura.tv/movies/{movie_id}/"
 
 
-class MuramuraMetadata(MetadataPlugin):
+class MuramuraMetadata(ApiMetadataPlugin):
     """muramura.tv 元数据提取器，通过 JSON API 获取数据。"""
 
     def __init__(self):
@@ -48,32 +48,20 @@ class MuramuraMetadata(MetadataPlugin):
             return self.can_handle_domain(identifier, SUPPORTED_DOMAINS)
         return bool(re.match(rf"^{MOVIE_ID_PATTERN}$", identifier.strip()))
 
-    def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
-        try:
-            movie_id, page_url = self._resolve(identifier)
-            if not movie_id or not page_url:
-                self.logger.error(f"无法解析 identifier: {identifier}")
-                return None
+    def _fetch_api(self, url: str) -> requests.Response:
+        return self.fetch(
+            url,
+            timeout=30,
+            headers={
+                "Content-Type": "application/json",
+                "Connection": "keep-alive",
+            },
+        )
 
-            api_url = API_URL_TEMPLATE.format(movie_id=movie_id)
-            resp = self.fetch(
-                api_url,
-                timeout=30,
-                headers={
-                    "Content-Type": "application/json",
-                    "Connection": "keep-alive",
-                },
-            )
-            data: Dict[str, Any] = resp.json()
-            return self._build(data, movie_id, page_url)
-        except requests.RequestException as e:
-            self.logger.error(f"HTTP 请求失败: {e}")
-            return None
-        except Exception as e:
-            self.logger.error(f"提取元数据失败: {e}", exc_info=True)
-            return None
+    def _build_api_url(self, movie_id: str) -> str:
+        return API_URL_TEMPLATE.format(movie_id=movie_id)
 
-    def _resolve(self, identifier: str):
+    def _resolve(self, identifier: str) -> Tuple[Optional[str], Optional[str]]:
         if identifier.startswith("http://") or identifier.startswith("https://"):
             parsed = urlparse(identifier)
             m = re.search(rf"/movies/({MOVIE_ID_PATTERN})/?", parsed.path)
@@ -90,7 +78,7 @@ class MuramuraMetadata(MetadataPlugin):
             return movie_id, MOVIE_URL_TEMPLATE.format(movie_id=movie_id)
         return None, None
 
-    def _build(self, data: Dict[str, Any], movie_id: str, page_url: str) -> Optional[MovieMetadata]:
+    def _parse(self, data: Dict[str, Any], movie_id: str, page_url: str) -> Optional[MovieMetadata]:
         if not data:
             return None
 

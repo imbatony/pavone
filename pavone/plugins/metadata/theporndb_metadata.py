@@ -9,14 +9,14 @@ ID 格式: slug (如 bbc-slut-training-camp-4-scene-1)
 """
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 import requests
 
 from ...models import MovieMetadata
 from ...utils.metadata_builder import MetadataBuilder
-from .base import MetadataPlugin
+from .base import ApiMetadataPlugin
 
 PLUGIN_NAME = "ThePorndbMetadata"
 PLUGIN_VERSION = "1.0.0"
@@ -31,7 +31,7 @@ API_URL_TEMPLATE = "https://api.theporndb.net/scenes/{slug}"
 PAGE_URL_TEMPLATE = "https://theporndb.net/scenes/{slug}"
 
 
-class ThePorndbMetadata(MetadataPlugin):
+class ThePorndbMetadata(ApiMetadataPlugin):
     """theporndb.net 元数据提取器，通过 REST API 获取数据。需要配置 API token。"""
 
     def __init__(self):
@@ -61,29 +61,15 @@ class ThePorndbMetadata(MetadataPlugin):
         if not self._access_token:
             self.logger.warning("ThePornDB 需要配置 API access_token")
             return None
+        return super().extract_metadata(identifier)
 
-        try:
-            slug, page_url = self._resolve(identifier)
-            if not slug or not page_url:
-                self.logger.error(f"无法解析 identifier: {identifier}")
-                return None
+    def _fetch_api(self, url: str) -> requests.Response:
+        return self.fetch(url, timeout=30, headers={"Authorization": f"Bearer {self._access_token}"})
 
-            api_url = API_URL_TEMPLATE.format(slug=slug)
-            resp = self.fetch(
-                api_url,
-                timeout=30,
-                headers={"Authorization": f"Bearer {self._access_token}"},
-            )
-            data: Dict[str, Any] = resp.json()
-            return self._parse(data, slug, page_url)
-        except requests.RequestException as e:
-            self.logger.error(f"HTTP 请求失败: {e}")
-            return None
-        except Exception as e:
-            self.logger.error(f"提取元数据失败: {e}", exc_info=True)
-            return None
+    def _build_api_url(self, movie_id: str) -> str:
+        return API_URL_TEMPLATE.format(slug=movie_id)
 
-    def _resolve(self, identifier: str):
+    def _resolve(self, identifier: str) -> Tuple[Optional[str], Optional[str]]:
         if identifier.startswith("http://") or identifier.startswith("https://"):
             parsed = urlparse(identifier)
             parts = parsed.path.strip("/").split("/")
