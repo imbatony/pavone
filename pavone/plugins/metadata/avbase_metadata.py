@@ -8,15 +8,15 @@ AVBase 元数据提取器插件
 """
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 import requests
 from bs4 import BeautifulSoup
 
-from ...models import MovieMetadata
+from ...models import BaseMetadata, MovieMetadata
 from ...utils.metadata_builder import MetadataBuilder
-from .base import MetadataPlugin
+from .base import HtmlMetadataPlugin
 
 PLUGIN_NAME = "AvBaseMetadata"
 PLUGIN_VERSION = "1.0.0"
@@ -32,8 +32,11 @@ MOVIE_URL_TEMPLATE = "https://www.avbase.net/works/{movie_id}"
 MOVIE_API_TEMPLATE = "https://www.avbase.net/_next/data/{build_id}/works/{movie_id}.json?id={movie_id}"
 
 
-class AvBaseMetadata(MetadataPlugin):
-    """avbase.net 元数据提取器，通过 Next.js API 获取数据。"""
+class AvBaseMetadata(HtmlMetadataPlugin):
+    """avbase.net 元数据提取器。
+
+    特殊 API + HTML 回退逻辑，覆写 extract_metadata 保持自定义流程。
+    """
 
     def __init__(self):
         super().__init__(
@@ -51,7 +54,21 @@ class AvBaseMetadata(MetadataPlugin):
         # ID 格式: 纯大写字母数字，如 "ABC-123" 或 "dga:pkey12345"
         return bool(re.match(r"^[A-Za-z\d:_-]+$", identifier.strip()) and len(identifier.strip()) > 2)
 
+    def _parse(
+        self, soup: BeautifulSoup, movie_id: str, page_url: str
+    ) -> Optional[BaseMetadata]:
+        """从 HTML __NEXT_DATA__ 解析元数据 (满足 HtmlMetadataPlugin 抽象方法)"""
+        import json
+
+        script = soup.find("script", id="__NEXT_DATA__")
+        if script and script.string:
+            data = json.loads(script.string)
+            props = data.get("props") or {}
+            return self._parse_api(props, movie_id, page_url)
+        return None
+
     def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
+        """API 优先, 回退到 HTML __NEXT_DATA__ 解析"""
         try:
             movie_id, page_url = self._resolve(identifier)
             if not movie_id or not page_url:
@@ -79,7 +96,7 @@ class AvBaseMetadata(MetadataPlugin):
             self.logger.error(f"提取元数据失败: {e}", exc_info=True)
             return None
 
-    def _resolve(self, identifier: str):
+    def _resolve(self, identifier: str) -> Tuple[Optional[str], Optional[str]]:
         if identifier.startswith("http://") or identifier.startswith("https://"):
             parsed = urlparse(identifier)
             parts = [p for p in parsed.path.split("/") if p]
@@ -208,14 +225,4 @@ class AvBaseMetadata(MetadataPlugin):
                 return self._parse_api(props, movie_id, page_url)
         except Exception as e:
             self.logger.error(f"HTML 解析回退失败: {e}")
-        return None
-
-    @staticmethod
-    def _parse_runtime(text: str) -> Optional[int]:
-        m = re.search(r"(\d+)\s*分", text)
-        if m:
-            return int(m.group(1))
-        m2 = re.match(r"(\d+):(\d+)", text.strip())
-        if m2:
-            return int(m2.group(1)) * 60 + int(m2.group(2))
         return None

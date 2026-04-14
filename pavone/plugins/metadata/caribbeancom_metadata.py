@@ -6,11 +6,15 @@ Caribbeancom元数据提取器插件
 """
 
 import re
-from typing import List, Optional
+from typing import List, Optional, Tuple
+from urllib.parse import urlparse
 
-from ...models import MovieMetadata
+import requests
+from bs4 import BeautifulSoup
+
+from ...models import BaseMetadata, MovieMetadata
 from ...utils.metadata_builder import MetadataBuilder
-from .base import MetadataPlugin
+from .base import HtmlMetadataPlugin
 
 # 定义插件名称和版本
 PLUGIN_NAME = "CaribbeancomMetadata"
@@ -46,7 +50,7 @@ MOVIE_URL_TEMPLATE = "https://www.caribbeancom.com/moviepages/{movie_id}/index.h
 MOVIE_URL_TEMPLATE_PR = "https://www.caribbeancompr.com/moviepages/{movie_id}/index.html"
 
 
-class CaribbeancomMetadata(MetadataPlugin):
+class CaribbeancomMetadata(HtmlMetadataPlugin):
     """
     Caribbeancom元数据提取器
     通过解析HTML页面提取 caribbeancom.com 视频元数据。
@@ -81,34 +85,32 @@ class CaribbeancomMetadata(MetadataPlugin):
             or re.match(rf"^{MOVIE_ID_PATTERN_PR}$", identifier_stripped)
         )
 
-    def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
-        """从给定的identifier提取元数据"""
-        try:
-            is_premium = self._is_premium(identifier)
-            movie_id = self._extract_movie_id(identifier, is_premium)
-            if not movie_id:
-                self.logger.error(f"无法从identifier提取番号: {identifier}")
-                return None
+    def _resolve(self, identifier: str) -> Tuple[Optional[str], Optional[str]]:
+        """将 identifier 解析为 (movie_id, page_url)"""
+        is_premium = self._is_premium(identifier)
+        movie_id = self._extract_movie_id(identifier, is_premium)
+        if not movie_id:
+            return None, None
+        if is_premium:
+            url = MOVIE_URL_TEMPLATE_PR.format(movie_id=movie_id)
+        else:
+            url = MOVIE_URL_TEMPLATE.format(movie_id=movie_id)
+        return movie_id, url
 
-            if is_premium:
-                url = MOVIE_URL_TEMPLATE_PR.format(movie_id=movie_id)
-            else:
-                url = MOVIE_URL_TEMPLATE.format(movie_id=movie_id)
+    def _fetch_page(self, url: str) -> requests.Response:
+        """获取页面, caribbeancompr 使用 EUC-JP 编码"""
+        resp = self.fetch(url, timeout=30)
+        if any(d in url for d in PREMIUM_DOMAINS):
+            resp.encoding = "euc-jp"
+        return resp
 
-            response = self.fetch(url, timeout=30)
-            # caribbeancompr 使用 EUC-JP 编码
-            if is_premium:
-                response.encoding = "euc-jp"
-            html = response.text
-            if not html:
-                self.logger.error(f"获取页面内容失败: {url}")
-                return None
-
-            return self._build_metadata_from_html(html, movie_id, is_premium)
-
-        except Exception as e:
-            self.logger.error(f"提取元数据失败: {str(e)}", exc_info=True)
-            return None
+    def _parse(
+        self, soup: BeautifulSoup, movie_id: str, page_url: str
+    ) -> Optional[BaseMetadata]:
+        """从 BeautifulSoup 对象解析元数据"""
+        is_premium = any(d in page_url for d in PREMIUM_DOMAINS)
+        html = str(soup)
+        return self._build_metadata_from_html(html, movie_id, is_premium)
 
     def _is_premium(self, identifier: str) -> bool:
         """判断是否为 caribbeancompr (Premium) 链接"""
