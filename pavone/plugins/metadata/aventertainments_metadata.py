@@ -65,7 +65,7 @@ class AvEntertainmentsMetadata(HtmlMetadataPlugin):
             return s, MOVIE_URL_TEMPLATE.format(id=s)
         return None, None
 
-    def _parse(self, soup: BeautifulSoup, product_id: str, page_url: str) -> Optional[MovieMetadata]:
+    def _parse(self, soup: BeautifulSoup, movie_id: str, page_url: str) -> Optional[MovieMetadata]:
         # Title
         title_tag = soup.select_one("#MyBody .section-title h3")
         title = title_tag.get_text(strip=True) if title_tag else ""
@@ -124,7 +124,7 @@ class AvEntertainmentsMetadata(HtmlMetadataPlugin):
             elif key == "収録時間":
                 runtime = self._parse_runtime(val)
 
-        display_code = code or product_id
+        display_code = code or movie_id
 
         builder = (
             MetadataBuilder()

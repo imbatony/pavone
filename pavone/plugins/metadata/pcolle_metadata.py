@@ -68,7 +68,7 @@ class PcolleMetadata(HtmlMetadataPlugin):
             return pid, MOVIE_URL_TEMPLATE.format(product_id=pid)
         return None, None
 
-    def _parse(self, soup: BeautifulSoup, product_id: str, page_url: str) -> Optional[MovieMetadata]:
+    def _parse(self, soup: BeautifulSoup, movie_id: str, page_url: str) -> Optional[MovieMetadata]:
         title: Optional[str] = None
         maker: Optional[str] = None
         premiered: Optional[str] = None
@@ -127,7 +127,7 @@ class PcolleMetadata(HtmlMetadataPlugin):
         if not cover and backdrops:
             cover = backdrops[0]
 
-        display_code = f"PCOLLE-{product_id}"
+        display_code = f"PCOLLE-{movie_id}"
 
         metadata = (
             MetadataBuilder()

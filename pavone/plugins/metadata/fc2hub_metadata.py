@@ -61,7 +61,7 @@ class Fc2HubMetadata(JsonLdMetadataPlugin):
         return None, None
 
     def _parse_with_jsonld(
-        self, soup: BeautifulSoup, jsonld: Optional[Dict[str, Any]], dual_id: str, page_url: str
+        self, soup: BeautifulSoup, jsonld: Optional[Dict[str, Any]], movie_id: str, page_url: str
     ) -> Optional[MovieMetadata]:
         title: Optional[str] = None
         cover: Optional[str] = None
@@ -124,7 +124,7 @@ class Fc2HubMetadata(JsonLdMetadataPlugin):
                     href_str if href_str.startswith("http") else f"https:{href_str}" if href_str.startswith("//") else href_str
                 )
 
-        display_code = fc2_number or f"FC2-{dual_id.split('-')[-1]}"
+        display_code = fc2_number or f"FC2-{movie_id.split('-')[-1]}"
 
         metadata = (
             MetadataBuilder()

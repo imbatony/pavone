@@ -60,7 +60,7 @@ class JavfreeMetadata(HtmlMetadataPlugin):
             return identifier.strip(), MOVIE_URL_TEMPLATE.format(post_id=parts[0], number=parts[1])
         return None, None
 
-    def _parse(self, soup: BeautifulSoup, dual_id: str, page_url: str) -> Optional[MovieMetadata]:
+    def _parse(self, soup: BeautifulSoup, movie_id: str, page_url: str) -> Optional[MovieMetadata]:
         fc2_number: Optional[str] = None
         title: Optional[str] = None
         director: Optional[str] = None
@@ -105,7 +105,7 @@ class JavfreeMetadata(HtmlMetadataPlugin):
             cover = backdrops[0]
             backdrops = backdrops[1:]
 
-        display_code = fc2_number or f"FC2-{dual_id.split('-')[-1]}"
+        display_code = fc2_number or f"FC2-{movie_id.split('-')[-1]}"
 
         metadata = (
             MetadataBuilder()

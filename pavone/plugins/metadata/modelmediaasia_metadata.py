@@ -64,19 +64,19 @@ class ModelMediaAsiaMetadata(ApiMetadataPlugin):
         movie_id = identifier.strip()
         return movie_id, MOVIE_URL_TEMPLATE.format(movie_id=movie_id)
 
-    def _parse(self, resp_data: Dict[str, Any], movie_id: str, page_url: str) -> Optional[MovieMetadata]:
-        data = resp_data.get("data", resp_data)
-        if not data:
+    def _parse(self, data: Dict[str, Any], movie_id: str, page_url: str) -> Optional[MovieMetadata]:
+        inner_data = data.get("data", data)
+        if not inner_data:
             return None
 
-        number = data.get("serial_number", movie_id)
-        title = data.get("title_cn") or data.get("title") or ""
-        plot = data.get("description_cn") or data.get("description")
-        cover = data.get("cover")
+        number = inner_data.get("serial_number", movie_id)
+        title = inner_data.get("title_cn") or inner_data.get("title") or ""
+        plot = inner_data.get("description_cn") or inner_data.get("description")
+        cover = inner_data.get("cover")
 
         # Release date from timestamp (millis)
         premiered: Optional[str] = None
-        pub_at = data.get("published_at")
+        pub_at = inner_data.get("published_at")
         if pub_at and isinstance(pub_at, (int, float)):
             from datetime import datetime, timezone
 
@@ -85,14 +85,14 @@ class ModelMediaAsiaMetadata(ApiMetadataPlugin):
 
         # Genres from tags
         tags: List[str] = []
-        for tag in data.get("tags") or []:
+        for tag in inner_data.get("tags") or []:
             name = tag.get("name_cn") or tag.get("name") if isinstance(tag, dict) else str(tag)
             if name:
                 tags.append(name)
 
         # Actors from models
         actors: List[str] = []
-        for model in data.get("models") or []:
+        for model in inner_data.get("models") or []:
             name = model.get("name_cn") or model.get("name") if isinstance(model, dict) else str(model)
             if name:
                 actors.append(name)
