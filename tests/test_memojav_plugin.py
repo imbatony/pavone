@@ -5,7 +5,7 @@ MemojavPlugin 单元测试
 import unittest
 from unittest.mock import MagicMock, patch
 
-from pavone.models import MovieMetadata, OperationItem, Quality
+from pavone.models import MovieMetadata, OperationItem
 from pavone.plugins.memojav_plugin import MemojavPlugin
 
 

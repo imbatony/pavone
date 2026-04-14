@@ -2,8 +2,6 @@
 
 from unittest.mock import MagicMock, Mock, patch
 
-import pytest
-
 from pavone.manager.metadata_manager import MetadataManager, get_metadata_manager
 from pavone.models import MovieMetadata, SearchResult
 

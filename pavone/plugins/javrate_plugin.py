@@ -65,6 +65,7 @@ class JavratePlugin(ExtractorPlugin, MetadataPlugin):
         verify_ssl: bool = False,
         no_exceptions: bool = False,
         max_retry: Optional[int] = None,
+        cookies: Optional[Dict[str, str]] = None,
     ) -> requests.Response:
         """使用浏览器自动化绕过 Cloudflare 保护获取网页内容
 

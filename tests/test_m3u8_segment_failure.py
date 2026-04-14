@@ -4,9 +4,8 @@ import os
 import shutil
 import tempfile
 import unittest
-from unittest.mock import MagicMock, patch
 
-from pavone.models.progress_info import ProgressInfo, SegmentResult
+from pavone.models.progress_info import SegmentResult
 
 
 class TestSegmentResult(unittest.TestCase):

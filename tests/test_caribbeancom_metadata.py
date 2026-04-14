@@ -4,8 +4,6 @@ Caribbeancom元数据提取器测试
 
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from pavone.plugins.metadata.caribbeancom_metadata import CaribbeancomMetadata
 
 
