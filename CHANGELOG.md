@@ -5,6 +5,15 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.3.3] - 2026-04-14
+
+### 修复
+- TokyoHot: 支持日文和英文双语字段 key（Model/出演者、Release Date/配信開始日等）
+- Kin8tengoku: URL 解析支持不带末尾 `/` 的格式
+- Gcolle: 自动通过年龄认证页面，正确获取商品详情
+- Javfree: 支持非 FC2 格式 URL，从标题提取 `[CODE-123]` 番号
+- Muramura: MOVIE_ID_PATTERN 兼容 3-4 位数字后缀（如 `040826_1229`）
+
 ## [0.3.2] - 2026-04-14
 
 ### 新增
