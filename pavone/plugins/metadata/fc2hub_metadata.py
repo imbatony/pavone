@@ -7,17 +7,15 @@ ID 格式: {seller_id}-{content_id}
 通过 JSON-LD + HTML 解析获取元数据。
 """
 
-import json
 import re
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
-import requests
 from bs4 import BeautifulSoup
 
 from ...models import MovieMetadata
 from ...utils.metadata_builder import MetadataBuilder
-from .base import MetadataPlugin
+from .base import JsonLdMetadataPlugin
 
 PLUGIN_NAME = "Fc2HubMetadata"
 PLUGIN_VERSION = "1.0.0"
@@ -31,7 +29,7 @@ SITE_NAME = "FC2HUB"
 MOVIE_URL_TEMPLATE = "https://javten.com/video/{seller_id}/id{content_id}/"
 
 
-class Fc2HubMetadata(MetadataPlugin):
+class Fc2HubMetadata(JsonLdMetadataPlugin):
     """javten.com (fc2hub) 元数据提取器。"""
 
     def __init__(self):
@@ -49,23 +47,6 @@ class Fc2HubMetadata(MetadataPlugin):
         # ID format: seller_id-content_id (e.g. "1152468-2725031")
         return bool(re.match(r"^\d+-\d+$", identifier.strip()))
 
-    def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
-        try:
-            ids, page_url = self._resolve(identifier)
-            if not ids or not page_url:
-                self.logger.error(f"无法解析 identifier: {identifier}")
-                return None
-
-            resp = self.fetch(page_url, timeout=30)
-            soup = BeautifulSoup(resp.text, "lxml")
-            return self._parse(soup, ids, page_url)
-        except requests.RequestException as e:
-            self.logger.error(f"HTTP 请求失败: {e}")
-            return None
-        except Exception as e:
-            self.logger.error(f"提取元数据失败: {e}", exc_info=True)
-            return None
-
     def _resolve(self, identifier: str):
         if identifier.startswith("http://") or identifier.startswith("https://"):
             parsed = urlparse(identifier)
@@ -79,7 +60,9 @@ class Fc2HubMetadata(MetadataPlugin):
             return identifier.strip(), MOVIE_URL_TEMPLATE.format(seller_id=parts[0], content_id=parts[1])
         return None, None
 
-    def _parse(self, soup: BeautifulSoup, dual_id: str, page_url: str) -> Optional[MovieMetadata]:
+    def _parse_with_jsonld(
+        self, soup: BeautifulSoup, jsonld: Optional[Dict[str, Any]], dual_id: str, page_url: str
+    ) -> Optional[MovieMetadata]:
         title: Optional[str] = None
         cover: Optional[str] = None
         plot: Optional[str] = None
@@ -91,27 +74,21 @@ class Fc2HubMetadata(MetadataPlugin):
         fc2_number: Optional[str] = None
         backdrops: List[str] = []
 
-        # JSON-LD
-        for script in soup.find_all("script", type="application/ld+json"):
-            try:
-                data = json.loads(script.string or "")
-                if isinstance(data, list):
-                    data = data[0]
-                title = data.get("name") or title
-                plot = data.get("description") or plot
-                if data.get("image"):
-                    cover = data["image"]
-                if data.get("datePublished"):
-                    premiered = self._parse_date(data["datePublished"])
-                if data.get("duration"):
-                    runtime = self._parse_iso_duration(data["duration"])
-                actor_list = data.get("actor") or []
-                if isinstance(actor_list, list):
-                    actors = [a if isinstance(a, str) else a.get("name", "") for a in actor_list if a]
-                elif isinstance(actor_list, str):
-                    actors = [actor_list]
-            except Exception:
-                pass
+        if jsonld:
+            data = jsonld
+            title = data.get("name") or title
+            plot = data.get("description") or plot
+            if data.get("image"):
+                cover = data["image"]
+            if data.get("datePublished"):
+                premiered = self._parse_date(data["datePublished"])
+            if data.get("duration"):
+                runtime = self._parse_iso_duration(data["duration"])
+            actor_list = data.get("actor") or []
+            if isinstance(actor_list, list):
+                actors = [a if isinstance(a, str) else a.get("name", "") for a in actor_list if a]
+            elif isinstance(actor_list, str):
+                actors = [actor_list]
 
         # HTML fallback: title from h1
         if not title:
@@ -167,21 +144,3 @@ class Fc2HubMetadata(MetadataPlugin):
         metadata.official_rating = "JP-18+"
         self.logger.info(f"成功提取元数据: {display_code}")
         return metadata
-
-    @staticmethod
-    def _parse_iso_duration(s: str) -> Optional[int]:
-        if not s:
-            return None
-        m = re.match(r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?", s)
-        if m:
-            h = int(m.group(1) or 0)
-            mins = int(m.group(2) or 0)
-            return h * 60 + mins if (h or mins) else None
-        return None
-
-    @staticmethod
-    def _parse_date(s: str) -> Optional[str]:
-        m = re.match(r"(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})", s.strip())
-        if m:
-            return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
-        return None
