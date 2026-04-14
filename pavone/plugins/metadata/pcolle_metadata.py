@@ -16,7 +16,7 @@ from bs4 import BeautifulSoup
 
 from ...models import MovieMetadata
 from ...utils.metadata_builder import MetadataBuilder
-from .base import MetadataPlugin
+from .base import HtmlMetadataPlugin
 
 PLUGIN_NAME = "PcolleMetadata"
 PLUGIN_VERSION = "1.0.0"
@@ -30,7 +30,7 @@ SITE_NAME = "Pcolle"
 MOVIE_URL_TEMPLATE = "https://www.pcolle.com/product/detail/?product_id={product_id}"
 
 
-class PcolleMetadata(MetadataPlugin):
+class PcolleMetadata(HtmlMetadataPlugin):
     """pcolle.com 元数据提取器，通过 HTML 页面解析获取数据。"""
 
     def __init__(self):
@@ -47,26 +47,12 @@ class PcolleMetadata(MetadataPlugin):
             return self.can_handle_domain(identifier, SUPPORTED_DOMAINS)
         return bool(re.match(r"^(?:pcolle[-_])?([a-z\d]{9,})$", identifier.strip(), re.IGNORECASE))
 
-    def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
-        try:
-            product_id, page_url = self._resolve(identifier)
-            if not product_id or not page_url:
-                self.logger.error(f"无法解析 identifier: {identifier}")
-                return None
-
-            resp = self.fetch(
-                page_url,
-                timeout=30,
-                cookies={"AGE_CONF": "1"},
-            )
-            soup = BeautifulSoup(resp.text, "lxml")
-            return self._parse(soup, product_id, page_url)
-        except requests.RequestException as e:
-            self.logger.error(f"HTTP 请求失败: {e}")
-            return None
-        except Exception as e:
-            self.logger.error(f"提取元数据失败: {e}", exc_info=True)
-            return None
+    def _fetch_page(self, url: str) -> requests.Response:
+        return self.fetch(
+            url,
+            timeout=30,
+            cookies={"AGE_CONF": "1"},
+        )
 
     def _resolve(self, identifier: str):
         if identifier.startswith("http://") or identifier.startswith("https://"):
@@ -161,18 +147,3 @@ class PcolleMetadata(MetadataPlugin):
         self.logger.info(f"成功提取元数据: {display_code}")
         return metadata
 
-    @staticmethod
-    def _abs(url: str, base: str) -> str:
-        if url.startswith("http"):
-            return url
-        parsed = urlparse(base)
-        if url.startswith("//"):
-            return f"{parsed.scheme}:{url}"
-        return f"{parsed.scheme}://{parsed.netloc}{url}"
-
-    @staticmethod
-    def _parse_date(s: str) -> Optional[str]:
-        m = re.match(r"(\d{4})[年/\-.](\d{1,2})[月/\-.](\d{1,2})", s.strip())
-        if m:
-            return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
-        return None
