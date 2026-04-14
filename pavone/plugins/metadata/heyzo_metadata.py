@@ -7,17 +7,15 @@ ID 格式: HEYZO-{id} 或 {4位数字}
 通过 JSON-LD + HTML 解析获取元数据。
 """
 
-import json
 import re
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
-import requests
 from bs4 import BeautifulSoup
 
 from ...models import MovieMetadata
 from ...utils.metadata_builder import MetadataBuilder
-from .base import MetadataPlugin
+from .base import JsonLdMetadataPlugin
 
 PLUGIN_NAME = "HeyzoMetadata"
 PLUGIN_VERSION = "1.0.0"
@@ -31,7 +29,7 @@ SITE_NAME = "HEYZO"
 MOVIE_URL_TEMPLATE = "https://www.heyzo.com/moviepages/{movie_id}/index.html"
 
 
-class HeyzoMetadata(MetadataPlugin):
+class HeyzoMetadata(JsonLdMetadataPlugin):
     """heyzo.com 元数据提取器，通过 JSON-LD + HTML 解析获取数据。"""
 
     def __init__(self):
@@ -48,23 +46,6 @@ class HeyzoMetadata(MetadataPlugin):
             return self.can_handle_domain(identifier, SUPPORTED_DOMAINS)
         return bool(re.match(r"^(?:heyzo[-_])?(\d{4})$", identifier.strip(), re.IGNORECASE))
 
-    def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
-        try:
-            movie_id, page_url = self._resolve(identifier)
-            if not movie_id or not page_url:
-                self.logger.error(f"无法解析 identifier: {identifier}")
-                return None
-
-            resp = self.fetch(page_url, timeout=30)
-            soup = BeautifulSoup(resp.text, "lxml")
-            return self._parse(soup, movie_id, page_url)
-        except requests.RequestException as e:
-            self.logger.error(f"HTTP 请求失败: {e}")
-            return None
-        except Exception as e:
-            self.logger.error(f"提取元数据失败: {e}", exc_info=True)
-            return None
-
     def _resolve(self, identifier: str):
         if identifier.startswith("http://") or identifier.startswith("https://"):
             parsed = urlparse(identifier)
@@ -79,7 +60,9 @@ class HeyzoMetadata(MetadataPlugin):
             return movie_id, MOVIE_URL_TEMPLATE.format(movie_id=movie_id)
         return None, None
 
-    def _parse(self, soup: BeautifulSoup, movie_id: str, page_url: str) -> Optional[MovieMetadata]:
+    def _parse_with_jsonld(
+        self, soup: BeautifulSoup, jsonld: Optional[Dict[str, Any]], movie_id: str, page_url: str
+    ) -> Optional[MovieMetadata]:
         title: Optional[str] = None
         plot: Optional[str] = None
         cover: Optional[str] = None
@@ -91,35 +74,29 @@ class HeyzoMetadata(MetadataPlugin):
         serial: Optional[str] = None
         maker: Optional[str] = "HEYZO"
 
-        # JSON-LD
-        for script in soup.find_all("script", type="application/ld+json"):
-            try:
-                data = json.loads(script.string or "")
-                if isinstance(data, list):
-                    data = data[0]
-                title = data.get("name") or title
-                plot = data.get("description") or plot
-                if data.get("image"):
-                    cover = self._abs(data["image"], page_url)
-                released = data.get("releasedEvent", {})
-                if isinstance(released, dict) and released.get("startDate"):
-                    premiered = self._parse_date(released["startDate"])
-                video = data.get("video", {})
-                if isinstance(video, dict):
-                    if video.get("duration"):
-                        runtime = self._parse_iso_duration(video["duration"])
-                    if video.get("actor"):
-                        actors = [video["actor"]]
-                    if video.get("provider"):
-                        maker = video["provider"]
-                agg = data.get("aggregateRating", {})
-                if isinstance(agg, dict) and agg.get("ratingValue"):
-                    try:
-                        rating = float(agg["ratingValue"])
-                    except ValueError:
-                        pass
-            except Exception:
-                pass
+        if jsonld:
+            data = jsonld
+            title = data.get("name") or title
+            plot = data.get("description") or plot
+            if data.get("image"):
+                cover = self._abs(data["image"], page_url)
+            released = data.get("releasedEvent", {})
+            if isinstance(released, dict) and released.get("startDate"):
+                premiered = self._parse_date(released["startDate"])
+            video = data.get("video", {})
+            if isinstance(video, dict):
+                if video.get("duration"):
+                    runtime = self._parse_iso_duration(video["duration"])
+                if video.get("actor"):
+                    actors = [video["actor"]]
+                if video.get("provider"):
+                    maker = video["provider"]
+            agg = data.get("aggregateRating", {})
+            if isinstance(agg, dict) and agg.get("ratingValue"):
+                try:
+                    rating = float(agg["ratingValue"])
+                except ValueError:
+                    pass
 
         # HTML fallback: title
         if not title:
@@ -197,33 +174,3 @@ class HeyzoMetadata(MetadataPlugin):
         metadata.official_rating = "JP-18+"
         self.logger.info(f"成功提取元数据: {display_code}")
         return metadata
-
-    @staticmethod
-    def _abs(url: str, base: str) -> str:
-        if url.startswith("http"):
-            return url
-        parsed = urlparse(base)
-        if url.startswith("//"):
-            return f"{parsed.scheme}:{url}"
-        return f"{parsed.scheme}://{parsed.netloc}{url}"
-
-    @staticmethod
-    def _parse_iso_duration(s: str) -> Optional[int]:
-        if not s:
-            return None
-        m = re.match(r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?", s)
-        if m:
-            h = int(m.group(1) or 0)
-            mins = int(m.group(2) or 0)
-            return h * 60 + mins if (h or mins) else None
-        m2 = re.search(r"(\d+)\s*分", s)
-        if m2:
-            return int(m2.group(1))
-        return None
-
-    @staticmethod
-    def _parse_date(s: str) -> Optional[str]:
-        m = re.match(r"(\d{4})[年/\-.](\d{1,2})[月/\-.](\d{1,2})", s.strip())
-        if m:
-            return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
-        return None

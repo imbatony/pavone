@@ -7,10 +7,10 @@ FC2 Base Metadata Plugin - FC2元数据提取器基类
 import re
 from typing import Optional
 
-from .base import MetadataPlugin
+from .base import HtmlMetadataPlugin
 
 
-class FC2BaseMetadata(MetadataPlugin):
+class FC2BaseMetadata(HtmlMetadataPlugin):
     """
     FC2元数据提取器基类
 

@@ -8,17 +8,15 @@ ID 格式: 小写字母+数字 (如 ki230101)
 通过 JSON-LD 与 HTML 解析获取元数据。
 """
 
-import json
 import re
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
-import requests
 from bs4 import BeautifulSoup
 
 from ...models import MovieMetadata
 from ...utils.metadata_builder import MetadataBuilder
-from .base import MetadataPlugin
+from .base import JsonLdMetadataPlugin
 
 PLUGIN_NAME = "C0930Metadata"
 PLUGIN_VERSION = "1.0.0"
@@ -34,7 +32,7 @@ MOVIE_URL_TEMPLATE = "https://www.c0930.com/moviepages/{movie_id}/index.html"
 MOVIE_ID_RE = re.compile(r"^(?:c0930[-_])?([a-z\d]+)$", re.IGNORECASE)
 
 
-class C0930Metadata(MetadataPlugin):
+class C0930Metadata(JsonLdMetadataPlugin):
     """c0930.com 元数据提取器，通过 JSON-LD + HTML 解析获取数据。"""
 
     def __init__(self):
@@ -51,23 +49,6 @@ class C0930Metadata(MetadataPlugin):
             return self.can_handle_domain(identifier, SUPPORTED_DOMAINS)
         return bool(MOVIE_ID_RE.match(identifier.strip()))
 
-    def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
-        try:
-            movie_id, page_url = self._resolve(identifier)
-            if not movie_id or not page_url:
-                self.logger.error(f"无法解析 identifier: {identifier}")
-                return None
-
-            resp = self.fetch(page_url, timeout=30)
-            soup = BeautifulSoup(resp.text, "lxml")
-            return self._parse(soup, movie_id, page_url)
-        except requests.RequestException as e:
-            self.logger.error(f"HTTP 请求失败: {e}")
-            return None
-        except Exception as e:
-            self.logger.error(f"提取元数据失败: {e}", exc_info=True)
-            return None
-
     def _resolve(self, identifier: str):
         if identifier.startswith("http://") or identifier.startswith("https://"):
             parsed = urlparse(identifier)
@@ -81,8 +62,9 @@ class C0930Metadata(MetadataPlugin):
             return movie_id, MOVIE_URL_TEMPLATE.format(movie_id=movie_id)
         return None, None
 
-    def _parse(self, soup: BeautifulSoup, movie_id: str, page_url: str) -> Optional[MovieMetadata]:
-        # JSON-LD
+    def _parse_with_jsonld(
+        self, soup: BeautifulSoup, jsonld: Optional[Dict[str, Any]], movie_id: str, page_url: str
+    ) -> Optional[MovieMetadata]:
         title: Optional[str] = None
         cover: Optional[str] = None
         plot: Optional[str] = None
@@ -92,40 +74,32 @@ class C0930Metadata(MetadataPlugin):
         maker: Optional[str] = DEFAULT_MAKER
         rating: Optional[float] = None
 
-        for script in soup.find_all("script", type="application/ld+json"):
-            try:
-                text = script.string or ""
-                text = text.replace("\n", "")
-                data = json.loads(text)
-                if isinstance(data, list):
-                    data = data[0]
-                title = data.get("name") or title
-                plot = data.get("description") or plot
-                if data.get("image"):
-                    img_url = data["image"]
-                    if img_url.startswith("//"):
-                        img_url = "https:" + img_url
-                    cover = img_url
-                video = data.get("video") or {}
-                runtime = self._parse_iso_duration(video.get("duration", ""))
-                actor_name = video.get("actor", "") or (data.get("actor") or {}).get("name", "")
-                if actor_name:
-                    actors = [actor_name]
-                if video.get("provider"):
-                    maker = video["provider"]
-                released = data.get("releasedEvent") or {}
-                start_date = released.get("startDate") or ""
-                if start_date:
-                    # Handle ISO datetime like "2022-09-13T00:00:00+09:00"
-                    premiered = start_date[:10] if len(start_date) >= 10 else start_date
-                agg = data.get("aggregateRating") or {}
-                if agg.get("ratingValue"):
-                    try:
-                        rating = float(agg["ratingValue"])
-                    except ValueError:
-                        pass
-            except Exception:
-                pass
+        if jsonld:
+            data = jsonld
+            title = data.get("name") or title
+            plot = data.get("description") or plot
+            if data.get("image"):
+                img_url = data["image"]
+                if img_url.startswith("//"):
+                    img_url = "https:" + img_url
+                cover = img_url
+            video = data.get("video") or {}
+            runtime = self._parse_iso_duration(video.get("duration", ""))
+            actor_name = video.get("actor", "") or (data.get("actor") or {}).get("name", "")
+            if actor_name:
+                actors = [actor_name]
+            if video.get("provider"):
+                maker = video["provider"]
+            released = data.get("releasedEvent") or {}
+            start_date = released.get("startDate") or ""
+            if start_date:
+                premiered = start_date[:10] if len(start_date) >= 10 else start_date
+            agg = data.get("aggregateRating") or {}
+            if agg.get("ratingValue"):
+                try:
+                    rating = float(agg["ratingValue"])
+                except ValueError:
+                    pass
 
         # HTML fallbacks
         if not title:
@@ -167,26 +141,3 @@ class C0930Metadata(MetadataPlugin):
         metadata.official_rating = "JP-18+"
         self.logger.info(f"成功提取元数据: {code}")
         return metadata
-
-    @staticmethod
-    def _parse_iso_duration(s: str) -> Optional[int]:
-        """解析 ISO 8601 duration (PT1H30M) 或 分钟字符串 → 分钟数。"""
-        if not s:
-            return None
-        m = re.match(r"PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?", s)
-        if m:
-            h = int(m.group(1) or 0)
-            mi = int(m.group(2) or 0)
-            return h * 60 + mi or None
-        m2 = re.search(r"(\d+)\s*分", s)
-        if m2:
-            return int(m2.group(1))
-        return None
-
-    @staticmethod
-    def _parse_date(s: str) -> Optional[str]:
-        """将 '2023年1月2日' 或 '2023/01/02' 转换为 'YYYY-MM-DD'。"""
-        m = re.match(r"(\d{4})[年/\-](\d{1,2})[月/\-](\d{1,2})", s.strip())
-        if m:
-            return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
-        return None

@@ -8,15 +8,14 @@ ID 格式: 纯数字 FC2 PPV 编号
 """
 
 import re
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from urllib.parse import urlparse
 
-import requests
 from bs4 import BeautifulSoup
 
-from ...models import MovieMetadata
+from ...models import BaseMetadata
 from ...utils.metadata_builder import MetadataBuilder
-from .base import MetadataPlugin
+from .base import HtmlMetadataPlugin
 
 PLUGIN_NAME = "Fc2PpvdbMetadata"
 PLUGIN_VERSION = "1.0.0"
@@ -30,7 +29,7 @@ SITE_NAME = "FC2PPVDB"
 MOVIE_URL_TEMPLATE = "https://fc2ppvdb.com/articles/{movie_id}"
 
 
-class Fc2PpvdbMetadata(MetadataPlugin):
+class Fc2PpvdbMetadata(HtmlMetadataPlugin):
     """fc2ppvdb.com 元数据提取器。"""
 
     def __init__(self):
@@ -47,24 +46,7 @@ class Fc2PpvdbMetadata(MetadataPlugin):
             return self.can_handle_domain(identifier, SUPPORTED_DOMAINS)
         return bool(re.match(r"^\d{5,}$", identifier.strip()))
 
-    def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
-        try:
-            movie_id, page_url = self._resolve(identifier)
-            if not movie_id or not page_url:
-                self.logger.error(f"无法解析 identifier: {identifier}")
-                return None
-
-            resp = self.fetch(page_url, timeout=30)
-            soup = BeautifulSoup(resp.text, "lxml")
-            return self._parse(soup, movie_id, page_url)
-        except requests.RequestException as e:
-            self.logger.error(f"HTTP 请求失败: {e}")
-            return None
-        except Exception as e:
-            self.logger.error(f"提取元数据失败: {e}", exc_info=True)
-            return None
-
-    def _resolve(self, identifier: str):
+    def _resolve(self, identifier: str) -> Tuple[Optional[str], Optional[str]]:
         if identifier.startswith("http://") or identifier.startswith("https://"):
             parsed = urlparse(identifier)
             parts = [p for p in parsed.path.split("/") if p]
@@ -78,7 +60,7 @@ class Fc2PpvdbMetadata(MetadataPlugin):
             return movie_id, MOVIE_URL_TEMPLATE.format(movie_id=movie_id)
         return None, None
 
-    def _parse(self, soup: BeautifulSoup, movie_id: str, page_url: str) -> Optional[MovieMetadata]:
+    def _parse(self, soup: BeautifulSoup, movie_id: str, page_url: str) -> Optional[BaseMetadata]:
         code = f"FC2-{movie_id}"
         title: Optional[str] = None
         cover: Optional[str] = None
@@ -146,20 +128,3 @@ class Fc2PpvdbMetadata(MetadataPlugin):
         metadata.official_rating = "JP-18+"
         self.logger.info(f"成功提取元数据: {code}")
         return metadata
-
-    @staticmethod
-    def _parse_runtime(text: str) -> Optional[int]:
-        m = re.search(r"(\d+)\s*分", text)
-        if m:
-            return int(m.group(1))
-        m2 = re.match(r"(\d+):(\d+)", text.strip())
-        if m2:
-            return int(m2.group(1)) * 60 + int(m2.group(2))
-        return None
-
-    @staticmethod
-    def _parse_date(s: str) -> Optional[str]:
-        m = re.match(r"(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})", s.strip())
-        if m:
-            return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
-        return None

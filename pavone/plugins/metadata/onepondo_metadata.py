@@ -6,11 +6,11 @@
 """
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from ...models import MovieMetadata
 from ...utils.metadata_builder import MetadataBuilder
-from .base import MetadataPlugin
+from .base import ApiMetadataPlugin
 
 # 定义插件名称和版本
 PLUGIN_NAME = "OnePondoMetadata"
@@ -36,7 +36,7 @@ API_URL_TEMPLATE = "https://www.1pondo.tv/dyn/phpauto/movie_details/movie_id/{mo
 MOVIE_URL_TEMPLATE = "https://www.1pondo.tv/movies/{movie_id}/"
 
 
-class OnePondoMetadata(MetadataPlugin):
+class OnePondoMetadata(ApiMetadataPlugin):
     """
     1Pondo元数据提取器
     通过 JSON API 提取 1pondo.tv 视频元数据。
@@ -68,34 +68,15 @@ class OnePondoMetadata(MetadataPlugin):
         identifier_stripped = identifier.strip()
         return bool(re.match(rf"^{MOVIE_ID_PATTERN}$", identifier_stripped))
 
-    def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
-        """从给定的identifier提取元数据
+    def _build_api_url(self, movie_id: str) -> str:
+        return API_URL_TEMPLATE.format(movie_id=movie_id)
 
-        Args:
-            identifier: 可以是URL (https://www.1pondo.tv/movies/032417_504/) 或番号 (032417_504)
-
-        Returns:
-            提取到的MovieMetadata对象，如果失败返回None
-        """
-        try:
-            movie_id = self._extract_movie_id(identifier)
-            if not movie_id:
-                self.logger.error(f"无法从identifier提取番号: {identifier}")
-                return None
-
-            # 通过 JSON API 获取元数据
-            api_url = API_URL_TEMPLATE.format(movie_id=movie_id)
-            response = self.fetch(api_url, timeout=30)
-            data: Dict[str, Any] = response.json()
-            if not data:
-                self.logger.error(f"获取API数据失败: {api_url}")
-                return None
-
-            return self._build_metadata(data, movie_id)
-
-        except Exception as e:
-            self.logger.error(f"提取元数据失败: {str(e)}", exc_info=True)
-            return None
+    def _resolve(self, identifier: str) -> Tuple[Optional[str], Optional[str]]:
+        """将 identifier 解析为 (movie_id, page_url)"""
+        movie_id = self._extract_movie_id(identifier)
+        if not movie_id:
+            return None, None
+        return movie_id, MOVIE_URL_TEMPLATE.format(movie_id=movie_id)
 
     def _extract_movie_id(self, identifier: str) -> Optional[str]:
         """从identifier中提取番号
@@ -126,19 +107,13 @@ class OnePondoMetadata(MetadataPlugin):
         match = re.search(rf"/movies/({MOVIE_ID_PATTERN})/?", url)
         return match.group(1) if match else None
 
-    def _build_metadata(self, data: Dict[str, Any], movie_id: str) -> Optional[MovieMetadata]:
-        """从API JSON数据构建MovieMetadata对象
-
-        Args:
-            data: JSON API返回的字典数据
-            movie_id: 影片番号
-
-        Returns:
-            构建好的MovieMetadata对象
-        """
+    def _parse(self, data: Dict[str, Any], movie_id: str, page_url: str) -> Optional[MovieMetadata]:
+        """从API JSON数据构建MovieMetadata对象"""
+        if not data:
+            return None
         try:
             title = data.get("Title", "")
-            url = MOVIE_URL_TEMPLATE.format(movie_id=movie_id)
+            url = page_url
             code = movie_id
 
             # 演员列表

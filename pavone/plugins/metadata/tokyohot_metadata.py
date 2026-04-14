@@ -11,13 +11,12 @@ import re
 from typing import List, Optional
 from urllib.parse import urlparse
 
-import requests
 from bs4 import BeautifulSoup
 from bs4.element import NavigableString
 
 from ...models import MovieMetadata
 from ...utils.metadata_builder import MetadataBuilder
-from .base import MetadataPlugin
+from .base import HtmlMetadataPlugin
 
 PLUGIN_NAME = "TokyoHotMetadata"
 PLUGIN_VERSION = "1.0.0"
@@ -31,7 +30,7 @@ SITE_NAME = "TOKYO-HOT"
 MOVIE_URL_TEMPLATE = "https://my.tokyo-hot.com/product/{movie_id}/?lang=ja"
 
 
-class TokyoHotMetadata(MetadataPlugin):
+class TokyoHotMetadata(HtmlMetadataPlugin):
     """tokyo-hot.com 元数据提取器，通过 HTML 页面解析获取数据。"""
 
     def __init__(self):
@@ -47,23 +46,6 @@ class TokyoHotMetadata(MetadataPlugin):
         if identifier.startswith("http://") or identifier.startswith("https://"):
             return self.can_handle_domain(identifier, SUPPORTED_DOMAINS)
         return bool(re.match(r"^[a-zA-Z_]*\d+$", identifier.strip()))
-
-    def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
-        try:
-            movie_id, page_url = self._resolve(identifier)
-            if not movie_id or not page_url:
-                self.logger.error(f"无法解析 identifier: {identifier}")
-                return None
-
-            resp = self.fetch(page_url, timeout=30)
-            soup = BeautifulSoup(resp.text, "lxml")
-            return self._parse(soup, movie_id, page_url)
-        except requests.RequestException as e:
-            self.logger.error(f"HTTP 请求失败: {e}")
-            return None
-        except Exception as e:
-            self.logger.error(f"提取元数据失败: {e}", exc_info=True)
-            return None
 
     def _resolve(self, identifier: str):
         if identifier.startswith("http://") or identifier.startswith("https://"):
@@ -187,29 +169,3 @@ class TokyoHotMetadata(MetadataPlugin):
         metadata.official_rating = "JP-18+"
         self.logger.info(f"成功提取元数据: {display_code}")
         return metadata
-
-    @staticmethod
-    def _abs(url: str, base: str) -> str:
-        if url.startswith("http"):
-            return url
-        parsed = urlparse(base)
-        if url.startswith("//"):
-            return f"{parsed.scheme}:{url}"
-        return f"{parsed.scheme}://{parsed.netloc}{url}"
-
-    @staticmethod
-    def _parse_runtime(text: str) -> Optional[int]:
-        m = re.search(r"(\d+)\s*分", text)
-        if m:
-            return int(m.group(1))
-        m2 = re.match(r"(\d+):(\d+)", text.strip())
-        if m2:
-            return int(m2.group(1)) * 60 + int(m2.group(2))
-        return None
-
-    @staticmethod
-    def _parse_date(s: str) -> Optional[str]:
-        m = re.match(r"(\d{4})[年/\-.](\d{1,2})[月/\-.](\d{1,2})", s.strip())
-        if m:
-            return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
-        return None

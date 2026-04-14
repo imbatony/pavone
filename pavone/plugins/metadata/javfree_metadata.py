@@ -11,12 +11,11 @@ import re
 from typing import List, Optional
 from urllib.parse import urlparse
 
-import requests
 from bs4 import BeautifulSoup
 
 from ...models import MovieMetadata
 from ...utils.metadata_builder import MetadataBuilder
-from .base import MetadataPlugin
+from .base import HtmlMetadataPlugin
 
 PLUGIN_NAME = "JavfreeMetadata"
 PLUGIN_VERSION = "1.0.0"
@@ -30,7 +29,7 @@ SITE_NAME = "JAVFREE"
 MOVIE_URL_TEMPLATE = "https://javfree.me/{post_id}/fc2-ppv-{number}"
 
 
-class JavfreeMetadata(MetadataPlugin):
+class JavfreeMetadata(HtmlMetadataPlugin):
     """javfree.me/javfree.sh 元数据提取器 (FC2 内容)，通过 HTML 解析获取数据。"""
 
     def __init__(self):
@@ -48,23 +47,6 @@ class JavfreeMetadata(MetadataPlugin):
         # ID format: {post_id}-{fc2_number} (dual ID)
         return bool(re.match(r"^\d+-\d+$", identifier.strip()))
 
-    def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
-        try:
-            dual_id, page_url = self._resolve(identifier)
-            if not dual_id or not page_url:
-                self.logger.error(f"无法解析 identifier: {identifier}")
-                return None
-
-            resp = self.fetch(page_url, timeout=30)
-            soup = BeautifulSoup(resp.text, "lxml")
-            return self._parse(soup, dual_id, page_url)
-        except requests.RequestException as e:
-            self.logger.error(f"HTTP 请求失败: {e}")
-            return None
-        except Exception as e:
-            self.logger.error(f"提取元数据失败: {e}", exc_info=True)
-            return None
-
     def _resolve(self, identifier: str):
         if identifier.startswith("http://") or identifier.startswith("https://"):
             parsed = urlparse(identifier)
@@ -78,7 +60,7 @@ class JavfreeMetadata(MetadataPlugin):
             return identifier.strip(), MOVIE_URL_TEMPLATE.format(post_id=parts[0], number=parts[1])
         return None, None
 
-    def _parse(self, soup: BeautifulSoup, dual_id: str, page_url: str) -> Optional[MovieMetadata]:
+    def _parse(self, soup: BeautifulSoup, movie_id: str, page_url: str) -> Optional[MovieMetadata]:
         fc2_number: Optional[str] = None
         title: Optional[str] = None
         director: Optional[str] = None
@@ -123,7 +105,7 @@ class JavfreeMetadata(MetadataPlugin):
             cover = backdrops[0]
             backdrops = backdrops[1:]
 
-        display_code = fc2_number or f"FC2-{dual_id.split('-')[-1]}"
+        display_code = fc2_number or f"FC2-{movie_id.split('-')[-1]}"
 
         metadata = (
             MetadataBuilder()
@@ -143,10 +125,3 @@ class JavfreeMetadata(MetadataPlugin):
         metadata.official_rating = "JP-18+"
         self.logger.info(f"成功提取元数据: {display_code}")
         return metadata
-
-    @staticmethod
-    def _parse_date(s: str) -> Optional[str]:
-        m = re.match(r"(\d{4})[年/\-.](\d{1,2})[月/\-.](\d{1,2})", s.strip())
-        if m:
-            return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
-        return None

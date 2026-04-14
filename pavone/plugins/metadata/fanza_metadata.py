@@ -12,15 +12,15 @@ ID 格式: 小写英数字（如 midv00047, 1stars00141）
 
 import json
 import re
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
 import requests
 from bs4 import BeautifulSoup
 
-from ...models import MovieMetadata
+from ...models import BaseMetadata, MovieMetadata
 from ...utils.metadata_builder import MetadataBuilder
-from .base import MetadataPlugin
+from .base import HtmlMetadataPlugin
 
 PLUGIN_NAME = "FanzaMetadata"
 PLUGIN_VERSION = "1.0.0"
@@ -40,8 +40,11 @@ SITE_NAME = "FANZA"
 MOVIE_URL_TEMPLATE = "https://www.dmm.co.jp/digital/videoa/-/detail/=/cid={movie_id}/"
 
 
-class FanzaMetadata(MetadataPlugin):
-    """dmm.co.jp / FANZA 元数据提取器。"""
+class FanzaMetadata(HtmlMetadataPlugin):
+    """dmm.co.jp / FANZA 元数据提取器。
+
+    特殊多通道解析: __NEXT_DATA__ → HTML + JSON-LD，覆写 extract_metadata 保持自定义逻辑。
+    """
 
     def __init__(self):
         super().__init__(
@@ -58,15 +61,23 @@ class FanzaMetadata(MetadataPlugin):
         # FANZA IDs: lowercase alphanumeric, e.g. midv00047, 1stars00141
         return bool(re.match(r"^[a-z\d]{5,}$", identifier.strip()))
 
+    def _fetch_page(self, url: str) -> requests.Response:
+        """添加年龄验证 Cookie"""
+        return self.fetch(url, headers={"Cookie": "age_check_done=1"}, timeout=30)
+
+    def _parse(self, soup: BeautifulSoup, movie_id: str, page_url: str) -> Optional[BaseMetadata]:
+        """HTML 解析入口 (用于满足 HtmlMetadataPlugin 抽象方法)"""
+        return self._parse_html(soup, movie_id, page_url)
+
     def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
+        """多通道解析: __NEXT_DATA__ 优先, 回退到 HTML + JSON-LD"""
         try:
             movie_id, page_url = self._resolve(identifier)
             if not movie_id or not page_url:
                 self.logger.error(f"无法解析 identifier: {identifier}")
                 return None
 
-            headers = {"Cookie": "age_check_done=1"}
-            resp = self.fetch(page_url, headers=headers, timeout=30)
+            resp = self._fetch_page(page_url)
             soup = BeautifulSoup(resp.text, "lxml")
 
             # Try __NEXT_DATA__ first (new video.dmm.co.jp)
@@ -85,7 +96,7 @@ class FanzaMetadata(MetadataPlugin):
             self.logger.error(f"提取元数据失败: {e}", exc_info=True)
             return None
 
-    def _resolve(self, identifier: str):
+    def _resolve(self, identifier: str) -> Tuple[Optional[str], Optional[str]]:
         if identifier.startswith("http://") or identifier.startswith("https://"):
             parsed = urlparse(identifier)
             # Traditional: /cid=xxx/
@@ -292,17 +303,3 @@ class FanzaMetadata(MetadataPlugin):
         metadata.official_rating = "JP-18+"
         self.logger.info(f"成功提取元数据 (HTML): {display_code}")
         return metadata
-
-    @staticmethod
-    def _parse_runtime(text: str) -> Optional[int]:
-        m = re.search(r"(\d+)\s*分", text)
-        if m:
-            return int(m.group(1))
-        return None
-
-    @staticmethod
-    def _parse_date(s: str) -> Optional[str]:
-        m = re.match(r"(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})", s.strip())
-        if m:
-            return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
-        return None

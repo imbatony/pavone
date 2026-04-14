@@ -9,14 +9,14 @@ ID 格式: slug (如 bbc-slut-training-camp-4-scene-1)
 """
 
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 import requests
 
-from ...models import MovieMetadata
+from ...models import BaseMetadata, MovieMetadata
 from ...utils.metadata_builder import MetadataBuilder
-from .base import MetadataPlugin
+from .base import ApiMetadataPlugin
 
 PLUGIN_NAME = "ThePorndbMetadata"
 PLUGIN_VERSION = "1.0.0"
@@ -31,7 +31,7 @@ API_URL_TEMPLATE = "https://api.theporndb.net/scenes/{slug}"
 PAGE_URL_TEMPLATE = "https://theporndb.net/scenes/{slug}"
 
 
-class ThePorndbMetadata(MetadataPlugin):
+class ThePorndbMetadata(ApiMetadataPlugin):
     """theporndb.net 元数据提取器，通过 REST API 获取数据。需要配置 API token。"""
 
     def __init__(self):
@@ -57,33 +57,19 @@ class ThePorndbMetadata(MetadataPlugin):
         # Slug format: alphanumeric with dashes
         return bool(re.match(r"^[a-zA-Z0-9][-a-zA-Z0-9]+$", identifier.strip()))
 
-    def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
+    def extract_metadata(self, identifier: str) -> Optional[BaseMetadata]:
         if not self._access_token:
             self.logger.warning("ThePornDB 需要配置 API access_token")
             return None
+        return super().extract_metadata(identifier)
 
-        try:
-            slug, page_url = self._resolve(identifier)
-            if not slug or not page_url:
-                self.logger.error(f"无法解析 identifier: {identifier}")
-                return None
+    def _fetch_api(self, url: str) -> requests.Response:
+        return self.fetch(url, timeout=30, headers={"Authorization": f"Bearer {self._access_token}"})
 
-            api_url = API_URL_TEMPLATE.format(slug=slug)
-            resp = self.fetch(
-                api_url,
-                timeout=30,
-                headers={"Authorization": f"Bearer {self._access_token}"},
-            )
-            data: Dict[str, Any] = resp.json()
-            return self._parse(data, slug, page_url)
-        except requests.RequestException as e:
-            self.logger.error(f"HTTP 请求失败: {e}")
-            return None
-        except Exception as e:
-            self.logger.error(f"提取元数据失败: {e}", exc_info=True)
-            return None
+    def _build_api_url(self, movie_id: str) -> str:
+        return API_URL_TEMPLATE.format(slug=movie_id)
 
-    def _resolve(self, identifier: str):
+    def _resolve(self, identifier: str) -> Tuple[Optional[str], Optional[str]]:
         if identifier.startswith("http://") or identifier.startswith("https://"):
             parsed = urlparse(identifier)
             parts = parsed.path.strip("/").split("/")
@@ -94,64 +80,64 @@ class ThePorndbMetadata(MetadataPlugin):
         slug = identifier.strip()
         return slug, PAGE_URL_TEMPLATE.format(slug=slug)
 
-    def _parse(self, resp_data: Dict[str, Any], slug: str, page_url: str) -> Optional[MovieMetadata]:
-        data = resp_data.get("data", resp_data)
-        if not data:
+    def _parse(self, data: Dict[str, Any], movie_id: str, page_url: str) -> Optional[MovieMetadata]:
+        inner_data = data.get("data", data)
+        if not inner_data:
             return None
 
-        title = data.get("title", "")
-        plot = data.get("description")
-        cover = data.get("image")
-        thumbnail = data.get("poster") or cover
-        trailer = data.get("trailer")
+        title = inner_data.get("title", "")
+        plot = inner_data.get("description")
+        cover = inner_data.get("image")
+        thumbnail = inner_data.get("poster") or cover
+        trailer = inner_data.get("trailer")
 
         # Rating
         rating: Optional[float] = None
-        if data.get("rating") is not None:
+        if inner_data.get("rating") is not None:
             try:
-                rating = float(data["rating"])
+                rating = float(inner_data["rating"])
             except (ValueError, TypeError):
                 pass
 
         # Release date
-        premiered = data.get("date")
+        premiered = inner_data.get("date")
 
         # Runtime
         runtime: Optional[int] = None
-        if data.get("duration"):
+        if inner_data.get("duration"):
             try:
-                runtime = int(data["duration"])
+                runtime = int(inner_data["duration"])
             except (ValueError, TypeError):
                 pass
 
         # Maker
         maker = None
-        site = data.get("site")
+        site = inner_data.get("site")
         if isinstance(site, dict):
             maker = site.get("name")
 
         # Tags
         tags: List[str] = []
-        for tag in data.get("tags") or []:
+        for tag in inner_data.get("tags") or []:
             name = tag.get("name") if isinstance(tag, dict) else str(tag)
             if name:
                 tags.append(name)
 
         # Actors
         actors: List[str] = []
-        for performer in data.get("performers") or []:
+        for performer in inner_data.get("performers") or []:
             name = performer.get("name") if isinstance(performer, dict) else str(performer)
             if name:
                 actors.append(name)
 
         # Director
         director: Optional[str] = None
-        directors = data.get("directors") or []
+        directors = inner_data.get("directors") or []
         if directors:
             d = directors[0]
             director = d.get("name") if isinstance(d, dict) else str(d)
 
-        display_code = data.get("slug") or slug
+        display_code = inner_data.get("slug") or movie_id
 
         metadata = (
             MetadataBuilder()

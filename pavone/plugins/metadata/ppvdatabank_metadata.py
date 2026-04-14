@@ -5,9 +5,12 @@ PPVDataBank元数据提取器插件
 """
 
 import re
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
-from ...models import MovieMetadata, SearchResult
+import requests
+from bs4 import BeautifulSoup
+
+from ...models import BaseMetadata, SearchResult
 from ...utils.html_metadata_utils import HTMLMetadataExtractor
 from ...utils.metadata_builder import MetadataBuilder
 from ..search.base import SearchPlugin
@@ -128,73 +131,51 @@ class PPVDataBankMetadata(FC2BaseMetadata, SearchPlugin):
 
         return f"https://ppvdatabank.com/article/{fc2_id}/"
 
-    def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
-        """从给定的identifier提取元数据
+    def _fetch_page(self, url: str) -> requests.Response:
+        """获取页面, verify_ssl=False: ppvdatabank 站点 SSL 证书配置不标准，需跳过验证"""
+        return self.fetch(url, timeout=30, verify_ssl=False, max_retry=2)
 
-        Args:
-            identifier: 可以是URL (https://ppvdatabank.com/...) 或视频代码 (FC2-XXXXXXX)
+    def _resolve(self, identifier: str) -> Tuple[Optional[str], Optional[str]]:
+        """将 identifier 解析为 (video_id, page_url)"""
+        if identifier.startswith("http://") or identifier.startswith("https://"):
+            video_id = self._extract_video_id(identifier)
+            if not video_id:
+                return None, None
+            return video_id, identifier
 
-        Returns:
-            提取到的MovieMetadata对象，如果失败返回None
-        """
-        try:
-            # 如果是URL，直接使用；如果是代码，需要构建URL
-            url = identifier
-            video_id = None
+        video_id = self._extract_id_from_code(identifier)
+        if not video_id:
+            return None, None
+        url = f"https://ppvdatabank.com/article/{video_id}/"
+        return video_id, url
 
-            if identifier.startswith("http"):
-                # 从URL提取视频ID
-                video_id = self._extract_video_id(identifier)
-                if not video_id:
-                    self.logger.error(f"无法从URL提取视频ID: {identifier}")
-                    return None
-            else:
-                # 从FC2代码提取ID
-                video_id = self._extract_id_from_code(identifier)
-                if not video_id:
-                    self.logger.error(f"无法从代码提取视频ID: {identifier}")
-                    return None
-                # 拼接为 article URL
-                url = f"https://ppvdatabank.com/article/{video_id}/"
+    def _parse(self, soup: BeautifulSoup, movie_id: str, page_url: str) -> Optional[BaseMetadata]:
+        """从 BeautifulSoup 对象解析元数据"""
+        html_content = str(soup)
 
-            # 获取页面内容
-            # verify_ssl=False: ppvdatabank 站点 SSL 证书配置不标准，需跳过验证
-            response = self.fetch(url, timeout=30, verify_ssl=False, max_retry=2)
-            html_content = response.text
-            if not html_content:
-                self.logger.error(f"获取页面内容失败: {url}")
-                return None
+        title = self._extract_title(html_content)
+        video_code = f"FC2-{movie_id}"
+        studio = self._extract_studio(html_content)
+        release_date = self._extract_release_date(html_content)
+        runtime = self._extract_runtime(html_content)
+        cover_image = self._extract_cover_image(html_content, movie_id)
+        backdrop_image = self._extract_backdrop_image(html_content, movie_id)
 
-            # 提取所有元数据
-            title = self._extract_title(html_content)
-            video_code = f"FC2-{video_id}"  # 构建标准的FC2代码
-            studio = self._extract_studio(html_content)
-            release_date = self._extract_release_date(html_content)
-            runtime = self._extract_runtime(html_content)
-            cover_image = self._extract_cover_image(html_content, video_id)
-            backdrop_image = self._extract_backdrop_image(html_content, video_id)
+        metadata = (
+            MetadataBuilder()
+            .set_title(title, video_code)
+            .set_identifier(SITE_NAME, video_code, page_url)
+            .set_studio(studio)
+            .set_runtime(runtime)
+            .set_release_date(release_date)
+            .set_cover(cover_image)
+            .set_backdrop(backdrop_image)
+            .build()
+        )
+        metadata.official_rating = "JP-18+"
 
-            # 创建 MovieMetadata 对象
-            metadata = (
-                MetadataBuilder()
-                .set_title(title, video_code)
-                .set_identifier(SITE_NAME, video_code, url)
-                .set_studio(studio)
-                .set_runtime(runtime)
-                .set_release_date(release_date)
-                .set_cover(cover_image)
-                .set_backdrop(backdrop_image)
-                .build()
-            )
-            # 直接设置 official_rating （MetadataBuilder 暂不支持）
-            metadata.official_rating = "JP-18+"
-
-            self.logger.info(f"成功提取元数据: {video_code} - {title}")
-            return metadata
-
-        except Exception as e:
-            self.logger.error(f"提取元数据失败: {e}", exc_info=True)
-            return None
+        self.logger.info(f"成功提取元数据: {video_code} - {title}")
+        return metadata
 
     def _extract_video_id(self, url: str) -> Optional[str]:
         """从URL中提取视频ID

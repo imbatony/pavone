@@ -62,7 +62,8 @@ class TestOnePondoMetadata:
         with open("tests/sites/onepondo.json", "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        metadata = self.extractor._build_metadata(data, "032417_504")
+        page_url = "https://www.1pondo.tv/movies/032417_504/"
+        metadata = self.extractor._parse(data, "032417_504", page_url)
 
         assert metadata is not None
         assert metadata.code == "032417_504"
@@ -104,7 +105,7 @@ class TestOnePondoMetadata:
             "ThumbHigh": None,
         }
 
-        metadata = self.extractor._build_metadata(data, "010120_001")
+        metadata = self.extractor._parse(data, "010120_001", "https://www.1pondo.tv/movies/010120_001/")
         assert metadata is not None
         assert metadata.code == "010120_001"
         assert "Test Title" in metadata.title

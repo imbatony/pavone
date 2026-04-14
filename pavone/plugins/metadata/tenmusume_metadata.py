@@ -12,7 +12,7 @@ from typing import Any, Dict, List, Optional
 
 from ...models import MovieMetadata
 from ...utils.metadata_builder import MetadataBuilder
-from .base import MetadataPlugin
+from .base import ApiMetadataPlugin
 
 PLUGIN_NAME = "TenMusumeMetadata"
 PLUGIN_VERSION = "1.0.0"
@@ -31,7 +31,7 @@ API_URL_TEMPLATE = "https://www.10musume.com/dyn/phpauto/movie_details/movie_id/
 MOVIE_URL_TEMPLATE = "https://www.10musume.com/movies/{movie_id}/"
 
 
-class TenMusumeMetadata(MetadataPlugin):
+class TenMusumeMetadata(ApiMetadataPlugin):
     """10musume.com 元数据提取器，通过 JSON API 获取数据。"""
 
     def __init__(self):
@@ -48,36 +48,26 @@ class TenMusumeMetadata(MetadataPlugin):
             return self.can_handle_domain(identifier, SUPPORTED_DOMAINS)
         return bool(re.match(rf"^{MOVIE_ID_PATTERN}$", identifier.strip()))
 
-    def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
-        try:
-            movie_id = self._extract_movie_id(identifier)
-            if not movie_id:
-                self.logger.error(f"无法从 identifier 提取番号: {identifier}")
-                return None
-
-            api_url = API_URL_TEMPLATE.format(movie_id=movie_id)
-            response = self.fetch(api_url, timeout=30)
-            data: Dict[str, Any] = response.json()
-            if not data:
-                self.logger.error(f"获取 API 数据失败: {api_url}")
-                return None
-
-            return self._build_metadata(data, movie_id)
-        except Exception as e:
-            self.logger.error(f"提取元数据失败: {e}", exc_info=True)
-            return None
-
-    def _extract_movie_id(self, identifier: str) -> Optional[str]:
+    def _resolve(self, identifier: str):
         if identifier.startswith("http://") or identifier.startswith("https://"):
             match = re.search(rf"/movies/({MOVIE_ID_PATTERN})/?", identifier)
-            return match.group(1) if match else None
+            movie_id = match.group(1) if match else None
+            if movie_id:
+                return movie_id, MOVIE_URL_TEMPLATE.format(movie_id=movie_id)
+            return None, None
         s = identifier.strip()
-        return s if re.match(rf"^{MOVIE_ID_PATTERN}$", s) else None
+        if re.match(rf"^{MOVIE_ID_PATTERN}$", s):
+            return s, MOVIE_URL_TEMPLATE.format(movie_id=s)
+        return None, None
 
-    def _build_metadata(self, data: Dict[str, Any], movie_id: str) -> Optional[MovieMetadata]:
+    def _build_api_url(self, movie_id: str) -> str:
+        return API_URL_TEMPLATE.format(movie_id=movie_id)
+
+    def _parse(self, data: Dict[str, Any], movie_id: str, page_url: str) -> Optional[MovieMetadata]:
+        if not data:
+            return None
         try:
             title = data.get("Title", "")
-            url = MOVIE_URL_TEMPLATE.format(movie_id=movie_id)
 
             actors: List[str] = [a.strip("-").strip() for a in (data.get("ActressesJa") or []) if a.strip("-").strip()]
 
@@ -92,7 +82,7 @@ class TenMusumeMetadata(MetadataPlugin):
             metadata = (
                 MetadataBuilder()
                 .set_title(title, movie_id)
-                .set_identifier(SITE_NAME, movie_id, url)
+                .set_identifier(SITE_NAME, movie_id, page_url)
                 .set_actors(actors)
                 .set_runtime(runtime)
                 .set_release_date(data.get("Release"))

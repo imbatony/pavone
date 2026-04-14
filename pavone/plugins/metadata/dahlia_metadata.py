@@ -7,7 +7,6 @@ DAHLIA 元数据提取器插件
 通过 HTML 页面解析获取元数据。
 """
 
-import re
 from typing import List, Optional
 from urllib.parse import urlparse
 
@@ -16,7 +15,7 @@ from bs4 import BeautifulSoup
 
 from ...models import MovieMetadata
 from ...utils.metadata_builder import MetadataBuilder
-from .base import MetadataPlugin
+from .base import HtmlMetadataPlugin
 
 PLUGIN_NAME = "DahliaMetadata"
 PLUGIN_VERSION = "1.0.0"
@@ -30,7 +29,7 @@ SITE_NAME = "DAHLIA"
 MOVIE_URL_TEMPLATE = "https://dahlia-av.jp/works/{movie_id}/"
 
 
-class DahliaMetadata(MetadataPlugin):
+class DahliaMetadata(HtmlMetadataPlugin):
     """dahlia-av.jp 元数据提取器，通过 HTML 页面解析获取数据。"""
 
     def __init__(self):
@@ -47,24 +46,9 @@ class DahliaMetadata(MetadataPlugin):
             return self.can_handle_domain(identifier, SUPPORTED_DOMAINS)
         return False  # 无独立番号格式，必须提供 URL
 
-    def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
-        try:
-            movie_id, page_url = self._resolve(identifier)
-            if not movie_id or not page_url:
-                self.logger.error(f"无法解析 identifier: {identifier}")
-                return None
-
-            # modal=off cookie 跳过年龄弹窗（参考 Go 核心层）
-            headers = {"Cookie": "modal=off"}
-            resp = self.fetch(page_url, headers=headers, timeout=30)
-            soup = BeautifulSoup(resp.content, "lxml")
-            return self._parse(soup, movie_id, page_url)
-        except requests.RequestException as e:
-            self.logger.error(f"HTTP 请求失败: {e}")
-            return None
-        except Exception as e:
-            self.logger.error(f"提取元数据失败: {e}", exc_info=True)
-            return None
+    def _fetch_page(self, url: str) -> requests.Response:
+        """跳过年龄弹窗（参考 Go 核心层）"""
+        return self.fetch(url, headers={"Cookie": "modal=off"}, timeout=30)
 
     def _resolve(self, identifier: str):
         if identifier.startswith("http://") or identifier.startswith("https://"):
@@ -148,27 +132,3 @@ class DahliaMetadata(MetadataPlugin):
         metadata.official_rating = "JP-18+"
         self.logger.info(f"成功提取元数据: {code}")
         return metadata
-
-    @staticmethod
-    def _abs(url: str, base: str) -> str:
-        if url.startswith("http"):
-            return url
-        parsed = urlparse(base)
-        return f"{parsed.scheme}://{parsed.netloc}{url}"
-
-    @staticmethod
-    def _parse_runtime(text: str) -> Optional[int]:
-        m = re.search(r"(\d+)\s*分", text)
-        if m:
-            return int(m.group(1))
-        m2 = re.match(r"(\d+):(\d+)", text.strip())
-        if m2:
-            return int(m2.group(1)) * 60 + int(m2.group(2))
-        return None
-
-    @staticmethod
-    def _parse_date(s: str) -> Optional[str]:
-        m = re.match(r"(\d{4})[年/\-.](\d{1,2})[月/\-.](\d{1,2})", s.strip())
-        if m:
-            return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
-        return None

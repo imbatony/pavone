@@ -5,9 +5,12 @@ SupFC2元数据提取器插件
 """
 
 import re
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
-from ...models import MovieMetadata
+import requests
+from bs4 import BeautifulSoup
+
+from ...models import BaseMetadata
 from ...utils.html_metadata_utils import HTMLMetadataExtractor
 from ...utils.metadata_builder import MetadataBuilder
 from .fc2_base import FC2BaseMetadata
@@ -59,85 +62,64 @@ class SupFC2Metadata(FC2BaseMetadata):
         fc2_pattern = r"^(FC2[-_]?)?(?:PPV[-_]?)?(\d+)$"
         return bool(re.match(fc2_pattern, identifier_stripped))
 
-    def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
-        """从给定的identifier提取元数据
+    def _fetch_page(self, url: str) -> requests.Response:
+        """获取页面, verify_ssl=False: supfc2 站点 SSL 证书配置不标准，需跳过验证"""
+        return self.fetch(url, timeout=30, verify_ssl=False, max_retry=2)
 
-        Args:
-            identifier: 可以是URL或FC2代码
+    def _resolve(self, identifier: str) -> Tuple[Optional[str], Optional[str]]:
+        """将 identifier 解析为 (fc2_id, page_url)"""
+        if identifier.startswith("http://") or identifier.startswith("https://"):
+            fc2_id = self._extract_fc2_id_from_url(identifier)
+            if not fc2_id:
+                return None, None
+            return fc2_id, identifier
 
-        Returns:
-            提取到的MovieMetadata对象，如果失败返回None
-        """
-        try:
-            # 如果是FC2代码，构建URL
-            if not identifier.startswith("http"):
-                fc2_id = self._extract_fc2_id(identifier)
-                if not fc2_id:
-                    self.logger.error(f"无法从identifier提取FC2 ID: {identifier}")
-                    return None
-                # 构建URL，标题部分留空，因为需要从页面获取
-                url = f"https://supfc2.com/detail/FC2-PPV-{fc2_id}/detail"
-            else:
-                url = identifier
-                # 从URL提取FC2 ID
-                fc2_id = self._extract_fc2_id_from_url(url)
-                if not fc2_id:
-                    self.logger.error(f"无法从URL提取FC2 ID: {url}")
-                    return None
+        fc2_id = self._extract_fc2_id(identifier)
+        if not fc2_id:
+            return None, None
+        url = f"https://supfc2.com/detail/FC2-PPV-{fc2_id}/detail"
+        return fc2_id, url
 
-            # 获取页面内容
-            # verify_ssl=False: supfc2 站点 SSL 证书配置不标准，需跳过验证
-            response = self.fetch(url, timeout=30, verify_ssl=False, max_retry=2)
-            html_content = response.text
-            if not html_content:
-                self.logger.error(f"获取页面内容失败: {url}")
-                return None
+    def _parse(self, soup: BeautifulSoup, movie_id: str, page_url: str) -> Optional[BaseMetadata]:
+        """从 BeautifulSoup 对象解析元数据"""
+        html_content = str(soup)
 
-            # 提取元数据
-            title = self._extract_title(html_content)
-            fc2_id_from_page = self._extract_fc2_id_from_page(html_content)
-            release_date = self._extract_release_date(html_content)
-            maker = self._extract_maker(html_content)
-            duration = self._extract_duration(html_content)
-            tags = self._extract_tags(html_content)
-            genres = self._extract_genres(html_content)
-            rating = self._extract_rating(html_content)
-            description = self._extract_description(html_content)
-            cover_image, background_image = self._extract_images(html_content)
+        title = self._extract_title(html_content)
+        fc2_id_from_page = self._extract_fc2_id_from_page(html_content)
+        release_date = self._extract_release_date(html_content)
+        maker = self._extract_maker(html_content)
+        duration = self._extract_duration(html_content)
+        tags = self._extract_tags(html_content)
+        genres = self._extract_genres(html_content)
+        rating = self._extract_rating(html_content)
+        description = self._extract_description(html_content)
+        cover_image, background_image = self._extract_images(html_content)
 
-            # 使用从页面提取的FC2 ID（如果有）
-            if fc2_id_from_page:
-                fc2_id = fc2_id_from_page
+        # 使用从页面提取的FC2 ID（如果有）
+        fc2_id = fc2_id_from_page if fc2_id_from_page else movie_id
 
-            # 生成video_code
-            video_code = f"FC2-{fc2_id}"
+        video_code = f"FC2-{fc2_id}"
 
-            # 创建 MovieMetadata 对象
-            metadata = (
-                MetadataBuilder()
-                .set_title(title or "Unknown", video_code)
-                .set_identifier(SITE_NAME, video_code, url)
-                .set_director(maker)
-                .set_runtime(duration)
-                .set_release_date(release_date)
-                .set_genres(genres)
-                .set_tags(tags)
-                .set_studio(maker)
-                .set_cover(cover_image)
-                .set_backdrop(background_image)
-                .set_plot(description)
-                .set_rating(rating)
-                .build()
-            )
-            # 直接设置 official_rating
-            metadata.official_rating = "JP-18+"
+        metadata = (
+            MetadataBuilder()
+            .set_title(title or "Unknown", video_code)
+            .set_identifier(SITE_NAME, video_code, page_url)
+            .set_director(maker)
+            .set_runtime(duration)
+            .set_release_date(release_date)
+            .set_genres(genres)
+            .set_tags(tags)
+            .set_studio(maker)
+            .set_cover(cover_image)
+            .set_backdrop(background_image)
+            .set_plot(description)
+            .set_rating(rating)
+            .build()
+        )
+        metadata.official_rating = "JP-18+"
 
-            self.logger.info(f"成功提取元数据: {video_code}")
-            return metadata
-
-        except Exception as e:
-            self.logger.error(f"提取元数据失败: {str(e)}", exc_info=True)
-            return None
+        self.logger.info(f"成功提取元数据: {video_code}")
+        return metadata
 
     def _extract_fc2_id_from_url(self, url: str) -> Optional[str]:
         """从URL中提取FC2 ID"""
