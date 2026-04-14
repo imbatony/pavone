@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from pavone.manager.search_manager import SearchManager, get_search_manager
+from pavone.manager.search_manager import SearchManager
 from pavone.models import SearchResult
 
 

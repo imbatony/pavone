@@ -19,6 +19,7 @@ class HttpUtils:
         verify_ssl: bool = True,
         max_retry: Optional[int] = None,
         no_exceptions: bool = False,
+        cookies: Optional[Dict[str, str]] = None,
     ) -> requests.Response:
         """统一的网页获取方法，自动处理代理配置和SSL验证
 
@@ -76,6 +77,7 @@ class HttpUtils:
                     proxies=proxies,
                     timeout=timeout,
                     verify=verify_ssl,  # SSL验证设置
+                    cookies=cookies,
                 )
                 last_response = response
                 response.raise_for_status()

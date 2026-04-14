@@ -160,17 +160,15 @@ class MetadataBuilder:
         return self
 
     def set_cover(self, cover: Optional[str]) -> "MetadataBuilder":
-        """
-        设置封面图片URL
-
-        Args:
-            cover: 封面图片URL
-
-        Returns:
-            self，支持链式调用
-        """
+        """设置封面图片URL"""
         if cover:
             self._data["cover"] = cover
+        return self
+
+    def set_thumbnail(self, thumbnail: Optional[str]) -> "MetadataBuilder":
+        """设置缩略图URL"""
+        if thumbnail:
+            self._data["thumbnail"] = thumbnail
         return self
 
     def set_poster(self, poster: Optional[str]) -> "MetadataBuilder":

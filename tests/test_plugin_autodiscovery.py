@@ -34,6 +34,12 @@ class TestPluginAutoDiscovery(unittest.TestCase):
         pm = PluginManager()
         pm.load_plugins()
         self.assertGreater(len(pm.metadata_plugins), 0)
+        # 确保至少 34 个元数据提取器被发现 (4 原有 + 30 新增)
+        self.assertGreaterEqual(
+            len(pm.metadata_plugins),
+            34,
+            f"Expected ≥34 metadata plugins, got {len(pm.metadata_plugins)}: " f"{[p.name for p in pm.metadata_plugins]}",
+        )
 
     def test_search_plugins_loaded(self) -> None:
         """SearchPlugin 子类应被自动发现"""

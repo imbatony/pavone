@@ -58,6 +58,7 @@ class BasePlugin(ABC):
         verify_ssl: bool = True,
         no_exceptions: bool = False,
         max_retry: Optional[int] = None,
+        cookies: Optional[Dict[str, str]] = None,
     ) -> requests.Response:
         return HttpUtils.fetch(
             download_config=self.config.download,
@@ -69,6 +70,7 @@ class BasePlugin(ABC):
             verify_ssl=verify_ssl,
             no_exceptions=no_exceptions,
             max_retry=max_retry,
+            cookies=cookies,
         )
 
     def can_handle_domain(self, url: str, supported_domains: List[str]) -> bool:
