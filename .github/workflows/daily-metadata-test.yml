@@ -65,11 +65,19 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Get repository node ID (GraphQL requires node ID, not numeric ID)
+          REPO_NODE_ID=$(gh api graphql -f query='{ repository(owner: "${{ github.repository_owner }}", name: "${{ github.event.repository.name }}") { id } }' --jq '.data.repository.id')
+
+          # Get "General" discussion category ID
+          CATEGORY_ID=$(gh api graphql -f query='{ repository(owner: "${{ github.repository_owner }}", name: "${{ github.event.repository.name }}") { discussionCategories(first: 10) { nodes { id slug } } } }' --jq '.data.repository.discussionCategories.nodes[] | select(.slug == "general") | .id')
+
+          # Create discussion with test report
+          BODY=$(cat /tmp/metadata-test/metadata_test_report.md)
           gh api graphql \
-            -F repositoryId='${{ github.repository_id }}' \
-            -F categoryId="$(gh api graphql -f query='{ repository(owner: "${{ github.repository_owner }}", name: "${{ github.event.repository.name }}") { discussionCategories(first: 10) { nodes { id slug } } } }' --jq '.data.repository.discussionCategories.nodes[] | select(.slug == "general") | .id')" \
+            -F repositoryId="$REPO_NODE_ID" \
+            -F categoryId="$CATEGORY_ID" \
             -F title='📊 元数据插件每日测试报告 — ${{ steps.results.outputs.date }}' \
-            -F body="$(cat /tmp/metadata-test/metadata_test_report.md)" \
+            -F body="$BODY" \
             -f query='mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
               createDiscussion(input: {repositoryId: $repositoryId, categoryId: $categoryId, title: $title, body: $body}) {
                 discussion { url }
