@@ -1,0 +1,100 @@
+name: Daily Metadata Plugin Test
+
+on:
+  schedule:
+    # Run daily at 06:00 UTC (14:00 CST)
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  discussions: write
+
+jobs:
+  metadata-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run metadata plugin tests
+        id: test
+        run: |
+          uv run python scripts/test_metadata_plugins.py \
+            --output-dir /tmp/metadata-test \
+            --format both
+        continue-on-error: true
+
+      - name: Read test results
+        id: results
+        run: |
+          if [ -f /tmp/metadata-test/metadata_test_results.json ]; then
+            TOTAL=$(jq '.results | length' /tmp/metadata-test/metadata_test_results.json)
+            OK=$(jq '[.results[] | select(.status == "OK")] | length' /tmp/metadata-test/metadata_test_results.json)
+            FAIL=$(jq '[.results[] | select(.status == "FAIL")] | length' /tmp/metadata-test/metadata_test_results.json)
+            ERROR=$(jq '[.results[] | select(.status == "ERROR")] | length' /tmp/metadata-test/metadata_test_results.json)
+            AVG_SCORE=$(jq '[.results[] | select(.status == "OK") | .score] | if length > 0 then (add / length * 10 | round / 10) else 0 end' /tmp/metadata-test/metadata_test_results.json)
+            ELAPSED=$(jq '.total_time_s' /tmp/metadata-test/metadata_test_results.json)
+            VERSION=$(jq -r '.version' /tmp/metadata-test/metadata_test_results.json)
+            DATE=$(date -u +%Y-%m-%d)
+
+            echo "total=$TOTAL" >> $GITHUB_OUTPUT
+            echo "ok=$OK" >> $GITHUB_OUTPUT
+            echo "fail=$FAIL" >> $GITHUB_OUTPUT
+            echo "error=$ERROR" >> $GITHUB_OUTPUT
+            echo "avg_score=$AVG_SCORE" >> $GITHUB_OUTPUT
+            echo "elapsed=$ELAPSED" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "date=$DATE" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Post results to Discussions
+        if: always() && steps.results.outputs.total != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api graphql \
+            -F repositoryId='${{ github.repository_id }}' \
+            -F categoryId="$(gh api graphql -f query='{ repository(owner: "${{ github.repository_owner }}", name: "${{ github.event.repository.name }}") { discussionCategories(first: 10) { nodes { id slug } } } }' --jq '.data.repository.discussionCategories.nodes[] | select(.slug == "general") | .id')" \
+            -F title='📊 元数据插件每日测试报告 — ${{ steps.results.outputs.date }}' \
+            -F body="$(cat /tmp/metadata-test/metadata_test_report.md)" \
+            -f query='mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
+              createDiscussion(input: {repositoryId: $repositoryId, categoryId: $categoryId, title: $title, body: $body}) {
+                discussion { url }
+              }
+            }'
+
+      - name: Upload test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: metadata-test-${{ steps.results.outputs.date || 'unknown' }}
+          path: /tmp/metadata-test/
+          retention-days: 30
+
+      - name: Summary
+        if: always() && steps.results.outputs.total != ''
+        run: |
+          echo "## 📊 元数据插件测试结果" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| 指标 | 数值 |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 版本 | v${{ steps.results.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 总插件数 | ${{ steps.results.outputs.total }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ✅ 成功 | ${{ steps.results.outputs.ok }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ❌ 失败 | ${{ steps.results.outputs.fail }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 💥 异常 | ${{ steps.results.outputs.error }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 平均评分 | ${{ steps.results.outputs.avg_score }}/100 |" >> $GITHUB_STEP_SUMMARY
+          echo "| 耗时 | ${{ steps.results.outputs.elapsed }}s |" >> $GITHUB_STEP_SUMMARY

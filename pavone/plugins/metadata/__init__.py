@@ -22,20 +22,16 @@ from .heyzo_metadata import HeyzoMetadata
 from .jav321_metadata import Jav321Metadata
 from .javbus_metadata import JavbusMetadata
 from .javfree_metadata import JavfreeMetadata
-from .kin8tengoku_metadata import Kin8tengokuMetadata
 from .madouqu_metadata import MadouquMetadata
 from .mgstage_metadata import MgstageMetadata
-from .modelmediaasia_metadata import ModelMediaAsiaMetadata
 from .muramura_metadata import MuramuraMetadata
 from .mywife_metadata import MyWifeMetadata
 from .onepondo_metadata import OnePondoMetadata
 from .pacopacomama_metadata import PacopacomamaMetadata
 from .pcolle_metadata import PcolleMetadata
 from .ppvdatabank_metadata import PPVDataBankMetadata
-from .sod_metadata import SodMetadata
 from .supfc2_metadata import SupFC2Metadata
 from .tenmusume_metadata import TenMusumeMetadata
-from .theporndb_metadata import ThePorndbMetadata
 from .tokyohot_metadata import TokyoHotMetadata
 
 # MissAV插件在missav_plugin.py中定义
@@ -68,15 +64,11 @@ __all__ = [
     "Jav321Metadata",
     "JavbusMetadata",
     "JavfreeMetadata",
-    "Kin8tengokuMetadata",
     "MadouquMetadata",
     "MgstageMetadata",
-    "ModelMediaAsiaMetadata",
     "MuramuraMetadata",
     "MyWifeMetadata",
     "PacopacomamaMetadata",
     "PcolleMetadata",
-    "SodMetadata",
-    "ThePorndbMetadata",
     "TokyoHotMetadata",
 ]
