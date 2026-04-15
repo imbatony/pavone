@@ -50,7 +50,7 @@ safe-outputs:
             BUMP_TYPE_INPUT: ${{ steps.check.outputs.bump_type }}
           run: |
             BUMP_TYPE="$BUMP_TYPE_INPUT"
-            CURRENT=$(grep -oP 'version = "\K[^"]+' pyproject.toml)
+            CURRENT=$(grep -m1 '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
             IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
 
             case "$BUMP_TYPE" in
