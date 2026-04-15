@@ -6,3 +6,5 @@ tests/sites/*.* linguist-documentation
 # You can also mark other test data files if needed
 # tests/**/*.json linguist-detectable=false
 # tests/**/*.xml linguist-detectable=false
+
+.github/workflows/*.lock.yml linguist-generated=true merge=ours
