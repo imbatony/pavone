@@ -21,6 +21,13 @@ class TestJavbusMetadata:
     def test_can_extract_movie_id(self):
         assert self.extractor.can_extract("ABC-123")
 
+    def test_can_extract_movie_id_no_hyphen(self):
+        """无连字符的品番码也应匹配 (如 N0970, HEYZO0993)"""
+        assert self.extractor.can_extract("N0970")
+        assert self.extractor.can_extract("n0970")
+        assert self.extractor.can_extract("HEYZO0993")
+        assert self.extractor.can_extract("GACHI918")
+
     def test_cannot_extract_invalid(self):
         assert not self.extractor.can_extract("https://example.com/ja/ABC-123")
         assert not self.extractor.can_extract("")
@@ -45,6 +52,8 @@ class TestJavbusMetadata:
         assert metadata is not None
         assert metadata.code == "ABC-123"
         assert "テスト動画タイトル" in metadata.title
+        # 标题不应包含 "JavBus" 后缀
+        assert "JavBus" not in metadata.title
         assert metadata.premiered == "2023-08-15"
         assert metadata.runtime == 90
         assert "テスト花子" in metadata.actors
@@ -61,9 +70,13 @@ class TestJavbusMetadata:
             metadata = self.extractor.extract_metadata(url)
 
         assert metadata is not None
+        # tags 和 genres 都应包含相同数据
         assert metadata.tags is not None
         assert "巨乳" in metadata.tags
         assert "中出し" in metadata.tags
+        assert metadata.genres is not None
+        assert "巨乳" in metadata.genres
+        assert "中出し" in metadata.genres
 
     def test_extract_backdrops(self):
         resp = self._mock_html_response()
@@ -74,6 +87,8 @@ class TestJavbusMetadata:
         assert metadata is not None
         assert metadata.backdrops is not None
         assert len(metadata.backdrops) == 2
+        # 第一张预览图应作为主 backdrop
+        assert metadata.backdrop == metadata.backdrops[0]
 
     def test_extract_label(self):
         resp = self._mock_html_response()
@@ -84,10 +99,56 @@ class TestJavbusMetadata:
         assert metadata is not None
         assert metadata.tagline == "テストレーベル"
 
+    def test_extract_thumbnail_from_cover(self):
+        """缩略图应从封面 URL 推导 (/cover/xxx_b.jpg → /thumbs/xxx.jpg)"""
+        resp = self._mock_html_response()
+        url = "https://www.javbus.com/ja/ABC-123"
+        with patch.object(self.extractor, "fetch", return_value=resp):
+            metadata = self.extractor.extract_metadata(url)
+
+        assert metadata is not None
+        assert metadata.thumbnail is not None
+        assert "/thumbs/" in metadata.thumbnail
+        assert metadata.thumbnail == "https://www.javbus.com/pics/thumbs/475i.jpg"
+
+    def test_extract_poster(self):
+        """poster 应设为推导后的缩略图 URL"""
+        resp = self._mock_html_response()
+        url = "https://www.javbus.com/ja/ABC-123"
+        with patch.object(self.extractor, "fetch", return_value=resp):
+            metadata = self.extractor.extract_metadata(url)
+
+        assert metadata is not None
+        assert metadata.poster is not None
+        assert "/thumbs/" in metadata.poster
+
+    def test_derive_thumb_url(self):
+        """封面 URL → 缩略图 URL 的转换"""
+        assert (
+            JavbusMetadata._derive_thumb_url("https://www.javbus.com/pics/cover/475i_b.jpg")
+            == "https://www.javbus.com/pics/thumbs/475i.jpg"
+        )
+        assert (
+            JavbusMetadata._derive_thumb_url("https://www.javbus.com/imgs/cover/cnw_b.jpg")
+            == "https://www.javbus.com/imgs/thumbs/cnw.jpg"
+        )
+        assert (
+            JavbusMetadata._derive_thumb_url("https://www.javbus.com/pics/cover/475i.png")
+            == "https://www.javbus.com/pics/thumbs/475i.png"
+        )
+        assert JavbusMetadata._derive_thumb_url("https://example.com/other/path.jpg") is None
+
     def test_extract_metadata_from_bare_id(self):
         resp = self._mock_html_response()
         with patch.object(self.extractor, "fetch", return_value=resp):
             metadata = self.extractor.extract_metadata("ABC-123")
+        assert metadata is not None
+
+    def test_extract_metadata_from_bare_id_no_hyphen(self):
+        """无连字符品番也能正常提取"""
+        resp = self._mock_html_response()
+        with patch.object(self.extractor, "fetch", return_value=resp):
+            metadata = self.extractor.extract_metadata("N0970")
         assert metadata is not None
 
     def test_extract_metadata_invalid_url(self):

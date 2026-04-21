@@ -1,18 +1,21 @@
 """
 FANZA (DMM) 元数据提取器插件
 
-参考: D:\\code\\metatube-sdk-go-main\\provider\\fanza\\fanza.go
+参考: metatube-sdk-go/provider/fanza/
 支持的 URL 模式:
+  - https://video.dmm.co.jp/av/content/?id={id}
+  - https://video.dmm.co.jp/amateur/content/?id={id}
+  - https://video.dmm.co.jp/anime/content/?id={id}
+  - https://video.dmm.co.jp/cinema/content/?id={id}
   - https://www.dmm.co.jp/digital/videoa/-/detail/=/cid={id}/
   - https://www.dmm.co.jp/mono/dvd/-/detail/=/cid={id}/
-  - https://video.dmm.co.jp/av/content/?id={id}
-ID 格式: 小写英数字（如 midv00047, 1stars00141）
-通过 HTML（传统 DMM 页面）或 JSON-LD 解析获取元数据。
+ID 格式: 小写英数字（如 midv00047, 1stars00141, scute1112）
+数据获取优先级: GraphQL API → __NEXT_DATA__ → HTML + JSON-LD
 """
 
 import json
 import re
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
 import requests
@@ -38,12 +41,73 @@ SUPPORTED_DOMAINS = [
 SITE_NAME = "FANZA"
 
 MOVIE_URL_TEMPLATE = "https://www.dmm.co.jp/digital/videoa/-/detail/=/cid={movie_id}/"
+VIDEO_URL_TEMPLATE = "https://video.dmm.co.jp/{floor}/content/?id={movie_id}"
+GRAPHQL_URL = "https://api.video.dmm.co.jp/graphql"
+
+# video.dmm.co.jp 各类型路径 → GraphQL 标志
+_FLOOR_MAP: Dict[str, str] = {
+    "av": "isAv",
+    "amateur": "isAmateur",
+    "anime": "isAnime",
+    "cinema": "isCinema",
+    "vr": "isAv",
+}
+
+# 精简 GraphQL 查询 (基于 metatube-sdk-go ContentPageData.graphql)
+_GRAPHQL_QUERY = """
+query ContentPageData(
+  $id: ID!
+  $isAmateur: Boolean!
+  $isAnime: Boolean!
+  $isAv: Boolean!
+  $isCinema: Boolean!
+) {
+  ppvContent(id: $id) {
+    id
+    floor
+    title
+    description
+    packageImage { largeUrl mediumUrl }
+    sampleImages { number imageUrl largeImageUrl }
+    sample2DMovie { highestMovieUrl hlsMovieUrl }
+    ...AmateurData @include(if: $isAmateur)
+    ...AvData @include(if: $isAv)
+    ...AnimeData @include(if: $isAnime)
+    ...CinemaData @include(if: $isCinema)
+  }
+  reviewSummary(contentId: $id) { average total }
+}
+fragment AmateurData on PPVContent {
+  deliveryStartDate duration makerContentId
+  amateurActress { id name imageUrl }
+  maker { id name } label { id name } genres { id name }
+}
+fragment AvData on PPVContent {
+  deliveryStartDate makerReleasedAt duration makerContentId
+  actresses { id name imageUrl }
+  directors { id name }
+  series { id name }
+  maker { id name } label { id name } genres { id name }
+}
+fragment AnimeData on PPVContent {
+  deliveryStartDate duration makerContentId
+  series { id name }
+  maker { id name } label { id name } genres { id name }
+}
+fragment CinemaData on PPVContent {
+  deliveryStartDate duration makerContentId
+  actresses { id name imageUrl }
+  directors { id name }
+  series { id name }
+  maker { id name } label { id name } genres { id name }
+}
+"""
 
 
 class FanzaMetadata(HtmlMetadataPlugin):
     """dmm.co.jp / FANZA 元数据提取器。
 
-    特殊多通道解析: __NEXT_DATA__ → HTML + JSON-LD，覆写 extract_metadata 保持自定义逻辑。
+    多通道解析: GraphQL API → __NEXT_DATA__ → HTML + JSON-LD
     """
 
     def __init__(self):
@@ -58,7 +122,7 @@ class FanzaMetadata(HtmlMetadataPlugin):
     def can_extract(self, identifier: str) -> bool:
         if identifier.startswith("http://") or identifier.startswith("https://"):
             return self.can_handle_domain(identifier, SUPPORTED_DOMAINS)
-        # FANZA IDs: lowercase alphanumeric, e.g. midv00047, 1stars00141
+        # FANZA IDs: lowercase alphanumeric, e.g. midv00047, 1stars00141, scute1112
         return bool(re.match(r"^[a-z\d]{5,}$", identifier.strip()))
 
     def _fetch_page(self, url: str) -> requests.Response:
@@ -70,24 +134,30 @@ class FanzaMetadata(HtmlMetadataPlugin):
         return self._parse_html(soup, movie_id, page_url)
 
     def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
-        """多通道解析: __NEXT_DATA__ 优先, 回退到 HTML + JSON-LD"""
+        """多通道解析: GraphQL API → __NEXT_DATA__ → HTML + JSON-LD"""
         try:
-            movie_id, page_url = self._resolve(identifier)
+            movie_id, page_url, floor = self._resolve_with_floor(identifier)
             if not movie_id or not page_url:
                 self.logger.error(f"无法解析 identifier: {identifier}")
                 return None
 
+            # 1. GraphQL API (video.dmm.co.jp 所有内容类型)
+            result = self._try_graphql(movie_id, floor, page_url)
+            if result:
+                return result
+
+            # 2. HTML 回退 (传统 www.dmm.co.jp 页面)
             resp = self._fetch_page(page_url)
             soup = BeautifulSoup(resp.text, "lxml")
 
-            # Try __NEXT_DATA__ first (new video.dmm.co.jp)
+            # 2a. __NEXT_DATA__ (旧版 video.dmm.co.jp 页面)
             next_data = soup.find("script", id="__NEXT_DATA__")
             if next_data and next_data.string:
                 result = self._parse_next_data(next_data.string, movie_id, page_url)
                 if result:
                     return result
 
-            # Traditional HTML page
+            # 2b. 传统 HTML 页面
             return self._parse_html(soup, movie_id, page_url)
         except requests.RequestException as e:
             self.logger.error(f"HTTP 请求失败: {e}")
@@ -96,20 +166,169 @@ class FanzaMetadata(HtmlMetadataPlugin):
             self.logger.error(f"提取元数据失败: {e}", exc_info=True)
             return None
 
+    # ── URL 解析 ──
+
     def _resolve(self, identifier: str) -> Tuple[Optional[str], Optional[str]]:
+        movie_id, page_url, _ = self._resolve_with_floor(identifier)
+        return movie_id, page_url
+
+    def _resolve_with_floor(self, identifier: str) -> Tuple[Optional[str], Optional[str], str]:
+        """解析 identifier → (movie_id, page_url, floor)"""
         if identifier.startswith("http://") or identifier.startswith("https://"):
             parsed = urlparse(identifier)
+            floor = self._detect_floor(parsed.path)
+
             # Traditional: /cid=xxx/
             m = re.search(r"/cid=([^/]+)/?", parsed.path)
             if m:
-                return m.group(1).lower(), identifier
+                return m.group(1).lower(), identifier, floor
+
             # New: ?id=xxx
             qs = parse_qs(parsed.query)
             if "id" in qs:
-                return qs["id"][0].lower(), identifier
-            return None, None
+                return qs["id"][0].lower(), identifier, floor
+
+            return None, None, floor
+
         movie_id = identifier.strip().lower()
-        return movie_id, MOVIE_URL_TEMPLATE.format(movie_id=movie_id)
+        return movie_id, MOVIE_URL_TEMPLATE.format(movie_id=movie_id), "av"
+
+    @staticmethod
+    def _detect_floor(path: str) -> str:
+        """从 URL 路径检测内容类型"""
+        path_lower = path.lower()
+        for floor in _FLOOR_MAP:
+            if f"/{floor}/" in path_lower:
+                return floor
+        # www.dmm.co.jp/digital/videoc/ → amateur
+        if "/videoc/" in path_lower:
+            return "amateur"
+        return "av"
+
+    # ── GraphQL API ──
+
+    def _try_graphql(self, movie_id: str, floor: str, page_url: str) -> Optional[MovieMetadata]:
+        """通过 GraphQL API 获取元数据"""
+        try:
+            data = self._fetch_graphql(movie_id, floor)
+            if not data:
+                return None
+            return self._parse_graphql(data, movie_id, floor, page_url)
+        except Exception as e:
+            self.logger.debug(f"GraphQL 请求失败, 回退到 HTML: {e}")
+            return None
+
+    def _fetch_graphql(self, movie_id: str, floor: str) -> Optional[Dict[str, Any]]:
+        """调用 GraphQL API 并返回原始响应数据"""
+        from ...utils.http_utils import HttpUtils
+
+        flag_key = _FLOOR_MAP.get(floor, "isAv")
+        variables: Dict[str, Any] = {
+            "id": movie_id,
+            "isAmateur": False,
+            "isAnime": False,
+            "isAv": False,
+            "isCinema": False,
+        }
+        variables[flag_key] = True
+
+        proxies = HttpUtils.get_proxies(self.config.proxy)
+        resp = requests.post(
+            GRAPHQL_URL,
+            json={"query": _GRAPHQL_QUERY, "variables": variables},
+            headers={
+                "Content-Type": "application/json",
+                "Referer": "https://video.dmm.co.jp/",
+                "Cache-Control": "no-cache",
+                "Fanza-Device": "BROWSER",
+                "User-Agent": "",
+            },
+            proxies=proxies,
+            timeout=30,
+        )
+        resp.raise_for_status()
+        body = resp.json()
+        ppv = (body.get("data") or {}).get("ppvContent")
+        if not ppv or not ppv.get("title"):
+            return None
+        review = (body.get("data") or {}).get("reviewSummary") or {}
+        return {"ppvContent": ppv, "reviewSummary": review}
+
+    def _parse_graphql(self, data: Dict[str, Any], movie_id: str, floor: str, page_url: str) -> Optional[MovieMetadata]:
+        """将 GraphQL 响应转换为 MovieMetadata"""
+        content = data["ppvContent"]
+        review = data.get("reviewSummary") or {}
+
+        title = content.get("title", "")
+        description = content.get("description")
+        pkg = content.get("packageImage") or {}
+        cover = pkg.get("largeUrl") or pkg.get("mediumUrl")
+        thumb = pkg.get("mediumUrl")
+
+        maker_name = (content.get("maker") or {}).get("name")
+        label_name = (content.get("label") or {}).get("name")
+        series_name = (content.get("series") or {}).get("name")
+
+        runtime = content.get("duration")
+        if runtime and isinstance(runtime, (int, float)):
+            runtime = int(runtime) // 60
+
+        # amateur 使用 amateurActress (单人), 其它类型使用 actresses (数组)
+        actors: List[str] = []
+        amateur_actress = content.get("amateurActress")
+        if amateur_actress and amateur_actress.get("name"):
+            actors = [amateur_actress["name"]]
+        else:
+            actors = [a.get("name", "") for a in (content.get("actresses") or []) if a.get("name")]
+
+        genres = [g.get("name", "") for g in (content.get("genres") or []) if g.get("name")]
+        director = None
+        for d in content.get("directors") or []:
+            if d.get("name"):
+                director = d["name"]
+                break
+
+        premiered = content.get("deliveryStartDate") or content.get("makerReleasedAt")
+        if premiered and len(premiered) >= 10:
+            premiered = premiered[:10]
+
+        rating = review.get("average")
+
+        backdrops = [
+            s.get("largeImageUrl") or s.get("imageUrl") or ""
+            for s in (content.get("sampleImages") or [])
+            if s.get("largeImageUrl") or s.get("imageUrl")
+        ]
+
+        display_code = content.get("makerContentId") or content.get("id") or movie_id
+        # 如果 page_url 是旧格式, 生成 video.dmm.co.jp 链接
+        actual_floor = content.get("floor", "").lower() or floor
+        if "video.dmm.co.jp" not in page_url:
+            page_url = VIDEO_URL_TEMPLATE.format(floor=actual_floor, movie_id=movie_id)
+
+        metadata = (
+            MetadataBuilder()
+            .set_title(title, display_code)
+            .set_identifier(SITE_NAME, display_code, page_url)
+            .set_actors(actors)
+            .set_studio(maker_name)
+            .set_serial(series_name)
+            .set_tags(genres)
+            .set_release_date(premiered)
+            .set_runtime(runtime)
+            .set_cover(cover)
+            .set_thumbnail(thumb)
+            .set_backdrops(backdrops)
+            .set_plot(description)
+            .set_rating(rating)
+            .set_director(director)
+            .build()
+        )
+        if label_name:
+            metadata.tagline = label_name
+        metadata.official_rating = "JP-18+"
+        self.logger.info(f"成功提取元数据 (GraphQL): {display_code}")
+        return metadata
 
     def _parse_next_data(self, script_text: str, movie_id: str, page_url: str) -> Optional[MovieMetadata]:
         """解析 video.dmm.co.jp 上的 __NEXT_DATA__"""

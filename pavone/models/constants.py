@@ -1,5 +1,23 @@
 # 常用链接类型常量
 
+# 元数据丰富度评分权重（统一标准，总分 100）
+# 用于 Jellyfin 库内视频元数据完整度评估 及 元数据插件抓取能力评估
+METADATA_SCORE_WEIGHTS: dict[str, int] = {
+    "title": 1,  # 标题（几乎所有视频都有）
+    "code": 8,  # 番号/代码
+    "actors": 12,  # 演员
+    "cover": 10,  # 封面图
+    "plot": 15,  # 简介/描述
+    "premiered": 8,  # 发行日期
+    "genres": 8,  # 类型
+    "tags": 10,  # 标签
+    "studio": 10,  # 工作室/制作公司
+    "runtime": 1,  # 时长（几乎所有视频都有）
+    "rating": 5,  # 评分
+    "director": 5,  # 导演
+    "thumbnail": 7,  # 缩略图
+}
+
 
 class OperationType:
     """

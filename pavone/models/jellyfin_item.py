@@ -23,6 +23,8 @@
 
 from typing import Any, Dict, List, Optional
 
+from .constants import METADATA_SCORE_WEIGHTS
+
 
 class ItemMetadata:
     """Jellyfin 项目元数据类"""
@@ -262,6 +264,35 @@ class ItemMetadata:
         return self._data.get("Added") or self._data.get("DateCreated")
 
     @property
+    def video_quality(self) -> str:
+        """根据视频流分辨率推断视频质量标签"""
+        streams = self.video_streams
+        if not streams:
+            return "未知"
+        height = streams[0].get("Height", 0)
+        if height >= 2160:
+            return "4k"
+        if height >= 1440:
+            return "2k"
+        if height >= 1080:
+            return "1080p"
+        if height >= 720:
+            return "720p"
+        if height >= 480:
+            return "480p"
+        if height > 0:
+            return "360p"
+        return "未知"
+
+    @property
+    def video_height(self) -> int:
+        """视频高度（像素），用于排序"""
+        streams = self.video_streams
+        if not streams:
+            return 0
+        return streams[0].get("Height", 0)
+
+    @property
     def video_codec(self) -> Optional[str]:
         """视频编码"""
         return self._data.get("VideoCodec")
@@ -270,6 +301,34 @@ class ItemMetadata:
     def video_bitrate(self) -> int:
         """视频比特率"""
         return self._data.get("VideoBitrate", 0)
+
+    # 元数据丰富度评分
+    @property
+    def metadata_score(self) -> int:
+        """元数据丰富度评分 (0-100)
+
+        使用 METADATA_SCORE_WEIGHTS 统一标准，将 Jellyfin API 字段映射到语义维度。
+        """
+        score = 0
+        checks: Dict[str, bool] = {
+            "title": bool(self._data.get("Name")),
+            "code": bool(self._data.get("ExternalId")),
+            "actors": len(self.actors) > 0,
+            "cover": self.has_primary_image,
+            "plot": bool(self.overview),
+            "premiered": self.premiere_date is not None or self.year is not None,
+            "genres": len(self.genres) > 0,
+            "tags": len(self.tags) > 0,
+            "studio": len(self.studio_names) > 0,
+            "runtime": self.runtime_ticks > 0,
+            "rating": self.rating is not None and self.rating > 0,
+            "director": len(self.directors) > 0,
+            "thumbnail": self.has_thumb_image,
+        }
+        for dimension, has_value in checks.items():
+            if has_value:
+                score += METADATA_SCORE_WEIGHTS.get(dimension, 0)
+        return score
 
     # 原始访问
     def get(self, key: str, default: Any = None) -> Any:

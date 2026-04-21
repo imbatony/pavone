@@ -91,6 +91,12 @@ class TestPPVDataBankMetadata:
         release_date = extractor._extract_release_date(html)
         assert release_date == "2022-06-05"
 
+    def test_extract_release_date_new_label(self, extractor):
+        """测试新版 発売日 标签"""
+        html = "<li>発売日 : 2025/6/6</li>"
+        release_date = extractor._extract_release_date(html)
+        assert release_date == "2025-06-06"
+
     def test_extract_runtime(self, extractor):
         """测试从HTML提取时长"""
         with open("tests/sites/ppvdatabank.html", "r", encoding="utf-8") as f:

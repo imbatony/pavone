@@ -339,6 +339,8 @@ class JellyfinClientWrapper:
         library_ids: Optional[List[str]] = None,
         limit: int = 100,
         start_index: int = 0,
+        sort_by: Optional[str] = None,
+        sort_order: Optional[str] = None,
     ) -> List[JellyfinItem]:
         """
         获取库中的所有项
@@ -347,6 +349,8 @@ class JellyfinClientWrapper:
             library_ids: 库 ID 列表，如果为 None 则获取所有库
             limit: 单次查询的项数限制
             start_index: 起始索引（用于分页）
+            sort_by: Jellyfin API 排序字段（如 "SortName", "DateCreated"）
+            sort_order: 排序方向（"Ascending" 或 "Descending"）
 
         Returns:
             JellyfinItem 对象列表
@@ -364,17 +368,24 @@ class JellyfinClientWrapper:
 
             for lib_id in library_ids:
                 try:
+                    params: Dict[str, Any] = {
+                        "ParentId": lib_id,
+                        "Filters": "IsNotFolder",
+                        "IncludeItemTypes": "Movie,Video",
+                        "Fields": "Path,DateCreated,Overview,Genres,People,Studios,Tags,CommunityRating,OfficialRating,MediaSources",
+                        "Limit": limit,
+                        "StartIndex": start_index,
+                        "Recursive": True,
+                    }
+                    if sort_by:
+                        params["SortBy"] = sort_by
+                    if sort_order:
+                        params["SortOrder"] = sort_order
+
                     # 使用 user_items 方法获取库中的项
                     result = self.client.jellyfin.user_items(  # type: ignore[misc]
                         handler="",
-                        params={
-                            "ParentId": lib_id,
-                            "Filters": "IsNotFolder",
-                            "IncludeItemTypes": "Movie,Video",
-                            "Limit": limit,
-                            "StartIndex": start_index,
-                            "Recursive": True,
-                        },
+                        params=params,
                     )
 
                     for item_data in result.get("Items", []):  # type: ignore[misc]

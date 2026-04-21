@@ -80,9 +80,29 @@ class SupFC2Metadata(FC2BaseMetadata):
         url = f"https://supfc2.com/detail/FC2-PPV-{fc2_id}/detail"
         return fc2_id, url
 
+    def extract_metadata(self, identifier: str) -> Optional[BaseMetadata]:
+        """覆写模板方法，额外保存原始 HTML 供正则提取使用。
+
+        lxml 解析器会重组 <head>/<body> 等文档结构标签，导致 str(soup) 与原始 HTML
+        不一致，正则在 str(soup) 上匹配 og:image 等 meta 标签会失败。
+        """
+        try:
+            movie_id, page_url = self._resolve(identifier)
+            if not movie_id or not page_url:
+                self.logger.error(f"无法解析 identifier: {identifier}")
+                return None
+            resp = self._fetch_page(page_url)
+            self._raw_html = resp.text
+            soup = BeautifulSoup(resp.text, "lxml")
+            return self._parse(soup, movie_id, page_url)
+        except Exception as e:
+            self.logger.error(f"提取元数据失败: {e}", exc_info=True)
+            return None
+
     def _parse(self, soup: BeautifulSoup, movie_id: str, page_url: str) -> Optional[BaseMetadata]:
         """从 BeautifulSoup 对象解析元数据"""
-        html_content = str(soup)
+        # 优先使用原始 HTML 做正则提取（避免 lxml DOM 重组导致的匹配失败）
+        html_content = getattr(self, "_raw_html", None) or str(soup)
 
         title = self._extract_title(html_content)
         fc2_id_from_page = self._extract_fc2_id_from_page(html_content)
@@ -92,7 +112,7 @@ class SupFC2Metadata(FC2BaseMetadata):
         tags = self._extract_tags(html_content)
         genres = self._extract_genres(html_content)
         rating = self._extract_rating(html_content)
-        description = self._extract_description(html_content)
+        description = self._extract_description(html_content, soup)
         cover_image, background_image = self._extract_images(html_content)
 
         # 使用从页面提取的FC2 ID（如果有）
@@ -248,31 +268,48 @@ class SupFC2Metadata(FC2BaseMetadata):
             self.logger.error(f"提取评分失败: {str(e)}")
             return None
 
-    def _extract_description(self, html_content: str) -> Optional[str]:
-        """提取描述（去除图片）"""
-        try:
-            # 支持两种标题格式：日文"映画の説明"和英文"Movie Description"
-            patterns = [
-                r'<h4[^>]*>映画の説明</h4>\s*<div class="mb-4">\s*<body><p>(.*?)</p>',
-                r'<h4[^>]*>Movie Description</h4>\s*<div class="mb-4">\s*<body><p>(.*?)</p>',
-            ]
+    def _extract_description(self, html_content: str, soup: Optional[BeautifulSoup] = None) -> Optional[str]:
+        """提取描述（去除图片）
 
+        优先使用 BeautifulSoup 解析，回退到正则匹配原始 HTML。
+        注意: supfc2 页面的描述区域包含嵌套 <body> 标签，lxml 解析器会重组 DOM，
+        导致 str(soup) 后正则无法匹配，因此需要用 soup 的 API 直接定位。
+        """
+        try:
             desc_html = None
-            for pattern in patterns:
-                match = re.search(pattern, html_content, re.DOTALL)
-                if match:
-                    desc_html = match.group(1)
-                    break
+
+            # 方式 1: 用 BeautifulSoup 定位描述区域
+            if soup is not None:
+                for heading_text in ["映画の説明", "Movie Description"]:
+                    h4 = soup.find("h4", string=re.compile(re.escape(heading_text)))  # type: ignore[call-overload]
+                    if h4:
+                        desc_div = h4.find_next_sibling("div", class_="mb-4")
+                        if desc_div:
+                            desc_html = desc_div.decode_contents()
+                            break
+
+            # 方式 2: 回退到原始 HTML 正则（适用于未传入 soup 的场景）
+            if not desc_html:
+                patterns = [
+                    r'<h4[^>]*>映画の説明</h4>\s*<div class="mb-4">[^<]*<body><p>(.*?)</p>',
+                    r'<h4[^>]*>Movie Description</h4>\s*<div class="mb-4">[^<]*<body><p>(.*?)</p>',
+                ]
+                for pattern in patterns:
+                    match = re.search(pattern, html_content, re.DOTALL)
+                    if match:
+                        desc_html = match.group(1)
+                        break
 
             if desc_html:
                 # 移除所有图片链接
                 desc_html = re.sub(r"<a[^>]*data-fancybox[^>]*>.*?</a>", "", desc_html, flags=re.DOTALL)
-                # 移除HTML标签，保留<br>标签
+                # <br> 转换为换行
                 desc_html = re.sub(r"<br\s*/?>", "\n", desc_html)
+                # 移除其他 HTML 标签
                 desc_html = re.sub(r"<[^>]+>", "", desc_html)
-                # 清理多余的空白
+                # 清理多余空白
                 desc_text = re.sub(r"\n\s*\n", "\n\n", desc_html)
-                return desc_text.strip()
+                return desc_text.strip() or None
             return None
         except Exception as e:
             self.logger.error(f"提取描述失败: {str(e)}")
