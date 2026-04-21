@@ -7,15 +7,33 @@
 
 ## [0.3.5] - 2026-04-21
 
+### 新增
+- `jellyfin list` 命令新增「质量」列，显示视频分辨率标签（4K/1080p/720p 等）
+- 新增 `--sort-by quality` 排序选项，支持按视频分辨率排序
+- `ItemMetadata` 新增 `video_quality` / `video_height` 属性
 
+### 改进
+- `get_library_items` API 请求增加 MediaSources 字段
+- 元数据插件改进：fanza GraphQL、javbus 解析、supfc2 描述提取
+
+### 修复
+- 修复 pyright 错误：supfc2_metadata.py BeautifulSoup find 类型重载
+- 修复 flake8 F401：移除未使用的 import
+- 修复 flake8 E741：重命名模糊变量名 `l` → `line`
 
 ## [0.3.4] - 2026-04-15
 
+### 新增
+- 自动发布工作流（gh-aw auto-release），PR 合并后自动 bump 版本并创建 GitHub Release
+- 每日 CI 测试工作流和元数据插件测试脚本
 
+### 改进
+- 移除失败的插件，清理代码
+- auto-release 使用 `grep -m1` 精确匹配项目版本号
 
-## [0.3.5] - 2026-04-21
-
-
+### 修复
+- 修复 daily workflow 中 discussion 创建使用 GraphQL node ID
+- 修复 gcolle 和 javfree 的 2 个 pyright 类型错误
 
 ## [0.3.3] - 2026-04-14
 
@@ -25,18 +43,6 @@
 - Gcolle: 自动通过年龄认证页面，正确获取商品详情
 - Javfree: 支持非 FC2 格式 URL，从标题提取 `[CODE-123]` 番号
 - Muramura: MOVIE_ID_PATTERN 兼容 3-4 位数字后缀（如 `040826_1229`）
-
-## [0.3.5] - 2026-04-21
-
-
-
-## [0.3.4] - 2026-04-15
-
-
-
-## [0.3.5] - 2026-04-21
-
-
 
 ## [0.3.2] - 2026-04-14
 
@@ -54,18 +60,6 @@
 - 34 个元数据插件分 8 批迁移至新基类，每批独立验证
 - `FC2BaseMetadata` 改为继承 `HtmlMetadataPlugin`，自动获得模板方法和工具方法
 - 插件总代码行数从 7,148 行降至 6,357 行（减少 11%）
-
-## [0.3.5] - 2026-04-21
-
-
-
-## [0.3.4] - 2026-04-15
-
-
-
-## [0.3.5] - 2026-04-21
-
-
 
 ## [0.2.2] - 2026-03-17
 
@@ -92,20 +86,6 @@
 
 **完全向后兼容，无需迁移。**
 
----
-
-## [0.3.5] - 2026-04-21
-
-
-
-## [0.3.4] - 2026-04-15
-
-
-
-## [0.3.5] - 2026-04-21
-
-
-
 ## [0.2.1] - 2025-12-29
 
 ### 新增
@@ -131,20 +111,6 @@
 
 详见：[docs/update/0.2.1.md](docs/update/0.2.1.md)
 
----
-
-## [0.3.5] - 2026-04-21
-
-
-
-## [0.3.4] - 2026-04-15
-
-
-
-## [0.3.5] - 2026-04-21
-
-
-
 ## [0.2.0] - 2024-12-XX
 
 ### 新增
@@ -167,20 +133,6 @@
 
 详见：[docs/update/0.2.0.md](docs/update/0.2.0.md)
 
----
-
-## [0.3.5] - 2026-04-21
-
-
-
-## [0.3.4] - 2026-04-15
-
-
-
-## [0.3.5] - 2026-04-21
-
-
-
 ## [0.1.1] - 2024-XX-XX
 
 ### 新增
@@ -190,6 +142,10 @@
 
 ---
 
+[0.3.5]: https://github.com/imbatony/pavone/compare/v0.3.4...v0.3.5
+[0.3.4]: https://github.com/imbatony/pavone/compare/v0.3.3...v0.3.4
+[0.3.3]: https://github.com/imbatony/pavone/compare/v0.3.2...v0.3.3
+[0.3.2]: https://github.com/imbatony/pavone/compare/v0.2.2...v0.3.2
 [0.2.2]: https://github.com/imbatony/pavone/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/imbatony/pavone/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/imbatony/pavone/compare/v0.1.1...v0.2.0

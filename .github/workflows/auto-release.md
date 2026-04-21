@@ -76,6 +76,9 @@ safe-outputs:
             # Update pyproject.toml
             sed -i "s/version = \"$CURRENT\"/version = \"$NEW_VERSION\"/" pyproject.toml
 
+            # Update pavone/__init__.py
+            sed -i "s/__version__ = \"$CURRENT\"/__version__ = \"$NEW_VERSION\"/" pavone/__init__.py
+
         - name: Update CHANGELOG
           env:
             NEW_VERSION: ${{ steps.bump.outputs.new_version }}
@@ -83,8 +86,8 @@ safe-outputs:
             DATE=$(date -u +%Y-%m-%d)
             RELEASE_NOTES=$(cat /tmp/release_notes.md)
 
-            # Prepend new version entry after the header
-            sed -i "/^## \[/i ## [$NEW_VERSION] - $DATE\n\n$RELEASE_NOTES\n" CHANGELOG.md
+            # Prepend new version entry after the header (only before the first ## [ line)
+            sed -i "0,/^## \[/s//## [$NEW_VERSION] - $DATE\n\n$RELEASE_NOTES\n\n&/" CHANGELOG.md
 
         - name: Commit and tag
           env:
@@ -92,7 +95,7 @@ safe-outputs:
           run: |
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add pyproject.toml CHANGELOG.md
+            git add pyproject.toml pavone/__init__.py CHANGELOG.md
             git commit -m "chore: bump version to $NEW_VERSION" || echo "No changes to commit"
             git tag "v$NEW_VERSION"
             git push origin main --tags
