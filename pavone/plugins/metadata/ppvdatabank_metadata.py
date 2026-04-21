@@ -273,8 +273,8 @@ class PPVDataBankMetadata(FC2BaseMetadata, SearchPlugin):
             发布日期
         """
         try:
-            # 示例: <li>販売日 : 2022/6/5</li>
-            date_match = re.search(r"<li>販売日\s*:\s*(\d{4})/(\d{1,2})/(\d{1,2})</li>", html)
+            # 示例: <li>発売日 : 2022/6/5</li> (旧版使用 販売日)
+            date_match = re.search(r"<li>[販発]売日\s*:\s*(\d{4})/(\d{1,2})/(\d{1,2})</li>", html)
             if date_match:
                 year = date_match.group(1)
                 month = date_match.group(2).zfill(2)

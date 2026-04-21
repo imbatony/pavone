@@ -61,20 +61,29 @@ TEST_CASES: List[Tuple[str, str, str]] = [
 ]
 # fmt: on
 
-FIELD_WEIGHTS: Dict[str, int] = {
-    "title": 15,
-    "code": 10,
-    "actors": 12,
-    "studio": 8,
-    "tags": 8,
-    "premiered": 10,
-    "runtime": 8,
-    "cover": 10,
-    "plot": 8,
-    "rating": 5,
-    "director": 3,
-    "thumbnail": 3,
-}
+FIELD_WEIGHTS: Dict[str, int] = {}
+try:
+    from pavone.models.constants import METADATA_SCORE_WEIGHTS
+
+    # 从统一权重生成插件字段权重（维度名与 MovieMetadata 字段名一致）
+    FIELD_WEIGHTS = dict(METADATA_SCORE_WEIGHTS)
+except ImportError:
+    # 回退: 如果无法导入则使用内联定义
+    FIELD_WEIGHTS = {
+        "title": 12,
+        "code": 8,
+        "actors": 12,
+        "cover": 10,
+        "plot": 10,
+        "premiered": 8,
+        "genres": 8,
+        "tags": 6,
+        "studio": 6,
+        "runtime": 5,
+        "rating": 5,
+        "director": 5,
+        "thumbnail": 5,
+    }
 
 
 def score_metadata(metadata_obj: Any) -> Tuple[int, Dict[str, bool]]:

@@ -255,6 +255,46 @@ manager = ExecutionManager()
 # ...
 ```
 
+## Jellyfin 媒体库管理
+
+### 查看连接状态
+
+```bash
+pavone jellyfin status
+```
+
+### 列出所有媒体库
+
+```bash
+pavone jellyfin libraries
+```
+
+### 列取媒体库中的视频
+
+```bash
+# 列取指定媒体库的视频（默认按加入时间降序，显示 50 条）
+pavone jellyfin list "我的视频"
+
+# 按名称升序排列
+pavone jellyfin list "我的视频" --sort-by name --order asc
+
+# 按元数据丰富度评分排序（评分低的在前，方便找出需要补充元数据的视频）
+pavone jellyfin list "我的视频" -s metadata_score -o asc
+
+# 限制显示数量
+pavone jellyfin list "我的视频" -n 20
+
+# 不指定媒体库，交互式选择
+pavone jellyfin list
+
+# 组合选项
+pavone jellyfin list -s metadata_score -o asc -n 100
+```
+
+**排序字段**: `name`（名称）、`date_added`（加入时间）、`metadata_score`（元数据丰富度评分）
+
+**元数据丰富度评分**: 基于 10 个维度的加权评分（0-100），维度包括标题、简介、类型、年份、演员、导演、封面图、评分、标签、工作室。评分越高表示元数据越完整。
+
 ## 贡献
 
 欢迎提交问题和贡献代码！请查看项目的 GitHub 仓库。

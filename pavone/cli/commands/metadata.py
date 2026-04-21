@@ -375,7 +375,7 @@ def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[st
                 echo_info(f"  🖼️  背景图 (Backdrop): {len(backdrop_urls)} 张")
 
             echo_info("")
-            replace_images = confirm_action("是否下载并替换 Jellyfin 中的图片？", default=True)
+            replace_images = confirm_action("是否下载并替换 Jellyfin 中的图片？", default=False)
 
         # 合并元数据
         merged_updates = MetadataComparison.merge_metadata(local_metadata, remote_metadata, comparison, force)

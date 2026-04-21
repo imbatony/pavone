@@ -4,7 +4,7 @@ Jellyfin 相关命令
 提供 Jellyfin 库管理命令
 """
 
-from typing import Any, Optional
+from typing import Any, List, Optional
 from unicodedata import east_asian_width
 
 import click
@@ -712,3 +712,186 @@ def move(source_path: str):  # noqa: C901
         echo_error(f"操作失败: {e}")
         logger.exception("移动文件夹时出错")
         return 1
+
+
+def _truncate_text(text: str, max_width: int) -> str:
+    """截断文本至指定显示宽度，超出部分用省略号替代"""
+    if get_display_width(text) <= max_width:
+        return text
+    result = ""
+    current_width = 0
+    for char in text:
+        ea = east_asian_width(char)
+        char_width = 2 if ea in ("F", "W") else 1
+        if current_width + char_width + 3 > max_width:  # 预留 "..." 的 3 个宽度
+            break
+        result += char
+        current_width += char_width
+    return result + "..."
+
+
+def _format_date(date_str: Optional[str]) -> str:
+    """格式化 Jellyfin 日期字符串为 YYYY-MM-DD"""
+    if not date_str:
+        return "N/A"
+    return date_str[:10] if len(date_str) >= 10 else date_str
+
+
+# 排序字段映射: CLI 参数 → Jellyfin API SortBy 值
+_SORT_BY_MAP = {
+    "name": "SortName",
+    "date_added": "DateCreated",
+}
+
+# 需要客户端排序的字段（无法由 Jellyfin API 直接排序）
+_CLIENT_SORT_FIELDS = {"metadata_score", "quality"}
+
+# 排序方向映射: CLI 参数 → Jellyfin API SortOrder 值
+_SORT_ORDER_MAP = {
+    "asc": "Ascending",
+    "desc": "Descending",
+}
+
+# 排序字段中文标签
+_SORT_LABEL_MAP = {
+    "name": "名称",
+    "date_added": "加入时间",
+    "metadata_score": "元数据评分",
+    "quality": "视频质量",
+}
+
+_ORDER_LABEL_MAP = {
+    "asc": "升序",
+    "desc": "降序",
+}
+
+
+@jellyfin.command("list")
+@click.argument("library_name", required=False, default=None)
+@click.option(
+    "--sort-by",
+    "-s",
+    type=click.Choice(["name", "date_added", "metadata_score", "quality"]),
+    default="date_added",
+    help="排序字段",
+)
+@click.option("--order", "-o", type=click.Choice(["asc", "desc"]), default="asc", help="排序方向")
+@click.option("--limit", "-n", type=click.IntRange(1, 10000), default=50, help="显示记录数上限")
+def list_videos(library_name: Optional[str], sort_by: str, order: str, limit: int) -> None:
+    """列取媒体库中的视频"""
+    config_manager = get_config_manager()
+    config = config_manager.get_config()
+
+    if not config.jellyfin.enabled:
+        echo_error("Jellyfin 未启用，请在配置中启用")
+        return
+
+    try:
+        client = JellyfinClientWrapper(config.jellyfin)
+        client.authenticate()
+
+        libraries = client.get_libraries()
+        if not libraries:
+            echo_error("Jellyfin 上没有可用的媒体库")
+            return
+
+        # 交互式选择媒体库（T011: US3）
+        if library_name is None:
+            if len(libraries) == 1:
+                selected_lib = libraries[0]
+                echo_colored(f"✓ 自动选择库: {selected_lib.name}", fg="green", bold=True)
+            else:
+                click.echo("请选择媒体库:")
+                for i, lib in enumerate(libraries, 1):
+                    click.echo(f"  {i}. {lib.name} ({lib.item_count} 项)")
+                click.echo()
+                lib_choice: int = click.prompt("请选择库", type=click.IntRange(1, len(libraries)))
+                selected_lib = libraries[lib_choice - 1]
+                echo_colored(f"✓ 已选择库: {selected_lib.name}\n", fg="green", bold=True)
+        else:
+            # 按名称查找媒体库
+            selected_lib = None
+            for lib in libraries:
+                if lib.name == library_name:
+                    selected_lib = lib
+                    break
+            if selected_lib is None:
+                available = ", ".join(lib.name for lib in libraries)
+                echo_error(f'媒体库 "{library_name}" 不存在。可用的媒体库: {available}')
+                return
+
+        # 获取视频数据
+        items: List[JellyfinItem]
+        if sort_by in _CLIENT_SORT_FIELDS:
+            # 客户端排序: 需要获取全量数据
+            items = []
+            page_size = 100
+            start_index = 0
+            while True:
+                page = client.get_library_items(
+                    library_ids=[selected_lib.id],
+                    limit=page_size,
+                    start_index=start_index,
+                )
+                if not page:
+                    break
+                items.extend(page)
+                if len(page) < page_size:
+                    break
+                start_index += page_size
+
+            reverse = order == "desc"
+            if sort_by == "metadata_score":
+                items.sort(key=lambda item: ItemMetadata(item.metadata).metadata_score, reverse=reverse)
+            elif sort_by == "quality":
+                items.sort(key=lambda item: ItemMetadata(item.metadata).video_height, reverse=reverse)
+            total_count = len(items)
+            items = items[:limit]
+        else:
+            # 服务端排序
+            api_sort_by = _SORT_BY_MAP.get(sort_by)
+            api_sort_order = _SORT_ORDER_MAP.get(order)
+            items = client.get_library_items(
+                library_ids=[selected_lib.id],
+                limit=limit,
+                sort_by=api_sort_by,
+                sort_order=api_sort_order,
+            )
+            total_count = selected_lib.item_count
+
+        # 展示结果
+        if not items:
+            click.echo(f'媒体库 "{selected_lib.name}" 为空，没有视频内容。')
+            return
+
+        sort_label = _SORT_LABEL_MAP.get(sort_by, sort_by)
+        order_label = _ORDER_LABEL_MAP.get(order, order)
+        shown = len(items)
+        click.echo(
+            f"\n媒体库: {selected_lib.name} (共 {total_count} 个视频, 显示前 {shown} 条, 按{sort_label}{order_label})\n"
+        )
+
+        rows: list[list[Any]] = []
+        for i, item in enumerate(items, 1):
+            metadata = ItemMetadata(item.metadata)
+            name_display = _truncate_text(item.name, 28)
+            date_display = _format_date(metadata.added_date)
+            score_display = str(metadata.metadata_score)
+            quality_display = metadata.video_quality
+            path_display = _truncate_text(item.path or "N/A", 36)
+            rows.append([str(i), name_display, date_display, score_display, quality_display, path_display])
+
+        # 手动对齐表格（tabulate 不处理 CJK 宽字符）
+        col_widths = [4, 30, 12, 6, 8, 38]
+        headers = ["#", "名称", "加入时间", "评分", "质量", "路径"]
+        header_line = "  ".join(pad_text(h, w) for h, w in zip(headers, col_widths))
+        sep_line = "  ".join("-" * w for w in col_widths)
+        click.echo(header_line)
+        click.echo(sep_line)
+        for row in rows:
+            line = "  ".join(pad_text(cell, w) for cell, w in zip(row, col_widths))
+            click.echo(line)
+
+    except Exception as e:
+        echo_error(f"列取视频失败: {e}")
+        logger.exception("列取视频时出错")
