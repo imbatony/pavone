@@ -372,7 +372,7 @@ class JellyfinClientWrapper:
                         "ParentId": lib_id,
                         "Filters": "IsNotFolder",
                         "IncludeItemTypes": "Movie,Video",
-                        "Fields": "Path,DateCreated,Overview,Genres,People,Studios,Tags,CommunityRating,OfficialRating,MediaSources",
+                        "Fields": "Path,DateCreated,Overview,Genres,People,Studios,Tags,CommunityRating,OfficialRating,MediaSources,MediaStreams",
                         "Limit": limit,
                         "StartIndex": start_index,
                         "Recursive": True,
