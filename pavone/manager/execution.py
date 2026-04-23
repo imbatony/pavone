@@ -651,8 +651,14 @@ class ExecutionManager:
         Returns:
             处理后的进度回调函数
         """
-        # 只有当下载类型为STREAM或者VIDEO时才传递进度回调
-        if selected_item.item_type in (ItemType.STREAM, ItemType.VIDEO):
+        # 只有当操作为 DOWNLOAD 且 item 类型为 STREAM/VIDEO 时才创建进度回调.
+        # MOVE 等非下载操作不会使用进度回调, 而 Rich Progress 一旦 start() 就会接管 stdout,
+        # 若没有对应的 stop() 调用会导致后续 click.confirm/prompt 输出被吞掉
+        # (organize 多文件场景下第二次起确认提示不显示的根因).
+        if selected_item.opt_type == OperationType.DOWNLOAD and selected_item.item_type in (
+            ItemType.STREAM,
+            ItemType.VIDEO,
+        ):
             if selected_item.item_type == ItemType.STREAM:
                 # M3U8: 使用分片级进度回调
                 callback = create_segment_progress_callback() if not silent else create_silent_progress_callback()
