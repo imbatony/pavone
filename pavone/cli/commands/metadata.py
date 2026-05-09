@@ -223,8 +223,30 @@ def show(identifier: str, proxy: str):
     type=click.Choice([p.value for p in ImagePolicy]),
     default=ImagePolicy.ASK.value,
     show_default=True,
-    help="图片下载策略：ask=交互询问；none=不下载；missing-only=仅补缺失；all=全部下载替换。"
-    "搭配 --yes 使用时 ask 等价于 missing-only。",
+    help="所有图片类型的默认下载策略：ask=交互询问；none=不下载；missing-only=仅补缺失；"
+    "all=全部下载替换。搭配 --yes 使用时 ask 等价于 missing-only。"
+    "可被 --cover/--thumb/--backdrop 覆盖。",
+)
+@click.option(
+    "--cover",
+    "cover_policy_str",
+    type=click.Choice([p.value for p in ImagePolicy]),
+    default=None,
+    help="封面图 (Primary) 单独的下载策略，覆盖 --images。",
+)
+@click.option(
+    "--thumb",
+    "thumb_policy_str",
+    type=click.Choice([p.value for p in ImagePolicy]),
+    default=None,
+    help="海报图 (Thumb) 单独的下载策略，覆盖 --images。",
+)
+@click.option(
+    "--backdrop",
+    "backdrop_policy_str",
+    type=click.Choice([p.value for p in ImagePolicy]),
+    default=None,
+    help="背景图 (Backdrop) 单独的下载策略，覆盖 --images。",
 )
 @click.option(
     "--strict",
@@ -239,6 +261,9 @@ def enrich(  # noqa: C901
     force: bool,
     assume_yes: bool,
     image_policy_str: str,
+    cover_policy_str: Optional[str],
+    thumb_policy_str: Optional[str],
+    backdrop_policy_str: Optional[str],
     strict: bool,
     proxy: str,
 ):
@@ -262,11 +287,22 @@ def enrich(  # noqa: C901
 
     4. 非交互批处理（仅补缺失图片）:
         pavone metadata enrich <identifier> <video_id> --yes --images missing-only --strict
+
+    5. 按图片类型分别指定策略（封面不动，仅补缺失背景图）:
+        pavone metadata enrich <identifier> <video_id> --yes --cover none --backdrop missing-only
     """
-    # 解析图片策略；--yes + ask 时回退到 missing-only（更安全的批处理默认）
-    image_policy = ImagePolicy(image_policy_str)
-    if assume_yes and image_policy == ImagePolicy.ASK:
-        image_policy = ImagePolicy.MISSING_ONLY
+
+    def _resolve_policy(per_kind: Optional[str]) -> ImagePolicy:
+        # 单独指定的策略覆盖 --images；--yes + ask 自动升级为 missing-only
+        raw = per_kind if per_kind is not None else image_policy_str
+        policy = ImagePolicy(raw)
+        if assume_yes and policy == ImagePolicy.ASK:
+            policy = ImagePolicy.MISSING_ONLY
+        return policy
+
+    cover_policy = _resolve_policy(cover_policy_str)
+    thumb_policy = _resolve_policy(thumb_policy_str)
+    backdrop_policy = _resolve_policy(backdrop_policy_str)
     try:
         # 获取配置
         config = get_config()
@@ -433,38 +469,45 @@ def enrich(  # noqa: C901
                 echo_info(f"  🎬 海报图 (Poster): {poster_url}")
             if backdrop_urls:
                 echo_info(f"  🖼️  背景图 (Backdrop): {len(backdrop_urls)} 张")
+            echo_info("")
 
-            if image_policy == ImagePolicy.ASK:
-                # 逐类型分别询问；默认值 = 当前 Jellyfin 是否缺失（缺失则默认 Yes）
-                echo_info("")
-                if cover_url:
+            # 封面 (Primary)
+            if cover_url:
+                if cover_policy == ImagePolicy.ASK:
                     has_p = local_metadata.has_primary_image
                     status = "已存在" if has_p else "缺失"
                     do_cover = confirm_action(f"封面图 (Primary) [{status}]，是否下载并替换？", default=not has_p)
-                if poster_url:
+                else:
+                    do_cover = should_upload_image(IMAGE_KIND_PRIMARY, local_metadata, cover_policy)
+
+            # 海报 (Thumb)
+            if poster_url:
+                if thumb_policy == ImagePolicy.ASK:
                     has_t = local_metadata.has_thumb_image
                     status = "已存在" if has_t else "缺失"
                     do_poster = confirm_action(f"海报图 (Thumb) [{status}]，是否下载并替换？", default=not has_t)
-                if backdrop_urls:
+                else:
+                    do_poster = should_upload_image(IMAGE_KIND_THUMB, local_metadata, thumb_policy)
+
+            # 背景 (Backdrop)
+            if backdrop_urls:
+                if backdrop_policy == ImagePolicy.ASK:
                     bd_count = local_metadata.backdrop_count
                     status = f"已有 {bd_count} 张" if bd_count else "缺失"
                     do_backdrops = confirm_action(
                         f"背景图 (Backdrop) 共 {len(backdrop_urls)} 张 [{status}]，是否下载并替换？",
                         default=bd_count == 0,
                     )
-            else:
-                # 非交互策略：按字段维度独立判断
-                if cover_url:
-                    do_cover = should_upload_image(IMAGE_KIND_PRIMARY, local_metadata, image_policy)
-                if poster_url:
-                    do_poster = should_upload_image(IMAGE_KIND_THUMB, local_metadata, image_policy)
-                if backdrop_urls:
-                    do_backdrops = should_upload_image(IMAGE_KIND_BACKDROP, local_metadata, image_policy)
+                else:
+                    do_backdrops = should_upload_image(IMAGE_KIND_BACKDROP, local_metadata, backdrop_policy)
+
+            # 在任一类型为非交互策略时打印决策摘要
+            if cover_policy != ImagePolicy.ASK or thumb_policy != ImagePolicy.ASK or backdrop_policy != ImagePolicy.ASK:
                 echo_info(
-                    f"\n图片策略 [{image_policy.value}]: "
-                    f"封面={'下载' if do_cover else '跳过'}, "
-                    f"海报={'下载' if do_poster else '跳过'}, "
-                    f"背景={'下载' if do_backdrops else '跳过'}"
+                    f"图片策略: "
+                    f"封面[{cover_policy.value}]={'下载' if do_cover else '跳过'}, "
+                    f"海报[{thumb_policy.value}]={'下载' if do_poster else '跳过'}, "
+                    f"背景[{backdrop_policy.value}]={'下载' if do_backdrops else '跳过'}"
                 )
 
         replace_images = do_cover or do_poster or do_backdrops
