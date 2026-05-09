@@ -435,11 +435,23 @@ def enrich(  # noqa: C901
                 echo_info(f"  🖼️  背景图 (Backdrop): {len(backdrop_urls)} 张")
 
             if image_policy == ImagePolicy.ASK:
+                # 逐类型分别询问；默认值 = 当前 Jellyfin 是否缺失（缺失则默认 Yes）
                 echo_info("")
-                if confirm_action("是否下载并替换 Jellyfin 中的图片？", default=False):
-                    do_cover = bool(cover_url)
-                    do_poster = bool(poster_url)
-                    do_backdrops = bool(backdrop_urls)
+                if cover_url:
+                    has_p = local_metadata.has_primary_image
+                    status = "已存在" if has_p else "缺失"
+                    do_cover = confirm_action(f"封面图 (Primary) [{status}]，是否下载并替换？", default=not has_p)
+                if poster_url:
+                    has_t = local_metadata.has_thumb_image
+                    status = "已存在" if has_t else "缺失"
+                    do_poster = confirm_action(f"海报图 (Thumb) [{status}]，是否下载并替换？", default=not has_t)
+                if backdrop_urls:
+                    bd_count = local_metadata.backdrop_count
+                    status = f"已有 {bd_count} 张" if bd_count else "缺失"
+                    do_backdrops = confirm_action(
+                        f"背景图 (Backdrop) 共 {len(backdrop_urls)} 张 [{status}]，是否下载并替换？",
+                        default=bd_count == 0,
+                    )
             else:
                 # 非交互策略：按字段维度独立判断
                 if cover_url:
