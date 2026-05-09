@@ -80,6 +80,54 @@ def colorize_tag(tag: str, tag_type: str) -> str:
         return tag
 
 
+class ImagePolicy(str, Enum):
+    """图片下载策略
+
+    - ASK: 交互式询问（兼容旧行为）
+    - NONE: 不下载任何图片
+    - MISSING_ONLY: 仅在 Jellyfin 中对应类型的图片缺失时才下载
+    - ALL: 下载并替换所有图片（覆盖现有）
+    """
+
+    ASK = "ask"
+    NONE = "none"
+    MISSING_ONLY = "missing-only"
+    ALL = "all"
+
+
+# Jellyfin 三种图片类型常量（与 client.download_remote_image / upload_image 的 image_type 参数对齐）
+IMAGE_KIND_PRIMARY = "Primary"
+IMAGE_KIND_THUMB = "Thumb"
+IMAGE_KIND_BACKDROP = "Backdrop"
+
+
+def should_upload_image(image_kind: str, item: ItemMetadata, policy: ImagePolicy) -> bool:
+    """根据图片策略决定是否应当上传指定类型的图片
+
+    Args:
+        image_kind: Jellyfin 图片类型，取值 "Primary" | "Thumb" | "Backdrop"
+        item: Jellyfin 中视频的当前元数据（用于检测是否已有图片）
+        policy: 图片下载策略
+
+    Returns:
+        True 表示应当下载并上传，False 表示跳过
+    """
+    if policy == ImagePolicy.NONE:
+        return False
+    if policy == ImagePolicy.ALL:
+        return True
+    if policy == ImagePolicy.MISSING_ONLY:
+        if image_kind == IMAGE_KIND_PRIMARY:
+            return not item.has_primary_image
+        if image_kind == IMAGE_KIND_THUMB:
+            return not item.has_thumb_image
+        if image_kind == IMAGE_KIND_BACKDROP:
+            return item.backdrop_count == 0
+        return False
+    # ASK 策略下应由调用方负责一次性交互确认；这里保守返回 True 作为后备。
+    return True
+
+
 class FieldChange(Enum):
     """字段变更类型"""
 
