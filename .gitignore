@@ -215,3 +215,6 @@ config.json
 # Temp directory
 temp/
 temp/*
+
+# 个人批处理脚本（不进版本库）：放在 scripts/local/ 下
+scripts/local/
