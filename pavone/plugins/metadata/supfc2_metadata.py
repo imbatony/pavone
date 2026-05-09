@@ -23,7 +23,7 @@ PLUGIN_DESCRIPTION = "提取 supfc2.com 的FC2视频元数据"
 PLUGIN_AUTHOR = "PAVOne"
 
 # 定义插件优先级
-PLUGIN_PRIORITY = 25
+PLUGIN_PRIORITY = 20
 
 # 定义支持的域名
 SUPPORTED_DOMAINS = ["supfc2.com", "www.supfc2.com"]
