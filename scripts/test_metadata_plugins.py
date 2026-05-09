@@ -71,17 +71,17 @@ except ImportError:
     # 回退: 如果无法导入则使用内联定义（与 constants.METADATA_SCORE_WEIGHTS 保持一致）
     FIELD_WEIGHTS = {
         "title": 1,
-        "actors": 12,
-        "cover": 10,
-        "plot": 15,
-        "premiered": 8,
-        "genres": 8,
-        "tags": 10,
-        "studio": 10,
+        "actors": 13,
+        "cover": 11,
+        "plot": 16,
+        "premiered": 9,
+        "genres": 9,
+        "tags": 11,
+        "studio": 11,
         "runtime": 1,
         "rating": 5,
         "director": 5,
-        "thumbnail": 7,
+        "thumbnail": 8,
     }
 
 

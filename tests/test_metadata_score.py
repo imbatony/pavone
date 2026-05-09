@@ -87,9 +87,9 @@ class TestMetadataScore:
         metadata = ItemMetadata(data)
         assert metadata.metadata_score == 0
 
-    def test_weights_sum_to_92(self) -> None:
-        """权重总和为 92 (移除了 ExternalId/code 维度，因 Jellyfin 不可写入)"""
-        assert sum(METADATA_SCORE_WEIGHTS.values()) == 92
+    def test_weights_sum_to_100(self) -> None:
+        """权重总和为 100 (移除 ExternalId/code 维度后，剩余 8 分按比例分摊到非平凡字段)"""
+        assert sum(METADATA_SCORE_WEIGHTS.values()) == 100
 
     def test_cover_without_primary_not_counted(self) -> None:
         """有图片标签但无 Primary 时不计入封面图分数"""

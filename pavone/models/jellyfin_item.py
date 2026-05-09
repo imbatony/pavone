@@ -305,7 +305,7 @@ class ItemMetadata:
     # 元数据丰富度评分
     @property
     def metadata_score(self) -> int:
-        """元数据丰富度评分 (0-92)
+        """元数据丰富度评分 (0-100)
 
         使用 METADATA_SCORE_WEIGHTS 统一标准，将 Jellyfin API 字段映射到语义维度。
         注: 番号 (ExternalId) 是 Jellyfin 派生只读字段，未纳入评分。
