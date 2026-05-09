@@ -52,7 +52,11 @@ class AvBaseMetadata(HtmlMetadataPlugin):
         if identifier.startswith("http://") or identifier.startswith("https://"):
             return self.can_handle_domain(identifier, SUPPORTED_DOMAINS)
         # ID 格式: 纯大写字母数字，如 "ABC-123" 或 "dga:pkey12345"
-        return bool(re.match(r"^[A-Za-z\d:_-]+$", identifier.strip()) and len(identifier.strip()) > 2)
+        # 排除 FC2 番号（avbase 不收录 FC2 内容，匹配只会 404 浪费时间）
+        ident = identifier.strip()
+        if ident.upper().startswith("FC2"):
+            return False
+        return bool(re.match(r"^[A-Za-z\d:_-]+$", ident) and len(ident) > 2)
 
     def _parse(self, soup: BeautifulSoup, movie_id: str, page_url: str) -> Optional[BaseMetadata]:
         """从 HTML __NEXT_DATA__ 解析元数据 (满足 HtmlMetadataPlugin 抽象方法)"""

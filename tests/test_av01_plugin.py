@@ -44,11 +44,10 @@ class TestAV01Plugin:
         assert plugin.can_extract("http://www.av01.media/video/123/test")
 
     def test_can_extract_code(self, plugin):
-        """测试是否能识别视频代码"""
-        # 测试不同格式的代码
-        assert plugin.can_extract("FC2-PPV-4799119")
-        assert plugin.can_extract("SDMT-415")
-        assert plugin.can_extract("ABC-123")
+        """AV01.extract_metadata 不支持纯代码（必须用 URL），所以 can_extract 也对代码统一返回 False。"""
+        assert not plugin.can_extract("FC2-PPV-4799119")
+        assert not plugin.can_extract("SDMT-415")
+        assert not plugin.can_extract("ABC-123")
 
     def test_cannot_extract_invalid(self, plugin):
         """测试无效的identifier"""
