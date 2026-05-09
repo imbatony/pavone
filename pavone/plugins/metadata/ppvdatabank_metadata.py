@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 
 from ...models import BaseMetadata, SearchResult
 from ...utils.html_metadata_utils import HTMLMetadataExtractor
+from ...utils.http_utils import skip_retry_on_4xx
 from ...utils.metadata_builder import MetadataBuilder
 from ..search.base import SearchPlugin
 from .fc2_base import FC2BaseMetadata
@@ -82,7 +83,7 @@ class PPVDataBankMetadata(FC2BaseMetadata, SearchPlugin):
             return results
         fc_url = self.get_url_from_fc2_id(fc2_id)
         if fc_url:
-            res = self.fetch(url=fc_url, no_exceptions=True, max_retry=2)
+            res = self.fetch(url=fc_url, no_exceptions=True, max_retry=2, should_retry=skip_retry_on_4xx)
             if res is not None and res.status_code == 200:
                 # get title from fetched page if possible
                 title = self._extract_title_from_page(res.text) or ""
@@ -132,8 +133,10 @@ class PPVDataBankMetadata(FC2BaseMetadata, SearchPlugin):
         return f"https://ppvdatabank.com/article/{fc2_id}/"
 
     def _fetch_page(self, url: str) -> requests.Response:
-        """获取页面, verify_ssl=False: ppvdatabank 站点 SSL 证书配置不标准，需跳过验证"""
-        return self.fetch(url, timeout=30, verify_ssl=False, max_retry=2)
+        """获取页面, verify_ssl=False: ppvdatabank 站点 SSL 证书配置不标准，需跳过验证
+
+        4xx (404 = 该番号不在 ppvdatabank 库) 立即放弃重试，让上层 enrich 快速 fallback 到下一个 provider。"""
+        return self.fetch(url, timeout=30, verify_ssl=False, max_retry=2, should_retry=skip_retry_on_4xx)
 
     def _resolve(self, identifier: str) -> Tuple[Optional[str], Optional[str]]:
         """将 identifier 解析为 (video_id, page_url)"""

@@ -1,10 +1,18 @@
 import time
 from logging import Logger
-from typing import Dict, List, Optional, cast
+from typing import Callable, Dict, List, Optional, cast
 
 import requests
 
 from pavone.config.configs import DownloadConfig, ProxyConfig
+
+
+def skip_retry_on_4xx(exc: requests.RequestException) -> bool:
+    """should_retry 回调：遇到 4xx（客户端错误，例如 404 资源不存在）立即放弃，其他错误继续重试。"""
+    status_code = getattr(getattr(exc, "response", None), "status_code", None)
+    if status_code is not None and 400 <= status_code < 500:
+        return False
+    return True
 
 
 class HttpUtils:
@@ -20,6 +28,7 @@ class HttpUtils:
         max_retry: Optional[int] = None,
         no_exceptions: bool = False,
         cookies: Optional[Dict[str, str]] = None,
+        should_retry: Optional[Callable[[requests.RequestException], bool]] = None,
     ) -> requests.Response:
         """统一的网页获取方法，自动处理代理配置和SSL验证
 
@@ -29,6 +38,9 @@ class HttpUtils:
             timeout: 请求超时时间（秒）
             verify_ssl: 是否验证SSL证书，默认为True启用SSL验证
             max_retry: 最大重试次数，如果为None则使用配置中的值
+            should_retry: 可选回调，接收 RequestException 返回 True 表示继续重试、False 表示立即放弃。
+                          为 None 时保持原行为（任何异常都按 max_retry 重试）。
+                          典型用法：传入 ``skip_retry_on_4xx`` 让元数据抓取在资源不存在时秒退。
 
         Returns:
             requests.Response: HTTP响应对象
@@ -90,6 +102,12 @@ class HttpUtils:
 
             except requests.RequestException as e:
                 last_exception = e
+
+                # 用户传入的判定函数说"别重试了"——例如 4xx 短路
+                if should_retry is not None and not should_retry(e):
+                    if logger:
+                        logger.info(f"网页获取失败 {url}: {e}，按 should_retry 放弃重试")
+                    break
 
                 if attempt < max_retry - 1:
                     # 不是最后一次尝试，记录警告并等待重试

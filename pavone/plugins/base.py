@@ -3,7 +3,7 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 from urllib.parse import urlparse
 
 import requests
@@ -59,6 +59,7 @@ class BasePlugin(ABC):
         no_exceptions: bool = False,
         max_retry: Optional[int] = None,
         cookies: Optional[Dict[str, str]] = None,
+        should_retry: Optional[Callable[[requests.RequestException], bool]] = None,
     ) -> requests.Response:
         return HttpUtils.fetch(
             download_config=self.config.download,
@@ -71,6 +72,7 @@ class BasePlugin(ABC):
             no_exceptions=no_exceptions,
             max_retry=max_retry,
             cookies=cookies,
+            should_retry=should_retry,
         )
 
     def can_handle_domain(self, url: str, supported_domains: List[str]) -> bool:

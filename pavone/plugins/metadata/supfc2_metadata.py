@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 
 from ...models import BaseMetadata
 from ...utils.html_metadata_utils import HTMLMetadataExtractor
+from ...utils.http_utils import skip_retry_on_4xx
 from ...utils.metadata_builder import MetadataBuilder
 from .fc2_base import FC2BaseMetadata
 
@@ -63,8 +64,10 @@ class SupFC2Metadata(FC2BaseMetadata):
         return bool(re.match(fc2_pattern, identifier_stripped))
 
     def _fetch_page(self, url: str) -> requests.Response:
-        """获取页面, verify_ssl=False: supfc2 站点 SSL 证书配置不标准，需跳过验证"""
-        return self.fetch(url, timeout=30, verify_ssl=False, max_retry=2)
+        """获取页面, verify_ssl=False: supfc2 站点 SSL 证书配置不标准，需跳过验证
+
+        4xx (404 = 该番号不在 supfc2 库) 立即放弃重试，让上层 enrich 快速 fallback 到下一个 provider。"""
+        return self.fetch(url, timeout=30, verify_ssl=False, max_retry=2, should_retry=skip_retry_on_4xx)
 
     def _resolve(self, identifier: str) -> Tuple[Optional[str], Optional[str]]:
         """将 identifier 解析为 (fc2_id, page_url)"""
