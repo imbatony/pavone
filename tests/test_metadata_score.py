@@ -17,11 +17,10 @@ class TestMetadataScore:
         metadata = ItemMetadata({"Name": "测试视频"})
         assert metadata.metadata_score == METADATA_SCORE_WEIGHTS["title"]
 
-    def test_full_metadata_score_is_100(self) -> None:
-        """全部元数据齐全时评分为 100"""
+    def test_full_metadata_score_is_max(self) -> None:
+        """全部元数据齐全时评分为最大值 (= 权重总和)"""
         data = {
             "Name": "测试视频",
-            "ExternalId": "ABC-123",
             "Overview": "这是一个测试视频的描述",
             "Genres": ["动作", "科幻"],
             "PremiereDate": "2026-01-01",
@@ -36,7 +35,7 @@ class TestMetadataScore:
             "Studios": [{"Name": "测试工作室"}],
         }
         metadata = ItemMetadata(data)
-        assert metadata.metadata_score == 100
+        assert metadata.metadata_score == sum(METADATA_SCORE_WEIGHTS.values())
 
     def test_partial_metadata_score(self) -> None:
         """部分元数据存在时评分为对应权重之和"""
@@ -56,13 +55,13 @@ class TestMetadataScore:
         assert isinstance(metadata.metadata_score, int)
 
     def test_score_range(self) -> None:
-        """验证评分值域 [0, 100]"""
+        """验证评分值域 [0, 权重总和]"""
+        max_score = sum(METADATA_SCORE_WEIGHTS.values())
         assert ItemMetadata({}).metadata_score >= 0
-        assert ItemMetadata({}).metadata_score <= 100
+        assert ItemMetadata({}).metadata_score <= max_score
 
         full_data = {
             "Name": "测试",
-            "ExternalId": "X-1",
             "Overview": "描述",
             "Genres": ["动作"],
             "PremiereDate": "2026-01-01",
@@ -74,7 +73,7 @@ class TestMetadataScore:
             "Studios": [{"Name": "工作室"}],
         }
         assert ItemMetadata(full_data).metadata_score >= 0
-        assert ItemMetadata(full_data).metadata_score <= 100
+        assert ItemMetadata(full_data).metadata_score <= max_score
 
     def test_zero_rating_not_counted(self) -> None:
         """评分为 0 时不计入"""
@@ -88,9 +87,9 @@ class TestMetadataScore:
         metadata = ItemMetadata(data)
         assert metadata.metadata_score == 0
 
-    def test_weights_sum_to_100(self) -> None:
-        """权重总和为 100"""
-        assert sum(METADATA_SCORE_WEIGHTS.values()) == 100
+    def test_weights_sum_to_92(self) -> None:
+        """权重总和为 92 (移除了 ExternalId/code 维度，因 Jellyfin 不可写入)"""
+        assert sum(METADATA_SCORE_WEIGHTS.values()) == 92
 
     def test_cover_without_primary_not_counted(self) -> None:
         """有图片标签但无 Primary 时不计入封面图分数"""
@@ -122,11 +121,11 @@ class TestMetadataScore:
         metadata = ItemMetadata(data)
         assert metadata.metadata_score == METADATA_SCORE_WEIGHTS["runtime"]
 
-    def test_code_scored(self) -> None:
-        """有 ExternalId 时计入 code 分数"""
+    def test_external_id_not_scored(self) -> None:
+        """ExternalId 是 Jellyfin 派生只读字段，不计入评分"""
         data = {"ExternalId": "ABC-123"}
         metadata = ItemMetadata(data)
-        assert metadata.metadata_score == METADATA_SCORE_WEIGHTS["code"]
+        assert metadata.metadata_score == 0
 
     def test_thumbnail_scored(self) -> None:
         """有 Thumb 图片时计入 thumbnail 分数"""

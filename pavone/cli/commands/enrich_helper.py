@@ -530,10 +530,10 @@ class JellyfinMetadataUpdater:
         jellyfin_updates: Dict[str, Any] = {}
 
         # 字段映射：内部字段名 -> Jellyfin API字段名
+        # 注: code 对应 Jellyfin 的 ExternalId 是派生只读字段，API 写入无效，故不映射。
         field_mapping = {
             "title": "Name",
             "original_title": "OriginalTitle",
-            "code": "ExternalId",
             "premiere_date": "PremiereDate",
             "runtime": "RunTimeTicks",  # 需要转换为ticks
             "director": "People",  # 需要特殊处理，添加到People数组
