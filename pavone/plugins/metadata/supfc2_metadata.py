@@ -241,12 +241,16 @@ class SupFC2Metadata(FC2BaseMetadata):
         """提取类型"""
         try:
             genres: List[str] = []
-            # 查找 <label>Genre: </label> 后的链接
-            pattern = r"<label>Genre:\s*</label>.*?<a[^>]*>([^<]+)</a>"
-            matches = re.finditer(pattern, html_content, re.DOTALL)
-            for match in matches:
-                genre = match.group(1).strip()
-                if genre:
+            # 仅在 Genre 所在的 <li> 范围内查找链接，避免在缺失链接（例如 <span>UNKNOWN</span>）时
+            # 跨节点匹配到页面其他位置的 <a>（如评论区用户名）。
+            section_pattern = r"<label>Genre:\s*</label>(.*?)</li>"
+            section_match = re.search(section_pattern, html_content, re.DOTALL)
+            if not section_match:
+                return genres
+            genre_section = section_match.group(1)
+            for genre in re.findall(r"<a[^>]*>([^<]+)</a>", genre_section):
+                genre = genre.strip()
+                if genre and genre.upper() != "UNKNOWN":
                     genres.append(genre)
             return genres
         except Exception as e:
