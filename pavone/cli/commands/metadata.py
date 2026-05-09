@@ -324,20 +324,37 @@ def enrich(  # noqa: C901
         plugin_manager = get_plugin_manager()
         plugin_manager.load_plugins()
 
-        # 查找合适的元数据提取器
-        metadata_extractor = plugin_manager.get_metadata_extractor(identifier)
+        # 查找候选元数据提取器（按优先级排序）
+        candidates = plugin_manager.get_metadata_extractors(identifier)
 
-        if not metadata_extractor:
+        if not candidates:
             echo_error(f"无法处理该identifier: {identifier}")
             echo_info("没有找到能处理该identifier的元数据插件")
             return 1
 
-        # 提取元数据
-        echo_info(f"正在提取元数据: {identifier}")
-        remote_metadata = metadata_extractor.extract_metadata(identifier)
+        # 当 identifier 是 URL 时，仅使用首个匹配插件（保持显式来源语义）；
+        # 当 identifier 是番号/关键词时，依次回退尝试，直到拿到非空结果或全部失败。
+        is_url = identifier.strip().lower().startswith(("http://", "https://"))
+        extractors_to_try = candidates[:1] if is_url else candidates
+
+        remote_metadata = None
+        last_error: Optional[str] = None
+        for ext in extractors_to_try:
+            ext_name = getattr(ext, "name", ext.__class__.__name__)
+            echo_info(f"正在提取元数据 [{ext_name}]: {identifier}")
+            try:
+                remote_metadata = ext.extract_metadata(identifier)
+            except Exception as e:  # noqa: BLE001 — 任意网络/解析异常都视为该 provider 失败，可回退
+                last_error = f"{ext_name}: {e}"
+                echo_warning(f"提取失败 [{ext_name}]: {e}")
+                remote_metadata = None
+            if remote_metadata is not None:
+                break
+            if len(extractors_to_try) > 1:
+                echo_info("尝试下一个候选...")
 
         if remote_metadata is None:
-            echo_error("元数据提取失败")
+            echo_error("元数据提取失败" + (f"（最后错误: {last_error}）" if last_error else ""))
             return 1
 
         # 显示提取的元数据
