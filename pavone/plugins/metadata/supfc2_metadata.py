@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 
 from ...models import BaseMetadata
 from ...utils.html_metadata_utils import HTMLMetadataExtractor
+from ...utils.http_utils import skip_retry_on_4xx
 from ...utils.metadata_builder import MetadataBuilder
 from .fc2_base import FC2BaseMetadata
 
@@ -22,7 +23,7 @@ PLUGIN_DESCRIPTION = "提取 supfc2.com 的FC2视频元数据"
 PLUGIN_AUTHOR = "PAVOne"
 
 # 定义插件优先级
-PLUGIN_PRIORITY = 25
+PLUGIN_PRIORITY = 20
 
 # 定义支持的域名
 SUPPORTED_DOMAINS = ["supfc2.com", "www.supfc2.com"]
@@ -63,8 +64,10 @@ class SupFC2Metadata(FC2BaseMetadata):
         return bool(re.match(fc2_pattern, identifier_stripped))
 
     def _fetch_page(self, url: str) -> requests.Response:
-        """获取页面, verify_ssl=False: supfc2 站点 SSL 证书配置不标准，需跳过验证"""
-        return self.fetch(url, timeout=30, verify_ssl=False, max_retry=2)
+        """获取页面, verify_ssl=False: supfc2 站点 SSL 证书配置不标准，需跳过验证
+
+        4xx (404 = 该番号不在 supfc2 库) 立即放弃重试，让上层 enrich 快速 fallback 到下一个 provider。"""
+        return self.fetch(url, timeout=30, verify_ssl=False, max_retry=2, should_retry=skip_retry_on_4xx)
 
     def _resolve(self, identifier: str) -> Tuple[Optional[str], Optional[str]]:
         """将 identifier 解析为 (fc2_id, page_url)"""
@@ -241,12 +244,16 @@ class SupFC2Metadata(FC2BaseMetadata):
         """提取类型"""
         try:
             genres: List[str] = []
-            # 查找 <label>Genre: </label> 后的链接
-            pattern = r"<label>Genre:\s*</label>.*?<a[^>]*>([^<]+)</a>"
-            matches = re.finditer(pattern, html_content, re.DOTALL)
-            for match in matches:
-                genre = match.group(1).strip()
-                if genre:
+            # 仅在 Genre 所在的 <li> 范围内查找链接，避免在缺失链接（例如 <span>UNKNOWN</span>）时
+            # 跨节点匹配到页面其他位置的 <a>（如评论区用户名）。
+            section_pattern = r"<label>Genre:\s*</label>(.*?)</li>"
+            section_match = re.search(section_pattern, html_content, re.DOTALL)
+            if not section_match:
+                return genres
+            genre_section = section_match.group(1)
+            for genre in re.findall(r"<a[^>]*>([^<]+)</a>", genre_section):
+                genre = genre.strip()
+                if genre and genre.upper() != "UNKNOWN":
                     genres.append(genre)
             return genres
         except Exception as e:

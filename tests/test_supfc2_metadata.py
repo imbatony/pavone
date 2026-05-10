@@ -92,6 +92,12 @@ class TestSupFC2Metadata:
 
         genres = extractor._extract_genres(html_content)
         assert "素人" in genres
+        assert "UNKNOWN" not in genres
+        # 当 Genre 区域无 <a> 标签（如 <span>UNKNOWN</span>）时，不应跨节点匹配到页面其他位置的 <a>
+        unknown_genre_html = (
+            '<li class="ttt"><label>Genre: </label><span>UNKNOWN</span></li>' '<li><a href="javascript:void()">X568WE</a></li>'
+        )
+        assert extractor._extract_genres(unknown_genre_html) == []
 
         rating = extractor._extract_rating(html_content)
         assert rating == 10.0  # width: 100% = 10.0分

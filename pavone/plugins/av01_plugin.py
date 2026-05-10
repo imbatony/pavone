@@ -349,9 +349,8 @@ class AV01Plugin(ExtractorPlugin, MetadataPlugin):
     def can_extract(self, identifier: str) -> bool:
         """检查是否能处理给定的identifier
 
-        支持两种格式：
-        1. URL: https://av01.tv/jp/video/184522/fc2-ppv-4799119
-        2. 视频代码: FC2-PPV-4799119 或类似格式
+        仅支持 URL 形式：AV01 的 extract_metadata 不支持纯代码（见下方注释），
+        因此 can_extract 也只对 URL 返回 True，避免在 enrich 候选列表里浪费一次必定失败的浏览器调用。
         """
         # 检查是否为URL
         if identifier.startswith("http://") or identifier.startswith("https://"):
@@ -364,18 +363,6 @@ class AV01Plugin(ExtractorPlugin, MetadataPlugin):
                 return any(parsed_url.netloc.lower() == domain.lower() for domain in self.supported_domains)
             except Exception:
                 return False
-
-        # 检查是否为视频代码
-        # AV01支持的代码格式比较灵活，基本上符合标准番号格式的都可以
-        identifier_stripped = identifier.strip()
-        code_pattern = r"^[a-zA-Z]+(-|\d)[a-zA-Z0-9\-]*$"
-        if re.match(code_pattern, identifier_stripped):
-            # 确保包含连字符，且左边是字母
-            if "-" in identifier_stripped:
-                parts = identifier_stripped.split("-", 1)
-                if len(parts) >= 2 and len(parts[0]) > 0 and parts[0][0].isalpha():
-                    return True
-
         return False
 
     def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:

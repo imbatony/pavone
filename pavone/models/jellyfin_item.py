@@ -308,11 +308,11 @@ class ItemMetadata:
         """元数据丰富度评分 (0-100)
 
         使用 METADATA_SCORE_WEIGHTS 统一标准，将 Jellyfin API 字段映射到语义维度。
+        注: 番号 (ExternalId) 是 Jellyfin 派生只读字段，未纳入评分。
         """
         score = 0
         checks: Dict[str, bool] = {
             "title": bool(self._data.get("Name")),
-            "code": bool(self._data.get("ExternalId")),
             "actors": len(self.actors) > 0,
             "cover": self.has_primary_image,
             "plot": bool(self.overview),

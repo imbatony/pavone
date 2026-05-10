@@ -7,7 +7,7 @@ Javrate复合型插件
 
 import json
 import re
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Callable, Dict, List, Optional, cast
 
 import requests
 
@@ -66,6 +66,7 @@ class JavratePlugin(ExtractorPlugin, MetadataPlugin):
         no_exceptions: bool = False,
         max_retry: Optional[int] = None,
         cookies: Optional[Dict[str, str]] = None,
+        should_retry: Optional[Callable[[requests.RequestException], bool]] = None,
     ) -> requests.Response:
         """使用浏览器自动化绕过 Cloudflare 保护获取网页内容
 

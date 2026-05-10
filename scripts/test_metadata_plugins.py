@@ -68,21 +68,20 @@ try:
     # 从统一权重生成插件字段权重（维度名与 MovieMetadata 字段名一致）
     FIELD_WEIGHTS = dict(METADATA_SCORE_WEIGHTS)
 except ImportError:
-    # 回退: 如果无法导入则使用内联定义
+    # 回退: 如果无法导入则使用内联定义（与 constants.METADATA_SCORE_WEIGHTS 保持一致）
     FIELD_WEIGHTS = {
-        "title": 12,
-        "code": 8,
-        "actors": 12,
-        "cover": 10,
-        "plot": 10,
-        "premiered": 8,
-        "genres": 8,
-        "tags": 6,
-        "studio": 6,
-        "runtime": 5,
+        "title": 1,
+        "actors": 13,
+        "cover": 11,
+        "plot": 16,
+        "premiered": 9,
+        "genres": 9,
+        "tags": 11,
+        "studio": 11,
+        "runtime": 1,
         "rating": 5,
         "director": 5,
-        "thumbnail": 5,
+        "thumbnail": 8,
     }
 
 
@@ -195,8 +194,7 @@ def run_tests() -> List[Dict[str, Any]]:
         r = results[-1]
         status_map = {"OK": "  OK", "FAIL": "FAIL", "ERROR": " ERR", "SKIP": "SKIP", "NOT_FOUND": " N/A"}
         print(
-            f"  [{status_map.get(r['status'], '????')}] [{r['time_ms']:>5}ms] "
-            f"{r['plugin']:30s} score={r['score']:>3}",
+            f"  [{status_map.get(r['status'], '????')}] [{r['time_ms']:>5}ms] " f"{r['plugin']:30s} score={r['score']:>3}",
             flush=True,
         )
 
@@ -232,7 +230,13 @@ def generate_markdown(data: Dict[str, Any]) -> str:
         lines.append(f"\n**成功插件平均完整度评分**: {avg_score:.1f}/100")
         lines.append(f"**成功插件平均响应时间**: {avg_time:.0f}ms")
 
-    lines += ["", "## 详细结果", "", "| # | 插件 | 基类 | 状态 | 评分 | 耗时 | 说明 |", "|---|------|------|------|------|------|------|"]
+    lines += [
+        "",
+        "## 详细结果",
+        "",
+        "| # | 插件 | 基类 | 状态 | 评分 | 耗时 | 说明 |",
+        "|---|------|------|------|------|------|------|",
+    ]
 
     for i, r in enumerate(results, 1):
         icon = {"OK": "✅", "FAIL": "❌", "ERROR": "💥", "SKIP": "⏭️", "NOT_FOUND": "❓"}[r["status"]]
@@ -240,7 +244,13 @@ def generate_markdown(data: Dict[str, Any]) -> str:
         lines.append(f"| {i} | {r['plugin']} | {r['base_class']} | {icon} | {r['score']} | {r['time_ms']}ms | {note} |")
 
     if ok:
-        lines += ["", "## 字段覆盖率（成功插件）", "", "| 字段 | 权重 | 覆盖数 | 覆盖率 |", "|------|------|--------|--------|"]
+        lines += [
+            "",
+            "## 字段覆盖率（成功插件）",
+            "",
+            "| 字段 | 权重 | 覆盖数 | 覆盖率 |",
+            "|------|------|--------|--------|",
+        ]
         for field in FIELD_WEIGHTS:
             count = sum(1 for r in ok if r["fields"].get(field, False))
             pct = count / len(ok) * 100

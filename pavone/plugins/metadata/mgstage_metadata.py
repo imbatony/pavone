@@ -45,7 +45,11 @@ class MgstageMetadata(HtmlMetadataPlugin):
     def can_extract(self, identifier: str) -> bool:
         if identifier.startswith("http://") or identifier.startswith("https://"):
             return self.can_handle_domain(identifier, SUPPORTED_DOMAINS)
-        return bool(re.match(r"^[a-zA-Z0-9]+-\d+$", identifier.strip()))
+        # 排除 FC2 番号（mgstage 不收录 FC2 内容，匹配只会 404 浪费时间）
+        ident = identifier.strip()
+        if ident.upper().startswith("FC2"):
+            return False
+        return bool(re.match(r"^[a-zA-Z0-9]+-\d+$", ident))
 
     def _fetch_page(self, url: str) -> requests.Response:
         return self.fetch(url, timeout=30, cookies={"adc": "1"})

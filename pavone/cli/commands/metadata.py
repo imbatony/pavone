@@ -7,7 +7,16 @@ from ...config.settings import get_config
 from ...jellyfin.client import JellyfinClientWrapper
 from ...manager.plugin_manager import get_plugin_manager
 from ...models import BaseMetadata, ItemMetadata
-from .enrich_helper import ImageManager, JellyfinMetadataUpdater, MetadataComparison
+from .enrich_helper import (
+    IMAGE_KIND_BACKDROP,
+    IMAGE_KIND_PRIMARY,
+    IMAGE_KIND_THUMB,
+    ImageManager,
+    ImagePolicy,
+    JellyfinMetadataUpdater,
+    MetadataComparison,
+    should_upload_image,
+)
 from .utils import (
     apply_proxy_config,
     common_proxy_option,
@@ -201,8 +210,63 @@ def show(identifier: str, proxy: str):
 @click.argument("video_id", required=False)
 @click.option("--search", "-s", "search_keyword", help="在Jellyfin中搜索匹配的视频")
 @click.option("--force", is_flag=True, help="强制覆盖所有字段（默认仅补充缺失信息）")
+@click.option(
+    "--yes",
+    "-y",
+    "assume_yes",
+    is_flag=True,
+    help="跳过所有交互确认（继续 enrich、多结果选择、图片下载），适合批处理",
+)
+@click.option(
+    "--images",
+    "image_policy_str",
+    type=click.Choice([p.value for p in ImagePolicy]),
+    default=ImagePolicy.ASK.value,
+    show_default=True,
+    help="所有图片类型的默认下载策略：ask=交互询问；none=不下载；missing-only=仅补缺失；"
+    "all=全部下载替换。搭配 --yes 使用时 ask 等价于 missing-only。"
+    "可被 --cover/--thumb/--backdrop 覆盖。",
+)
+@click.option(
+    "--cover",
+    "cover_policy_str",
+    type=click.Choice([p.value for p in ImagePolicy]),
+    default=None,
+    help="封面图 (Primary) 单独的下载策略，覆盖 --images。",
+)
+@click.option(
+    "--thumb",
+    "thumb_policy_str",
+    type=click.Choice([p.value for p in ImagePolicy]),
+    default=None,
+    help="海报图 (Thumb) 单独的下载策略，覆盖 --images。",
+)
+@click.option(
+    "--backdrop",
+    "backdrop_policy_str",
+    type=click.Choice([p.value for p in ImagePolicy]),
+    default=None,
+    help="背景图 (Backdrop) 单独的下载策略，覆盖 --images。",
+)
+@click.option(
+    "--strict",
+    is_flag=True,
+    help="搜索关键词不唯一时直接报错（默认会询问或在 --yes 下取第一个）",
+)
 @common_proxy_option
-def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[str], force: bool, proxy: str):  # noqa: C901
+def enrich(  # noqa: C901
+    identifier: str,
+    video_id: Optional[str],
+    search_keyword: Optional[str],
+    force: bool,
+    assume_yes: bool,
+    image_policy_str: str,
+    cover_policy_str: Optional[str],
+    thumb_policy_str: Optional[str],
+    backdrop_policy_str: Optional[str],
+    strict: bool,
+    proxy: str,
+):
     """
     从指定identifier提取元数据并应用到Jellyfin中的视频
 
@@ -220,7 +284,25 @@ def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[st
 
     3. 强制覆盖所有字段:
         pavone metadata enrich <identifier> <video_id> --force
+
+    4. 非交互批处理（仅补缺失图片）:
+        pavone metadata enrich <identifier> <video_id> --yes --images missing-only --strict
+
+    5. 按图片类型分别指定策略（封面不动，仅补缺失背景图）:
+        pavone metadata enrich <identifier> <video_id> --yes --cover none --backdrop missing-only
     """
+
+    def _resolve_policy(per_kind: Optional[str]) -> ImagePolicy:
+        # 单独指定的策略覆盖 --images；--yes + ask 自动升级为 missing-only
+        raw = per_kind if per_kind is not None else image_policy_str
+        policy = ImagePolicy(raw)
+        if assume_yes and policy == ImagePolicy.ASK:
+            policy = ImagePolicy.MISSING_ONLY
+        return policy
+
+    cover_policy = _resolve_policy(cover_policy_str)
+    thumb_policy = _resolve_policy(thumb_policy_str)
+    backdrop_policy = _resolve_policy(backdrop_policy_str)
     try:
         # 获取配置
         config = get_config()
@@ -242,20 +324,37 @@ def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[st
         plugin_manager = get_plugin_manager()
         plugin_manager.load_plugins()
 
-        # 查找合适的元数据提取器
-        metadata_extractor = plugin_manager.get_metadata_extractor(identifier)
+        # 查找候选元数据提取器（按优先级排序）
+        candidates = plugin_manager.get_metadata_extractors(identifier)
 
-        if not metadata_extractor:
+        if not candidates:
             echo_error(f"无法处理该identifier: {identifier}")
             echo_info("没有找到能处理该identifier的元数据插件")
             return 1
 
-        # 提取元数据
-        echo_info(f"正在提取元数据: {identifier}")
-        remote_metadata = metadata_extractor.extract_metadata(identifier)
+        # 当 identifier 是 URL 时，仅使用首个匹配插件（保持显式来源语义）；
+        # 当 identifier 是番号/关键词时，依次回退尝试，直到拿到非空结果或全部失败。
+        is_url = identifier.strip().lower().startswith(("http://", "https://"))
+        extractors_to_try = candidates[:1] if is_url else candidates
+
+        remote_metadata = None
+        last_error: Optional[str] = None
+        for ext in extractors_to_try:
+            ext_name = getattr(ext, "name", ext.__class__.__name__)
+            echo_info(f"正在提取元数据 [{ext_name}]: {identifier}")
+            try:
+                remote_metadata = ext.extract_metadata(identifier)
+            except Exception as e:  # noqa: BLE001 — 任意网络/解析异常都视为该 provider 失败，可回退
+                last_error = f"{ext_name}: {e}"
+                echo_warning(f"提取失败 [{ext_name}]: {e}")
+                remote_metadata = None
+            if remote_metadata is not None:
+                break
+            if len(extractors_to_try) > 1:
+                echo_info("尝试下一个候选...")
 
         if remote_metadata is None:
-            echo_error("元数据提取失败")
+            echo_error("元数据提取失败" + (f"（最后错误: {last_error}）" if last_error else ""))
             return 1
 
         # 显示提取的元数据
@@ -301,16 +400,23 @@ def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[st
                 for idx, item in enumerate(search_results, 1):
                     echo_info(f"  {idx}. {item.name} (ID: {item.id})")
 
-                # 让用户选择
-                try:
-                    choice = prompt_int("请选择视频编号", default=1)
-                    if choice < 1 or choice > len(search_results):
-                        echo_error("选择无效")
-                        return 1
-                    target_video_id = search_results[choice - 1].id
-                except click.Abort:
-                    echo_info("已取消")
+                if strict:
+                    echo_error(f"--strict 模式下要求搜索结果唯一，但找到 {len(search_results)} 个")
                     return 1
+                if assume_yes:
+                    echo_info("--yes 模式：自动选择第一个结果")
+                    target_video_id = search_results[0].id
+                else:
+                    # 让用户选择
+                    try:
+                        choice = prompt_int("请选择视频编号", default=1)
+                        if choice < 1 or choice > len(search_results):
+                            echo_error("选择无效")
+                            return 1
+                        target_video_id = search_results[choice - 1].id
+                    except click.Abort:
+                        echo_info("已取消")
+                        return 1
 
         if not target_video_id:
             echo_error("未指定或未找到视频ID")
@@ -352,12 +458,13 @@ def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[st
 
         # 用户确认
         echo_info("")
-        if not confirm_action("是否继续 enrich？", default=True):
+        if assume_yes:
+            echo_info("--yes 模式：自动确认应用变更")
+        elif not confirm_action("是否继续 enrich？", default=True):
             echo_info("已取消")
             return 1
 
-        # 询问是否替换图片
-        replace_images = False
+        # 决定每种图片是否需要上传（按 image_policy 计算）
         cover_url = getattr(remote_metadata, "cover", None)
         poster_url = getattr(remote_metadata, "poster", None)
         backdrop_url = getattr(remote_metadata, "backdrop", None)
@@ -365,7 +472,13 @@ def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[st
         if not backdrop_urls and backdrop_url:
             backdrop_urls = [backdrop_url]
 
-        if cover_url or poster_url or backdrop_urls:
+        has_any_image_url = bool(cover_url or poster_url or backdrop_urls)
+
+        do_cover = False
+        do_poster = False
+        do_backdrops = False
+
+        if has_any_image_url:
             echo_info("\n发现远程图片资源:")
             if cover_url:
                 echo_info(f"  📷 封面图 (Cover): {cover_url}")
@@ -373,9 +486,48 @@ def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[st
                 echo_info(f"  🎬 海报图 (Poster): {poster_url}")
             if backdrop_urls:
                 echo_info(f"  🖼️  背景图 (Backdrop): {len(backdrop_urls)} 张")
-
             echo_info("")
-            replace_images = confirm_action("是否下载并替换 Jellyfin 中的图片？", default=False)
+
+            # 封面 (Primary)
+            if cover_url:
+                if cover_policy == ImagePolicy.ASK:
+                    has_p = local_metadata.has_primary_image
+                    status = "已存在" if has_p else "缺失"
+                    do_cover = confirm_action(f"封面图 (Primary) [{status}]，是否下载并替换？", default=not has_p)
+                else:
+                    do_cover = should_upload_image(IMAGE_KIND_PRIMARY, local_metadata, cover_policy)
+
+            # 海报 (Thumb)
+            if poster_url:
+                if thumb_policy == ImagePolicy.ASK:
+                    has_t = local_metadata.has_thumb_image
+                    status = "已存在" if has_t else "缺失"
+                    do_poster = confirm_action(f"海报图 (Thumb) [{status}]，是否下载并替换？", default=not has_t)
+                else:
+                    do_poster = should_upload_image(IMAGE_KIND_THUMB, local_metadata, thumb_policy)
+
+            # 背景 (Backdrop)
+            if backdrop_urls:
+                if backdrop_policy == ImagePolicy.ASK:
+                    bd_count = local_metadata.backdrop_count
+                    status = f"已有 {bd_count} 张" if bd_count else "缺失"
+                    do_backdrops = confirm_action(
+                        f"背景图 (Backdrop) 共 {len(backdrop_urls)} 张 [{status}]，是否下载并替换？",
+                        default=bd_count == 0,
+                    )
+                else:
+                    do_backdrops = should_upload_image(IMAGE_KIND_BACKDROP, local_metadata, backdrop_policy)
+
+            # 在任一类型为非交互策略时打印决策摘要
+            if cover_policy != ImagePolicy.ASK or thumb_policy != ImagePolicy.ASK or backdrop_policy != ImagePolicy.ASK:
+                echo_info(
+                    f"图片策略: "
+                    f"封面[{cover_policy.value}]={'下载' if do_cover else '跳过'}, "
+                    f"海报[{thumb_policy.value}]={'下载' if do_poster else '跳过'}, "
+                    f"背景[{backdrop_policy.value}]={'下载' if do_backdrops else '跳过'}"
+                )
+
+        replace_images = do_cover or do_poster or do_backdrops
 
         # 合并元数据
         merged_updates = MetadataComparison.merge_metadata(local_metadata, remote_metadata, comparison, force)
@@ -388,7 +540,7 @@ def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[st
             # 这样可以避免直接上传的权限问题
 
             # 下载并上传封面图
-            if cover_url:
+            if cover_url and do_cover:
                 try:
                     echo_info(f"  设置封面图: {cover_url}")
                     jf_client.download_remote_image(target_video_id, cover_url, "Primary")
@@ -405,7 +557,7 @@ def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[st
                         echo_warning(f"  ✗ 封面图处理失败: {e2}")
 
             # 下载并上传海报图（作为 Thumb）
-            if poster_url:
+            if poster_url and do_poster:
                 try:
                     echo_info(f"  设置海报图: {poster_url}")
                     jf_client.download_remote_image(target_video_id, poster_url, "Thumb")
@@ -422,20 +574,21 @@ def enrich(identifier: str, video_id: Optional[str], search_keyword: Optional[st
                         echo_warning(f"  ✗ 海报图处理失败: {e2}")
 
             # 下载并上传背景图（支持多张）
-            for idx, bd_url in enumerate(backdrop_urls):
-                try:
-                    echo_info(f"  设置背景图 [{idx + 1}/{len(backdrop_urls)}]: {bd_url}")
-                    jf_client.download_remote_image(target_video_id, bd_url, "Backdrop")
-                    echo_success(f"  ✓ 背景图 {idx + 1} 已更新")
-                except Exception:
-                    echo_warning("  远程下载失败，尝试本地上传...")
+            if do_backdrops:
+                for idx, bd_url in enumerate(backdrop_urls):
                     try:
-                        backdrop_path = ImageManager.download_image(bd_url, f"backdrop_{idx}")
-                        if backdrop_path:
-                            jf_client.upload_image(target_video_id, str(backdrop_path), "Backdrop")
-                            echo_success(f"  ✓ 背景图 {idx + 1} 已更新（本地上传）")
-                    except Exception as e2:
-                        echo_warning(f"  ✗ 背景图 {idx + 1} 处理失败: {e2}")
+                        echo_info(f"  设置背景图 [{idx + 1}/{len(backdrop_urls)}]: {bd_url}")
+                        jf_client.download_remote_image(target_video_id, bd_url, "Backdrop")
+                        echo_success(f"  ✓ 背景图 {idx + 1} 已更新")
+                    except Exception:
+                        echo_warning("  远程下载失败，尝试本地上传...")
+                        try:
+                            backdrop_path = ImageManager.download_image(bd_url, f"backdrop_{idx}")
+                            if backdrop_path:
+                                jf_client.upload_image(target_video_id, str(backdrop_path), "Backdrop")
+                                echo_success(f"  ✓ 背景图 {idx + 1} 已更新（本地上传）")
+                        except Exception as e2:
+                            echo_warning(f"  ✗ 背景图 {idx + 1} 处理失败: {e2}")
         else:
             echo_info("\n跳过图片下载")
 

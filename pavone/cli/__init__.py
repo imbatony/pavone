@@ -45,7 +45,11 @@ def main(ctx: click.Context, verbose: bool, no_color: bool) -> None:
 def cli() -> None:
     """CLI 入口点，包含统一异常捕获。"""
     try:
-        main(standalone_mode=False)
+        rv = main(standalone_mode=False)
+        # standalone_mode=False 下 click 不会把命令的 return 值映射成退出码，
+        # 这里手动透传非零返回值，使 'pavone xxx' 能被脚本/批处理正确识别失败。
+        if isinstance(rv, int) and rv != 0:
+            sys.exit(rv)
     except click.exceptions.Abort:
         sys.exit(ExitCode.GENERAL_ERROR)
     except click.exceptions.UsageError as e:
