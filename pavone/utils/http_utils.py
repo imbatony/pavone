@@ -157,6 +157,8 @@ class HttpUtils:
         wait_for_content: Optional[List[str]] = None,
         reject_content: Optional[List[str]] = None,
         max_wait: int = 30,
+        cookies: Optional[List[Dict[str, str]]] = None,
+        pre_visit_url: Optional[str] = None,
     ) -> requests.Response:
         """使用真实浏览器（DrissionPage）获取网页内容，可绕过 Cloudflare Turnstile 等保护
 
@@ -173,6 +175,12 @@ class HttpUtils:
             reject_content: 拒绝的内容标记列表（如 ["请稍候", "Just a moment"]），
                             页面包含这些内容时认为尚未加载完成
             max_wait: 最大等待时间（秒），默认 30 秒
+            cookies: 加载目标页面前预设的 cookie 列表（如 [{"name": "age-verified",
+                     "value": "true", "domain": "fc2ppv-db.com", "path": "/"}]），
+                     用于绕过年龄确认等需要 cookie 的拦截页面
+            pre_visit_url: 在设置 cookie 前先访问的 URL（通常是站点根域名），
+                           某些站点需要先通过 Cloudflare 挑战才能在该域名下设置 cookie。
+                           仅当提供 cookies 时生效
 
         Returns:
             requests.Response: 包含页面 HTML 的响应对象。
@@ -192,6 +200,8 @@ class HttpUtils:
                 wait_for_content=wait_for_content,
                 reject_content=reject_content,
                 max_wait=max_wait,
+                cookies=cookies,
+                pre_visit_url=pre_visit_url,
             )
         except Exception as e:
             if logger:
@@ -218,6 +228,8 @@ class HttpUtils:
         wait_for_content: List[str],
         reject_content: List[str],
         max_wait: int,
+        cookies: Optional[List[Dict[str, str]]] = None,
+        pre_visit_url: Optional[str] = None,
     ) -> Optional[str]:
         """内部方法：使用 DrissionPage 浏览器获取页面 HTML
 
@@ -243,6 +255,21 @@ class HttpUtils:
                 if logger:
                     logger.error("无法获取浏览器标签页")
                 return None
+
+            # 预设 cookie（用于绕过年龄确认等拦截页）。某些站点需要先访问根域名
+            # 通过 Cloudflare 挑战后，才能在该域名下成功设置 cookie。
+            if cookies:
+                if pre_visit_url:
+                    tab.get(pre_visit_url)  # type: ignore[union-attr]
+                    tab.wait.doc_loaded()  # type: ignore[union-attr]
+                    HttpUtils._wait_pass_cloudflare(tab, reject_content, max_wait)
+                for cookie in cookies:
+                    try:
+                        tab.set.cookies(cookie)  # type: ignore[union-attr]
+                    except Exception as e:
+                        if logger:
+                            logger.warning(f"设置 cookie 失败 ({cookie.get('name')}): {e}")
+
             tab.get(url)  # type: ignore[union-attr]
 
             # Cloudflare Turnstile 挑战需要时间解决
@@ -286,3 +313,13 @@ class HttpUtils:
                 browser.quit()
             except Exception:
                 pass
+
+    @staticmethod
+    def _wait_pass_cloudflare(tab: object, reject_content: List[str], max_wait: int) -> None:
+        """等待浏览器标签页通过 Cloudflare 挑战（页面不再包含 reject_content 标记）。"""
+        start_time = time.time()
+        while time.time() - start_time < max_wait:
+            html = cast(str, tab.html)  # type: ignore[union-attr]
+            if html and not any(r in html for r in reject_content):
+                return
+            time.sleep(1)
