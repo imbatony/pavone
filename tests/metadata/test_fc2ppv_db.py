@@ -68,23 +68,26 @@ class TestFc2ppvDbMetadata:
 
         assert isinstance(metadata, MovieMetadata)
         assert "FC2-4778286" in metadata.code
-        # 标题应剥离 FC2-PPV 前缀
+        # 标题来自 RSC 主对象的 title 字段（本就不含番号前缀）
         assert metadata.original_title is not None and "FC2-PPV-4778286" not in metadata.original_title
         assert metadata.studio == "ぱすも"
         assert metadata.premiered == "2025-10-13"
         assert metadata.year == 2025
-        assert metadata.runtime == 51
+        # duration 3098 秒 -> 52 分（四舍五入）
+        assert metadata.runtime == 52
         assert metadata.actors is not None and "ゆい" in metadata.actors
         assert metadata.cover is not None and metadata.cover.endswith("4778286.webp")
         assert metadata.backdrops is not None and len(metadata.backdrops) == 8
-        # 标签来自 Next.js RSC payload
+        # 标签来自 RSC payload 的 productTags
         assert metadata.tags is not None
         assert "中出し" in metadata.tags
         assert "無修正" in metadata.tags
         assert len(metadata.tags) == 5
-        # 简介来自「商品説明」区域
+        # 简介来自 RSC 主对象的 description 字段
         assert metadata.plot is not None
         assert "素人" in metadata.plot
+        # 本番号无评分（ratingCount=0），rating 应为 None
+        assert metadata.rating is None
         assert metadata.official_rating == "JP-18+"
 
     def test_extract_metadata_invalid(self):

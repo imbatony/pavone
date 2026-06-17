@@ -9,15 +9,14 @@ ID 格式: 纯数字 FC2 PPV 编号
 - Cloudflare: 需要真实浏览器（DrissionPage）解决挑战。
 - 年龄确认: 设置 cookie ``age-verified=true`` 即可绕过，无需点击按钮。
 
-元数据主要来自页面 SSR 注入的 og/twitter meta 标签:
-- og:title       -> 标题（含 ``FC2-PPV-{id}`` 前缀）
-- og:description -> 标题 + ``販売者 / 公開日 / 再生時間`` 结构化文本
-- og:image       -> 封面缩略图（cloudfront thumbnails）
-正文中还包含女优链接（/actresses/）与样品图（/samples/{id}/NNN.webp）。
+数据来源: 该站点是 Next.js 应用，影片的全部元数据以一个结构化 JSON 对象
+序列化在 RSC flight payload（``self.__next_f.push([1,"..."])``）中。本插件
+直接解析该对象，而非拼凑 og meta / DOM，字段更全也更准确。
 """
 
+import json
 import re
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 from urllib.parse import urlparse
 
 import requests
@@ -41,6 +40,12 @@ MOVIE_URL_TEMPLATE = "https://fc2ppv-db.com/ja/videos/{movie_id}"
 ROOT_URL = "https://fc2ppv-db.com/ja"
 AGE_COOKIE = {"name": "age-verified", "value": "true", "domain": "fc2ppv-db.com", "path": "/"}
 
+# 图片托管 CDN（thumbnailLocal / imageLocal 均为相对此根的路径）
+CDN_BASE = "https://d39jz7pbpqkw9s.cloudfront.net"
+
+# 匹配 RSC flight chunk: self.__next_f.push([1,"<js-string>"])
+_FLIGHT_CHUNK = re.compile(r'self\.__next_f\.push\(\[1,"((?:[^"\\]|\\.)*)"\]\)')
+
 
 class Fc2ppvDbMetadata(FC2BaseMetadata):
     """fc2ppv-db.com 元数据提取器。"""
@@ -57,7 +62,6 @@ class Fc2ppvDbMetadata(FC2BaseMetadata):
     def can_extract(self, identifier: str) -> bool:
         if identifier.startswith("http://") or identifier.startswith("https://"):
             return self.can_handle_domain(identifier, SUPPORTED_DOMAINS)
-        # 纯数字 FC2 ID 或 FC2/FC2-PPV 前缀
         return self._validate_fc2_identifier(identifier)
 
     def _fetch_page(self, url: str) -> requests.Response:
@@ -65,7 +69,7 @@ class Fc2ppvDbMetadata(FC2BaseMetadata):
 
         注意: 不能用 "年齢確認" 作为 reject 标记——该站点是 Next.js 应用，年龄确认
         文案作为 i18n 数据常驻于真实页面 HTML 中。改用番号 ``FC2-PPV-{id}`` 作为
-        真实页已加载的正向标记（年龄确认页 og:title 为"年齢確認"，不含番号）。
+        真实页已加载的正向标记（年龄确认页不含番号）。
         """
         movie_id = url.rstrip("/").split("/")[-1]
         return HttpUtils.fetch_with_browser(
@@ -94,40 +98,32 @@ class Fc2ppvDbMetadata(FC2BaseMetadata):
         return fc2_id, MOVIE_URL_TEMPLATE.format(movie_id=fc2_id)
 
     def _parse(self, soup: BeautifulSoup, movie_id: str, page_url: str) -> Optional[BaseMetadata]:
-        og_title = self._meta(soup, "og:title")
-        og_desc = self._meta(soup, "og:description")
-        og_image = self._meta(soup, "og:image")
-
-        if not og_title:
-            self.logger.error(f"页面缺少 og:title，可能未通过年龄确认或影片不存在: {page_url}")
+        video = self._extract_video_object(str(soup), movie_id)
+        if not video:
+            self.logger.error(f"未能解析到影片数据对象（可能未通过年龄确认或影片不存在）: {page_url}")
             return None
 
         code = self._build_fc2_code(movie_id)
-
-        # 标题：剥离 ``FC2-PPV-{id}`` / ``FC2-{id}`` 前缀
-        title = re.sub(r"^FC2[-_]?(?:PPV[-_]?)?\d+\s*", "", og_title).strip()
-
-        seller = self._parse_seller(og_desc)
-        premiered = self._parse_premiered(og_desc)
-        runtime = self._parse_runtime_from_desc(og_desc)
-        actors = self._parse_actors(soup)
-        tags = self._parse_tags(soup)
-        plot = self._parse_plot(soup)
-        backdrops = self._parse_samples(soup, movie_id)
+        cover = self._cdn(video.get("thumbnailLocal"))
+        images = [self._as_dict(img) for img in self._as_list(video.get("images"))]
+        backdrops = [
+            url for img in sorted(images, key=lambda i: i.get("sortOrder", 0)) if (url := self._cdn(img.get("imageLocal")))
+        ]
 
         metadata = (
             MetadataBuilder()
-            .set_title(title or "Unknown", code)
+            .set_title(self._str(video.get("title")) or "Unknown", code)
             .set_identifier(SITE_NAME, code, page_url)
-            .set_actors(actors)
-            .set_studio(seller)
-            .set_tags(tags)
-            .set_plot(plot)
-            .set_release_date(premiered)
-            .set_runtime(runtime)
-            .set_cover(og_image)
-            .set_thumbnail(og_image)
-            .set_poster(og_image)
+            .set_actors(self._actors(video))
+            .set_studio(self._seller_name(video))
+            .set_tags(self._tags(video))
+            .set_plot(self._str(video.get("description")))
+            .set_release_date(self._date(self._str(video.get("releaseDate"))))
+            .set_runtime(self._runtime(video.get("duration")))
+            .set_rating(self._rating(video))
+            .set_cover(cover)
+            .set_thumbnail(cover)
+            .set_poster(cover)
             .set_backdrops(backdrops)
             .build()
         )
@@ -135,99 +131,128 @@ class Fc2ppvDbMetadata(FC2BaseMetadata):
         self.logger.info(f"成功提取元数据: {code}")
         return metadata
 
-    # ── 解析辅助方法 ──
-
-    @staticmethod
-    def _meta(soup: BeautifulSoup, prop: str) -> Optional[str]:
-        """读取 og/twitter meta 标签的 content（按 property 或 name 匹配）。"""
-        tag = soup.find("meta", attrs={"property": prop}) or soup.find("meta", attrs={"name": prop})
-        if tag:
-            content = tag.get("content")
-            if isinstance(content, str):
-                return content
-        return None
-
-    @staticmethod
-    def _parse_seller(desc: Optional[str]) -> Optional[str]:
-        """从 og:description 中解析 ``販売者: XXX /``。"""
-        if not desc:
-            return None
-        m = re.search(r"販売者[:：]\s*([^/]+?)\s*(?:/|$)", desc)
-        return m.group(1).strip() if m else None
-
-    @staticmethod
-    def _parse_premiered(desc: Optional[str]) -> Optional[str]:
-        """从 og:description 中解析 ``公開日: YYYY年M月D日`` -> ``YYYY-MM-DD``。"""
-        if not desc:
-            return None
-        m = re.search(r"公開日[:：]\s*(\d{4})年(\d{1,2})月(\d{1,2})日", desc)
-        if m:
-            return f"{m.group(1)}-{int(m.group(2)):02d}-{int(m.group(3)):02d}"
-        return None
-
-    @staticmethod
-    def _parse_runtime_from_desc(desc: Optional[str]) -> Optional[int]:
-        """从 og:description 中解析 ``再生時間: HH:MM:SS`` 或 ``MM:SS`` -> 分钟数。"""
-        if not desc:
-            return None
-        m = re.search(r"再生時間[:：]\s*(\d+):(\d+)(?::(\d+))?", desc)
-        if not m:
-            return None
-        if m.group(3) is not None:
-            return int(m.group(1)) * 60 + int(m.group(2))
-        # MM:SS -> 取分钟部分
-        return int(m.group(1))
-
-    @staticmethod
-    def _parse_actors(soup: BeautifulSoup) -> List[str]:
-        """从 ``/actresses/`` 链接中提取女优名。"""
-        actors: List[str] = []
-        for a in soup.find_all("a", href=re.compile(r"/actresses/")):
-            text = a.get_text(strip=True)
-            if text and text not in actors:
-                actors.append(text)
-        return actors
-
-    # RSC payload 中的标签结构: \"tag\":{\"id\":\"...\",\"name\":\"中出し\",\"videoCount\":N}
-    _TAG_PATTERN = re.compile(r'\\"tag\\":\{\\"id\\":\\"[^"\\]+\\",\\"name\\":\\"((?:[^"\\]|\\.)*?)\\",\\"videoCount\\"')
+    # ── RSC payload 解析 ──
 
     @classmethod
-    def _parse_tags(cls, soup: BeautifulSoup) -> List[str]:
-        """从 Next.js RSC payload 中提取影片标签。
+    def _extract_video_object(cls, html: str, movie_id: str) -> Optional[Dict[str, Any]]:
+        """从 RSC flight payload 中抠出当前番号的影片主对象。
 
-        标签数据不在可见 DOM 中，而是序列化在 ``self.__next_f.push(...)`` 的
-        转义 JSON 里，形如 ``\"tag\":{\"name\":\"中出し\",...}``。
+        步骤: 拼接所有 flight chunk 并按 JS 字符串解码 → 以 ``fc2Url`` 中的番号为锚点
+        → 向前定位对象起始 ``{`` → 括号配平截取 → ``json.loads``。
         """
-        html = str(soup)
+        chunks = _FLIGHT_CHUNK.findall(html)
+        if not chunks:
+            return None
+        try:
+            flight = "".join(json.loads(f'"{c}"') for c in chunks)
+        except json.JSONDecodeError:
+            return None
+
+        anchor = flight.find(f"contents.fc2.com/article/{movie_id}")
+        if anchor < 0:
+            return None
+        obj_str = cls._balanced_object(flight, anchor)
+        if not obj_str:
+            return None
+        try:
+            return json.loads(obj_str)
+        except json.JSONDecodeError:
+            return None
+
+    @staticmethod
+    def _balanced_object(s: str, anchor: int) -> Optional[str]:
+        """以 anchor 为内部位置，向前找对象起始 ``{`` 并括号配平截取完整 JSON 对象。"""
+        start = s.rfind("{", 0, anchor)
+        if start < 0:
+            return None
+        depth = 0
+        in_str = False
+        esc = False
+        for i in range(start, len(s)):
+            ch = s[i]
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = not in_str
+            elif not in_str:
+                if ch == "{":
+                    depth += 1
+                elif ch == "}":
+                    depth -= 1
+                    if depth == 0:
+                        return s[start : i + 1]
+        return None
+
+    # ── 字段映射辅助 ──
+
+    @staticmethod
+    def _as_dict(value: Any) -> Dict[str, Any]:
+        """将任意值安全转为 ``Dict[str, Any]``（非字典返回空字典），消除 json Any 不确定性。"""
+        return cast(Dict[str, Any], value) if isinstance(value, dict) else {}
+
+    @staticmethod
+    def _as_list(value: Any) -> List[Any]:
+        """将任意值安全转为 ``List[Any]``（非列表返回空列表）。"""
+        return cast(List[Any], value) if isinstance(value, list) else []
+
+    @staticmethod
+    def _str(value: Any) -> Optional[str]:
+        """仅当值为非空字符串时返回，否则 None（消除 json Any 类型不确定性）。"""
+        return value if isinstance(value, str) and value else None
+
+    @staticmethod
+    def _cdn(local_path: Any) -> Optional[str]:
+        """将 ``thumbnailLocal`` / ``imageLocal`` 相对路径拼为 CDN 绝对地址。"""
+        return f"{CDN_BASE}/{local_path}" if isinstance(local_path, str) and local_path else None
+
+    @classmethod
+    def _seller_name(cls, video: Dict[str, Any]) -> Optional[str]:
+        return cls._str(cls._as_dict(video.get("seller")).get("name"))
+
+    @classmethod
+    def _actors(cls, video: Dict[str, Any]) -> List[str]:
+        """从 ``actresses[].actress.name`` 提取女优名。"""
+        actors: List[str] = []
+        for rel in cls._as_list(video.get("actresses")):
+            name = cls._str(cls._as_dict(cls._as_dict(rel).get("actress")).get("name"))
+            if name and name not in actors:
+                actors.append(name)
+        return actors
+
+    @classmethod
+    def _tags(cls, video: Dict[str, Any]) -> List[str]:
+        """从 ``productTags[].tag.name`` 提取标签。"""
         tags: List[str] = []
-        for name in cls._TAG_PATTERN.findall(html):
-            name = name.strip()
+        for rel in cls._as_list(video.get("productTags")):
+            name = cls._str(cls._as_dict(cls._as_dict(rel).get("tag")).get("name"))
             if name and name not in tags:
                 tags.append(name)
         return tags
 
     @staticmethod
-    def _parse_samples(soup: BeautifulSoup, movie_id: str) -> List[str]:
-        """从页面中提取样品图（``/samples/{id}/NNN.webp``）作为背景图。"""
-        html = str(soup)
-        pattern = re.compile(r"https://[^\"'\s\\]+/samples/\d+/" + re.escape(movie_id) + r"/\d+\.webp")
-        return sorted(set(pattern.findall(html)))
+    def _date(release_date: Optional[str]) -> Optional[str]:
+        """``$D2025-10-13T00:00:00.000Z`` -> ``YYYY-MM-DD``。"""
+        if not release_date:
+            return None
+        m = re.search(r"(\d{4}-\d{2}-\d{2})", release_date)
+        return m.group(1) if m else None
 
     @staticmethod
-    def _parse_plot(soup: BeautifulSoup) -> Optional[str]:
-        """从「商品説明」区域提取影片简介。
-
-        结构: ``<h2>...商品説明</h2>`` 后跟一个
-        ``<p class="whitespace-pre-wrap ...">`` 段落，保留原始换行。
-        """
-        for h2 in soup.find_all("h2"):
-            if "商品説明" in h2.get_text():
-                parent = h2.parent
-                p = parent.select_one("p.whitespace-pre-wrap") if parent else None
-                if p is None:
-                    p = soup.select_one("p.whitespace-pre-wrap")
-                if p:
-                    text = p.get_text("\n", strip=True)
-                    return text or None
-                break
+    def _runtime(duration: Any) -> Optional[int]:
+        """``duration`` 为秒数 -> 分钟（四舍五入）。"""
+        if isinstance(duration, (int, float)) and duration > 0:
+            return round(duration / 60)
         return None
+
+    @staticmethod
+    def _rating(video: Dict[str, Any]) -> Optional[float]:
+        """评分: ``avgRating`` 为字符串，仅在有评分人数（``ratingCount`` > 0）时返回。"""
+        if (video.get("ratingCount") or 0) <= 0:
+            return None
+        try:
+            value = float(video.get("avgRating") or 0)
+        except (TypeError, ValueError):
+            return None
+        return value or None
