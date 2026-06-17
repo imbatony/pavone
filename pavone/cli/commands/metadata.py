@@ -136,6 +136,24 @@ def format_metadata_output(metadata: BaseMetadata) -> None:
     if cover:
         lines.append(format_field("封面", cover, no_truncate=True))
 
+    poster = getattr(metadata, "poster", None)
+    if poster:
+        lines.append(format_field("海报", poster, no_truncate=True))
+
+    thumbnail = getattr(metadata, "thumbnail", None)
+    if thumbnail:
+        lines.append(format_field("缩略图", thumbnail, no_truncate=True))
+
+    # 背景图（支持多张）
+    backdrops = getattr(metadata, "backdrops", None) or []
+    backdrop = getattr(metadata, "backdrop", None)
+    if not backdrops and backdrop:
+        backdrops = [backdrop]
+    if backdrops:
+        lines.append(format_field("背景图", f"共 {len(backdrops)} 张"))
+        for idx, bd_url in enumerate(backdrops, start=1):
+            lines.append(format_field(f"  背景图 {idx}", bd_url, no_truncate=True))
+
     # 输出所有行
     for line in lines:
         click.echo(line)
