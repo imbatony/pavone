@@ -18,11 +18,21 @@ from ...utils.filename_parser import FilenameParser
 from ...utils.format_utils import FormatUtils
 from .utils import confirm_action, echo_error, echo_info, echo_success, echo_warning
 
-
 # 支持的视频扩展名
 VIDEO_EXTENSIONS = {
-    ".mp4", ".mkv", ".avi", ".wmv", ".flv", ".mov",
-    ".rmvb", ".m4v", ".mpg", ".mpeg", ".ts", ".webm", ".3gp",
+    ".mp4",
+    ".mkv",
+    ".avi",
+    ".wmv",
+    ".flv",
+    ".mov",
+    ".rmvb",
+    ".m4v",
+    ".mpg",
+    ".mpeg",
+    ".ts",
+    ".webm",
+    ".3gp",
 }
 
 
@@ -475,9 +485,13 @@ def _probe_video_quality(file_path: Path) -> LocalVideoQuality:
         try:
             result = subprocess.run(
                 [
-                    "ffprobe", "-v", "quiet",
-                    "-print_format", "json",
-                    "-show_streams", "-show_format",
+                    "ffprobe",
+                    "-v",
+                    "quiet",
+                    "-print_format",
+                    "json",
+                    "-show_streams",
+                    "-show_format",
                     str(file_path),
                 ],
                 capture_output=True,
@@ -589,9 +603,7 @@ def _display_quality_comparison(
         if source.size_bytes > best_existing_size:
             click.secho(f"  提示: 新文件更大 ({source.size} vs {FormatUtils.format_size(best_existing_size)})", fg="cyan")
         else:
-            click.secho(
-                f"  提示: 已有文件更大 ({FormatUtils.format_size(best_existing_size)} vs {source.size})", fg="cyan"
-            )
+            click.secho(f"  提示: 已有文件更大 ({FormatUtils.format_size(best_existing_size)} vs {source.size})", fg="cyan")
 
     click.echo()
 
