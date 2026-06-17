@@ -112,6 +112,7 @@ class Fc2ppvDbMetadata(FC2BaseMetadata):
         runtime = self._parse_runtime_from_desc(og_desc)
         actors = self._parse_actors(soup)
         tags = self._parse_tags(soup)
+        plot = self._parse_plot(soup)
         backdrops = self._parse_samples(soup, movie_id)
 
         metadata = (
@@ -121,6 +122,7 @@ class Fc2ppvDbMetadata(FC2BaseMetadata):
             .set_actors(actors)
             .set_studio(seller)
             .set_tags(tags)
+            .set_plot(plot)
             .set_release_date(premiered)
             .set_runtime(runtime)
             .set_cover(og_image)
@@ -210,3 +212,22 @@ class Fc2ppvDbMetadata(FC2BaseMetadata):
         html = str(soup)
         pattern = re.compile(r"https://[^\"'\s\\]+/samples/\d+/" + re.escape(movie_id) + r"/\d+\.webp")
         return sorted(set(pattern.findall(html)))
+
+    @staticmethod
+    def _parse_plot(soup: BeautifulSoup) -> Optional[str]:
+        """从「商品説明」区域提取影片简介。
+
+        结构: ``<h2>...商品説明</h2>`` 后跟一个
+        ``<p class="whitespace-pre-wrap ...">`` 段落，保留原始换行。
+        """
+        for h2 in soup.find_all("h2"):
+            if "商品説明" in h2.get_text():
+                parent = h2.parent
+                p = parent.select_one("p.whitespace-pre-wrap") if parent else None
+                if p is None:
+                    p = soup.select_one("p.whitespace-pre-wrap")
+                if p:
+                    text = p.get_text("\n", strip=True)
+                    return text or None
+                break
+        return None

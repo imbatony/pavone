@@ -82,6 +82,9 @@ class TestFc2ppvDbMetadata:
         assert "中出し" in metadata.tags
         assert "無修正" in metadata.tags
         assert len(metadata.tags) == 5
+        # 简介来自「商品説明」区域
+        assert metadata.plot is not None
+        assert "素人" in metadata.plot
         assert metadata.official_rating == "JP-18+"
 
     def test_extract_metadata_invalid(self):
