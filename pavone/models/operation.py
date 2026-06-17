@@ -358,7 +358,10 @@ class OperationItem:
             elif sub_type == ItemSubType.THUMBNAIL:
                 return f"-thumbnail{extension}"
             elif sub_type == ItemSubType.BACKDROP:
-                return f"-backdrop{extension}"
+                # Jellyfin 规范: backdrop.jpg, backdrop1.jpg, backdrop2.jpg ...
+                idx = self._extra.get(ImageExtraKeys.BACKDROP_INDEX, 0)
+                idx_suffix = str(idx) if idx > 0 else ""
+                return f"-backdrop{idx_suffix}{extension}"
             elif sub_type == ItemSubType.LANDSCAPE:
                 return f"-landscape{extension}"
             else:

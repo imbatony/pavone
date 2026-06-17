@@ -2,6 +2,7 @@
 Organize command - 整理命令
 """
 
+from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
 
@@ -14,7 +15,41 @@ from ...manager.plugin_manager import get_plugin_manager
 from ...manager.search_manager import get_search_manager
 from ...utils.file_operation_builder import FileOperationBuilder
 from ...utils.filename_parser import FilenameParser
+from ...utils.format_utils import FormatUtils
 from .utils import confirm_action, echo_error, echo_info, echo_success, echo_warning
+
+# 支持的视频扩展名
+VIDEO_EXTENSIONS = {
+    ".mp4",
+    ".mkv",
+    ".avi",
+    ".wmv",
+    ".flv",
+    ".mov",
+    ".rmvb",
+    ".m4v",
+    ".mpg",
+    ".mpeg",
+    ".ts",
+    ".webm",
+    ".3gp",
+}
+
+
+@dataclass
+class LocalVideoQuality:
+    """本地视频文件质量信息"""
+
+    path: str
+    filename: str
+    size: str
+    size_bytes: int
+    resolution: str
+    height: int
+    bitrate: str
+    bitrate_raw: int
+    codec: str
+    duration: str
 
 
 @click.command()
@@ -183,7 +218,62 @@ def organize(
                     continue
 
                 target_path = operation.get_target_path()
+                if not target_path:
+                    echo_error("  无法确定目标路径")
+                    failed_count += 1
+                    continue
                 echo_info(f"  目标路径: {target_path}")
+
+                # 4.5 检查目标文件夹是否已有同番号视频
+                target_path_obj = Path(target_path)
+                target_dir = target_path_obj.parent
+                existing_videos = _find_existing_videos(target_dir, exclude=video_file)
+
+                if existing_videos:
+                    echo_warning(f"  目标文件夹已存在 {len(existing_videos)} 个视频文件:")
+
+                    source_quality = _probe_video_quality(video_file)
+                    existing_qualities = [_probe_video_quality(v) for v in existing_videos]
+                    _display_quality_comparison(source_quality, existing_qualities)
+
+                    if auto:
+                        echo_warning("  自动模式: 跳过已存在的番号")
+                        skipped_count += 1
+                        continue
+
+                    action = _prompt_duplicate_action()
+
+                    if action == "skip":
+                        echo_warning("  跳过")
+                        skipped_count += 1
+                        continue
+                    elif action == "extra":
+                        # 移动到 extras 子文件夹（Jellyfin 支持的 extras 目录）
+                        # 保留源文件原始文件名
+                        extras_dir = target_dir / "extras"
+                        new_target = extras_dir / video_file.name
+                        operation.set_target_path(str(new_target))
+                        # extras 不需要 NFO/封面等子操作
+                        operation._children.clear()
+                        echo_info(f"  将作为 Extra 移动到: {new_target}")
+                    else:
+                        # overwrite: 目标路径使用原始无后缀路径
+                        original_target = target_dir / (target_path_obj.stem.split(" (")[0] + target_path_obj.suffix)
+                        operation.set_target_path(str(original_target))
+
+                        # 删除已有视频文件
+                        for existing in existing_videos:
+                            if not dry_run:
+                                existing.unlink()
+                                echo_info(f"  已删除旧文件: {existing.name}")
+                            else:
+                                echo_info(f"  [模拟] 将删除: {existing.name}")
+
+                        # 询问是否重新生成元信息文件
+                        if operation.has_children():
+                            if not confirm_action("  目标已有元信息文件，是否重新生成 NFO/封面等？", default=False):
+                                operation._children.clear()
+                                echo_info("  保留已有元信息文件")
 
                 # 5. 显示操作详情
                 if operation.has_children():
@@ -192,7 +282,7 @@ def organize(
                         echo_info(f"    - {child.get_description()}")
 
                 # 6. 确认执行（非自动模式）
-                if not auto and not dry_run:
+                if not auto and not dry_run and not existing_videos:
                     if not confirm_action("  是否执行整理？", default=True):
                         echo_warning("  跳过")
                         skipped_count += 1
@@ -327,37 +417,18 @@ def _scan_video_files(path: str, recursive: bool) -> List[Path]:
     path_obj = Path(path)
     video_files: List[Path] = []
 
-    # 支持的视频扩展名
-    video_extensions = {
-        ".mp4",
-        ".mkv",
-        ".avi",
-        ".wmv",
-        ".flv",
-        ".mov",
-        ".rmvb",
-        ".m4v",
-        ".mpg",
-        ".mpeg",
-        ".ts",
-        ".webm",
-        ".3gp",
-    }
-
     if path_obj.is_file():
         # 单个文件
-        if path_obj.suffix.lower() in video_extensions:
+        if path_obj.suffix.lower() in VIDEO_EXTENSIONS:
             video_files.append(path_obj)
     else:
         # 目录
         if recursive:
-            # 递归扫描
-            for ext in video_extensions:
+            for ext in VIDEO_EXTENSIONS:
                 video_files.extend(path_obj.rglob(f"*{ext}"))
                 video_files.extend(path_obj.rglob(f"*{ext.upper()}"))
         else:
-            # 仅扫描当前目录
-            for ext in video_extensions:
+            for ext in VIDEO_EXTENSIONS:
                 video_files.extend(path_obj.glob(f"*{ext}"))
                 video_files.extend(path_obj.glob(f"*{ext.upper()}"))
 
@@ -365,3 +436,196 @@ def _scan_video_files(path: str, recursive: bool) -> List[Path]:
     video_files = sorted(set(video_files))
 
     return video_files
+
+
+def _find_existing_videos(target_dir: Path, exclude: Optional[Path] = None) -> List[Path]:
+    """检查目标文件夹中是否已有视频文件
+
+    Args:
+        target_dir: 目标目录
+        exclude: 排除的文件路径（避免把源文件自身当作重复）
+
+    Returns:
+        已存在的视频文件列表
+    """
+    if not target_dir.exists():
+        return []
+
+    existing: List[Path] = []
+    exclude_resolved = exclude.resolve() if exclude else None
+
+    for f in target_dir.iterdir():
+        if f.is_file() and f.suffix.lower() in VIDEO_EXTENSIONS:
+            if exclude_resolved and f.resolve() == exclude_resolved:
+                continue
+            existing.append(f)
+
+    return sorted(existing)
+
+
+def _probe_video_quality(file_path: Path) -> LocalVideoQuality:
+    """探测本地视频文件质量信息
+
+    优先使用 ffprobe 获取详细信息，不可用时回退到仅文件大小。
+
+    Args:
+        file_path: 视频文件路径
+
+    Returns:
+        LocalVideoQuality 对象
+    """
+    import json
+    import shutil
+    import subprocess
+
+    size_bytes = file_path.stat().st_size
+
+    # 尝试 ffprobe
+    if shutil.which("ffprobe"):
+        try:
+            result = subprocess.run(
+                [
+                    "ffprobe",
+                    "-v",
+                    "quiet",
+                    "-print_format",
+                    "json",
+                    "-show_streams",
+                    "-show_format",
+                    str(file_path),
+                ],
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=30,
+            )
+            if result.returncode == 0:
+                data = json.loads(result.stdout)
+                video_stream = next(
+                    (s for s in data.get("streams", []) if s.get("codec_type") == "video"),
+                    None,
+                )
+                fmt = data.get("format", {})
+
+                if video_stream:
+                    width = int(video_stream.get("width", 0))
+                    height = int(video_stream.get("height", 0))
+                    codec = video_stream.get("codec_name", "未知")
+                    bitrate_raw = int(video_stream.get("bit_rate", 0) or fmt.get("bit_rate", 0) or 0)
+                    duration_sec = float(fmt.get("duration", 0))
+
+                    return LocalVideoQuality(
+                        path=str(file_path),
+                        filename=file_path.name,
+                        size=FormatUtils.format_size(size_bytes),
+                        size_bytes=size_bytes,
+                        resolution=f"{width}x{height}" if width and height else "未知",
+                        height=height,
+                        bitrate=FormatUtils.format_bitrate(bitrate_raw) if bitrate_raw else "未知",
+                        bitrate_raw=bitrate_raw,
+                        codec=codec,
+                        duration=f"{int(duration_sec // 60)} 分钟" if duration_sec else "未知",
+                    )
+        except Exception:
+            pass
+
+    # 回退：仅文件大小
+    return LocalVideoQuality(
+        path=str(file_path),
+        filename=file_path.name,
+        size=FormatUtils.format_size(size_bytes),
+        size_bytes=size_bytes,
+        resolution="未知 (需要 ffprobe)",
+        height=0,
+        bitrate="未知",
+        bitrate_raw=0,
+        codec="未知",
+        duration="未知",
+    )
+
+
+def _display_quality_comparison(
+    source: LocalVideoQuality,
+    existing_list: List[LocalVideoQuality],
+) -> None:
+    """显示新文件与已有文件的质量对比
+
+    Args:
+        source: 新文件的质量信息
+        existing_list: 已有文件的质量信息列表
+    """
+    click.echo()
+    click.echo("  " + "─" * 56)
+
+    # 新文件信息
+    click.secho("  【新文件】", fg="cyan", bold=True)
+    click.echo(f"    文件名:  {source.filename}")
+    click.echo(f"    大小:    {source.size}")
+    click.echo(f"    分辨率:  {source.resolution}")
+    click.echo(f"    编码:    {source.codec}")
+    click.echo(f"    码率:    {source.bitrate}")
+    click.echo(f"    时长:    {source.duration}")
+
+    click.echo("  " + "─" * 56)
+
+    # 已有文件信息
+    for i, existing in enumerate(existing_list):
+        label = "【已有文件】" if len(existing_list) == 1 else f"【已有文件 {i + 1}】"
+        click.secho(f"  {label}", fg="yellow", bold=True)
+        click.echo(f"    文件名:  {existing.filename}")
+        click.echo(f"    大小:    {existing.size}")
+        click.echo(f"    分辨率:  {existing.resolution}")
+        click.echo(f"    编码:    {existing.codec}")
+        click.echo(f"    码率:    {existing.bitrate}")
+        click.echo(f"    时长:    {existing.duration}")
+
+    click.echo("  " + "─" * 56)
+
+    # 质量建议
+    best_existing_height = max(e.height for e in existing_list)
+    if source.height > 0 and best_existing_height > 0:
+        if source.height > best_existing_height:
+            click.secho("  建议: 新文件质量更高", fg="green", bold=True)
+        elif source.height < best_existing_height:
+            click.secho("  建议: 已有文件质量更高", fg="red", bold=True)
+        else:
+            # 分辨率相同，比较文件大小（通常更大 = 更高码率）
+            best_existing_size = max(e.size_bytes for e in existing_list)
+            if source.size_bytes > best_existing_size * 1.1:
+                click.secho("  建议: 分辨率相同，新文件码率可能更高", fg="green")
+            elif source.size_bytes < best_existing_size * 0.9:
+                click.secho("  建议: 分辨率相同，已有文件码率可能更高", fg="yellow")
+            else:
+                click.secho("  建议: 质量基本相同", fg="white")
+    elif source.height == 0 and best_existing_height == 0:
+        # 都无法获取分辨率，比较文件大小
+        best_existing_size = max(e.size_bytes for e in existing_list)
+        if source.size_bytes > best_existing_size:
+            click.secho(f"  提示: 新文件更大 ({source.size} vs {FormatUtils.format_size(best_existing_size)})", fg="cyan")
+        else:
+            click.secho(f"  提示: 已有文件更大 ({FormatUtils.format_size(best_existing_size)} vs {source.size})", fg="cyan")
+
+    click.echo()
+
+
+def _prompt_duplicate_action() -> str:
+    """提示用户选择同番号冲突的处理方式
+
+    Returns:
+        "skip" / "overwrite" / "extra"
+    """
+    click.echo("  请选择处理方式:")
+    click.echo("    [S] 跳过 - 不处理此文件")
+    click.echo("    [O] 覆盖 - 删除已有文件，移入新文件")
+    click.echo("    [E] Extra - 作为 Jellyfin Extra 移入 extras/ 子文件夹")
+
+    while True:
+        choice = click.prompt("  请输入", type=str, default="S").strip().upper()
+        if choice in ("S", "SKIP"):
+            return "skip"
+        elif choice in ("O", "OVERWRITE"):
+            return "overwrite"
+        elif choice in ("E", "EXTRA"):
+            return "extra"
+        else:
+            click.echo("  无效输入，请输入 S / O / E")

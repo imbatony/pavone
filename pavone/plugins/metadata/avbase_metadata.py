@@ -22,7 +22,7 @@ PLUGIN_NAME = "AvBaseMetadata"
 PLUGIN_VERSION = "1.0.0"
 PLUGIN_DESCRIPTION = "提取 avbase.net 的视频元数据"
 PLUGIN_AUTHOR = "PAVOne"
-PLUGIN_PRIORITY = 50
+PLUGIN_PRIORITY = 70
 
 SUPPORTED_DOMAINS = ["avbase.net", "www.avbase.net"]
 SITE_NAME = "AVBASE"
@@ -84,7 +84,7 @@ class AvBaseMetadata(HtmlMetadataPlugin):
 
             api_url = MOVIE_API_TEMPLATE.format(build_id=build_id, movie_id=movie_id, movie_id_enc=movie_id)
             try:
-                resp = self.fetch(api_url, timeout=30)
+                resp = self.fetch(api_url, timeout=30, max_retry=1)
                 data = resp.json()
                 return self._parse_api(data, movie_id, page_url)
             except Exception:
@@ -115,7 +115,7 @@ class AvBaseMetadata(HtmlMetadataPlugin):
         if self._build_id:
             return self._build_id
         try:
-            resp = self.fetch("https://www.avbase.net/", timeout=15)
+            resp = self.fetch("https://www.avbase.net/", timeout=15, max_retry=1)
             soup = BeautifulSoup(resp.text, "lxml")
             # Next.js 将 buildId 注入到 __NEXT_DATA__ script 中
             script = soup.find("script", id="__NEXT_DATA__")
@@ -217,7 +217,7 @@ class AvBaseMetadata(HtmlMetadataPlugin):
         try:
             import json
 
-            resp = self.fetch(page_url, timeout=30)
+            resp = self.fetch(page_url, timeout=30, max_retry=1)
             soup = BeautifulSoup(resp.text, "lxml")
             script = soup.find("script", id="__NEXT_DATA__")
             if script and script.string:

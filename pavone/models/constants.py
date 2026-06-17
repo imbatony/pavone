@@ -112,6 +112,7 @@ class ImageExtraKeys:
 
     IMAGE_SIZE = "image_size"  # 图片尺寸, 如 1920x1080
     IMAGE_FORMAT = "image_format"  # 图片格式, 如 JPEG, PNG 等
+    BACKDROP_INDEX = "backdrop_index"  # 背景图序号 (0=无后缀, 1=backdrop1, 2=backdrop2...)
 
 
 class MetadataExtraKeys:

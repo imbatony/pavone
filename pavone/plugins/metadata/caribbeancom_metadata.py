@@ -130,9 +130,17 @@ class CaribbeancomMetadata(HtmlMetadataPlugin):
         return None
 
     def _extract_movie_id_from_url(self, url: str, is_premium: bool = False) -> Optional[str]:
-        """从URL中提取番号"""
-        pattern = MOVIE_ID_PATTERN_PR if is_premium else MOVIE_ID_PATTERN
-        match = re.search(rf"/moviepages/({pattern})/", url)
+        """从URL中提取番号
+
+        caribbeancom.com 的 URL 中既可能出现 dash 也可能出现 underscore 格式的番号，
+        因此需要同时尝试两种模式。
+        """
+        # 优先尝试该域名对应的模式，再回退到另一种模式
+        primary = MOVIE_ID_PATTERN_PR if is_premium else MOVIE_ID_PATTERN
+        fallback = MOVIE_ID_PATTERN if is_premium else MOVIE_ID_PATTERN_PR
+        match = re.search(rf"/moviepages/({primary})/", url)
+        if not match:
+            match = re.search(rf"/moviepages/({fallback})/", url)
         return match.group(1) if match else None
 
     def _build_metadata_from_html(self, html: str, movie_id: str, is_premium: bool = False) -> Optional[MovieMetadata]:
@@ -159,14 +167,22 @@ class CaribbeancomMetadata(HtmlMetadataPlugin):
             rating = self._extract_rating(html)
             desc = self._extract_description(html)
 
-            # 从 HTML 画像ギャラリー区域提取图片链接
-            gallery_images = self._extract_gallery_images(html, movie_id, base_domain)
-            # l_l.jpg 作为 poster
-            poster = f"{base_domain}/moviepages/{movie_id}/images/l_l.jpg"
-            # 从背景图中选择高度最大的作为 cover
-            cover = self._select_tallest_image(gallery_images)
-            # 所有图片作为背景图（Jellyfin支持多张）
-            backdrops = gallery_images
+            # 解析页面中的 Movie JS 对象，判断是否为跨站影片（如 muramura、pacopacomama）
+            crossover = self._extract_crossover_image(html, movie_id)
+            if crossover:
+                # 跨站影片：图片托管在源站点的 assets/sample 目录，仅有单张图片
+                poster = crossover
+                cover = crossover
+                backdrops = [crossover]
+            else:
+                # 原生 caribbeancom：从 HTML 画像ギャラリー区域提取图片链接
+                gallery_images = self._extract_gallery_images(html, movie_id, base_domain)
+                # l_l.jpg 作为 poster
+                poster = f"{base_domain}/moviepages/{movie_id}/images/l_l.jpg"
+                # 从背景图中选择高度最大的作为 cover
+                cover = self._select_tallest_image(gallery_images)
+                # 所有图片作为背景图（Jellyfin支持多张）
+                backdrops = gallery_images
 
             display_title = title or "Unknown"
 
@@ -223,6 +239,38 @@ class CaribbeancomMetadata(HtmlMetadataPlugin):
         if best_url:
             self.logger.debug(f"选择 cover: {best_url} (高度 {max_height})")
         return best_url
+
+    def _extract_crossover_image(self, html: str, movie_id: str) -> Optional[str]:
+        """解析页面中的 Movie JS 对象，识别跨站影片并返回其图片 URL
+
+        部分番号（如 underscore 格式）实为 muramura / pacopacomama 等姊妹站点的影片，
+        通过 caribbeancom 分发。这些影片的图片不在 /moviepages/{id}/images/ 下，
+        而是托管在源站点的 /assets/sample/{id}/ 目录中。
+
+        页面中的 Movie 对象示例:
+            {"movie_id":"021416_352","movie_site":"mura","image_name":"str.jpg",
+             "site_name":"muramura.tv", ...}
+
+        返回图片 URL（如 https://www.muramura.tv/assets/sample/021416_352/str.jpg），
+        若不是跨站影片则返回 None。
+        """
+        import json
+
+        match = re.search(r"var\s+Movie\s*=\s*(\{.*?\})\s*;", html, re.S)
+        if not match:
+            return None
+        try:
+            movie = json.loads(match.group(1))
+        except (json.JSONDecodeError, ValueError):
+            return None
+
+        site_name = movie.get("site_name")
+        # 仅当存在 site_name 且非 caribbeancom 本站时才视为跨站影片
+        if not site_name or "caribbeancom" in site_name:
+            return None
+
+        image_name = movie.get("image_name") or "str.jpg"
+        return f"https://www.{site_name}/assets/sample/{movie_id}/{image_name}"
 
     def _extract_gallery_images(
         self, html: str, movie_id: str, base_domain: str = "https://www.caribbeancom.com"

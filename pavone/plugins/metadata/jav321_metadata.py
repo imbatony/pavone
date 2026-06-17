@@ -11,6 +11,7 @@ import re
 from typing import List, Optional
 from urllib.parse import urlparse
 
+import requests
 from bs4 import BeautifulSoup, NavigableString
 
 from ...models import MovieMetadata
@@ -21,7 +22,7 @@ PLUGIN_NAME = "Jav321Metadata"
 PLUGIN_VERSION = "1.0.0"
 PLUGIN_DESCRIPTION = "提取 jav321.com 的视频元数据"
 PLUGIN_AUTHOR = "PAVOne"
-PLUGIN_PRIORITY = 50
+PLUGIN_PRIORITY = 70
 
 SUPPORTED_DOMAINS = ["jav321.com", "www.jav321.com"]
 SITE_NAME = "JAV321"
@@ -45,6 +46,9 @@ class Jav321Metadata(HtmlMetadataPlugin):
         if identifier.startswith("http://") or identifier.startswith("https://"):
             return self.can_handle_domain(identifier, SUPPORTED_DOMAINS)
         return bool(re.match(r"^[a-zA-Z]+-\d+$", identifier.strip()))
+
+    def _fetch_page(self, url: str) -> requests.Response:
+        return self.fetch(url, timeout=30, max_retry=1)
 
     def _resolve(self, identifier: str):
         if identifier.startswith("http://") or identifier.startswith("https://"):
