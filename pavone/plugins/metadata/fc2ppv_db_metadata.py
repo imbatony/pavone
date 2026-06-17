@@ -31,7 +31,8 @@ PLUGIN_NAME = "Fc2ppvDbMetadata"
 PLUGIN_VERSION = "1.0.0"
 PLUGIN_DESCRIPTION = "提取 fc2ppv-db.com 的 FC2 视频元数据"
 PLUGIN_AUTHOR = "PAVOne"
-PLUGIN_PRIORITY = 22
+# FC2 编号兜底首选: 解析结构化 JSON，字段最全最准（fc2ppv-db → ppvdatabank → supfc2）
+PLUGIN_PRIORITY = 18
 
 SUPPORTED_DOMAINS = ["fc2ppv-db.com", "www.fc2ppv-db.com"]
 SITE_NAME = "FC2PPV-DB"

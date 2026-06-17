@@ -23,8 +23,8 @@ PLUGIN_VERSION = "1.0.0"
 PLUGIN_DESCRIPTION = "提取 ppvdatabank.com 的FC2视频元数据"
 PLUGIN_AUTHOR = "PAVOne"
 
-# 定义插件优先级
-PLUGIN_PRIORITY = 25
+# 定义插件优先级（FC2 编号兜底第二选: 极快，提供 title/studio/date/cover 基础信息）
+PLUGIN_PRIORITY = 20
 
 # 定义支持的域名
 SUPPORTED_DOMAINS = ["ppvdatabank.com", "www.ppvdatabank.com"]
