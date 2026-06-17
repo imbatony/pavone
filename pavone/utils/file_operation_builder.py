@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 
 from ..config.logging_config import get_logger
-from ..models.constants import ItemType, OperationType
+from ..models.constants import ImageExtraKeys, ItemType, OperationType
 from .template_utils import TemplateUtils
 
 if TYPE_CHECKING:
@@ -145,11 +145,12 @@ class FileOperationBuilder:
             operation.append_child(poster_item)
             self.logger.debug(f"添加海报子操作: {metadata.poster}")
 
-        # 添加背景图（支持多张）
+        # 添加背景图（支持多张，Jellyfin 规范: backdrop.jpg, backdrop1.jpg, backdrop2.jpg ...）
         if config.download_cover:
             backdrop_urls = metadata.backdrops or ([metadata.backdrop] if metadata.backdrop else [])
-            for bd_url in backdrop_urls:
+            for idx, bd_url in enumerate(backdrop_urls):
                 backdrop_item = create_backdrop_item(url=bd_url, title=metadata.title or metadata.code)
+                backdrop_item.set_extra(ImageExtraKeys.BACKDROP_INDEX, idx)
                 operation.append_child(backdrop_item)
             if backdrop_urls:
                 self.logger.debug(f"添加背景图子操作: {len(backdrop_urls)} 张")

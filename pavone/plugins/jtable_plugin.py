@@ -9,6 +9,8 @@ import re
 from datetime import datetime
 from typing import Any, List, Optional, Tuple
 
+import requests
+
 from ..models import MovieMetadata, OperationItem, Quality
 from ..utils import CodeExtractUtils, StringUtils
 from ..utils.html_metadata_utils import (
@@ -63,6 +65,38 @@ class JTablePlugin(ExtractorPlugin, MetadataPlugin):
         self.base_url = JTABLE_BASE_URL
         # logger already initialized in base classes using subclass module name
 
+    def _fetch_page(self, url: str) -> requests.Response:
+        """获取页面，自动处理 Cloudflare Turnstile 保护。
+
+        先尝试普通 HTTP 请求（仅 1 次，不重试），
+        若返回 403 且检测到 Cloudflare 挑战页面，则回退到浏览器模式。
+        """
+        try:
+            resp = self.fetch(url, timeout=15, max_retry=1)
+            resp.raise_for_status()
+            return resp
+        except requests.HTTPError as e:
+            if e.response is not None and e.response.status_code == 403:
+                cf_markers = ["Just a moment", "cf-mitigated", "challenges.cloudflare.com"]
+                body = e.response.text[:2000]
+                if any(m in body for m in cf_markers):
+                    self.logger.info("检测到 Cloudflare Turnstile，使用浏览器获取")
+                    return self._fetch_with_browser(url)
+            raise
+
+    def _fetch_with_browser(self, url: str) -> requests.Response:
+        """使用 DrissionPage 浏览器绕过 Cloudflare 获取页面"""
+        from ..utils.http_utils import HttpUtils
+
+        return HttpUtils.fetch_with_browser(
+            url=url,
+            proxy_config=self.config.proxy,
+            logger=self.logger,
+            wait_for_content=["application/ld+json", "og:title", 'class="info"'],
+            reject_content=["Just a moment", "请稍候"],
+            max_wait=30,
+        )
+
     def initialize(self) -> bool:
         """初始化插件"""
         return True
@@ -112,7 +146,7 @@ class JTablePlugin(ExtractorPlugin, MetadataPlugin):
                 url = f"{self.base_url}/videos/{code}/"
                 self.logger.info(f"从代码构造URL: {url}")
 
-            response = self.fetch(url, timeout=30)
+            response = self._fetch_page(url)
             html = response.text
             if not html:
                 self.logger.error(f"获取页面内容失败: {url}")
@@ -203,7 +237,7 @@ class JTablePlugin(ExtractorPlugin, MetadataPlugin):
 
         try:
             # 获取网页内容
-            response = self.fetch(url)
+            response = self._fetch_page(url)
             html = response.text
             if not html:
                 self.logger.error(f"获取页面内容失败: {url}")
