@@ -77,6 +77,11 @@ class TestFc2ppvDbMetadata:
         assert metadata.actors is not None and "ゆい" in metadata.actors
         assert metadata.cover is not None and metadata.cover.endswith("4778286.webp")
         assert metadata.backdrops is not None and len(metadata.backdrops) == 8
+        # 标签来自 Next.js RSC payload
+        assert metadata.tags is not None
+        assert "中出し" in metadata.tags
+        assert "無修正" in metadata.tags
+        assert len(metadata.tags) == 5
         assert metadata.official_rating == "JP-18+"
 
     def test_extract_metadata_invalid(self):

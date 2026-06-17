@@ -111,6 +111,7 @@ class Fc2ppvDbMetadata(FC2BaseMetadata):
         premiered = self._parse_premiered(og_desc)
         runtime = self._parse_runtime_from_desc(og_desc)
         actors = self._parse_actors(soup)
+        tags = self._parse_tags(soup)
         backdrops = self._parse_samples(soup, movie_id)
 
         metadata = (
@@ -119,6 +120,7 @@ class Fc2ppvDbMetadata(FC2BaseMetadata):
             .set_identifier(SITE_NAME, code, page_url)
             .set_actors(actors)
             .set_studio(seller)
+            .set_tags(tags)
             .set_release_date(premiered)
             .set_runtime(runtime)
             .set_cover(og_image)
@@ -183,6 +185,24 @@ class Fc2ppvDbMetadata(FC2BaseMetadata):
             if text and text not in actors:
                 actors.append(text)
         return actors
+
+    # RSC payload 中的标签结构: \"tag\":{\"id\":\"...\",\"name\":\"中出し\",\"videoCount\":N}
+    _TAG_PATTERN = re.compile(r'\\"tag\\":\{\\"id\\":\\"[^"\\]+\\",\\"name\\":\\"((?:[^"\\]|\\.)*?)\\",\\"videoCount\\"')
+
+    @classmethod
+    def _parse_tags(cls, soup: BeautifulSoup) -> List[str]:
+        """从 Next.js RSC payload 中提取影片标签。
+
+        标签数据不在可见 DOM 中，而是序列化在 ``self.__next_f.push(...)`` 的
+        转义 JSON 里，形如 ``\"tag\":{\"name\":\"中出し\",...}``。
+        """
+        html = str(soup)
+        tags: List[str] = []
+        for name in cls._TAG_PATTERN.findall(html):
+            name = name.strip()
+            if name and name not in tags:
+                tags.append(name)
+        return tags
 
     @staticmethod
     def _parse_samples(soup: BeautifulSoup, movie_id: str) -> List[str]:
