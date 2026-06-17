@@ -61,13 +61,19 @@ class Fc2ppvDbMetadata(FC2BaseMetadata):
         return self._validate_fc2_identifier(identifier)
 
     def _fetch_page(self, url: str) -> requests.Response:
-        """使用浏览器获取页面：先过 Cloudflare，再以 age-verified cookie 绕过年龄确认页。"""
+        """使用浏览器获取页面：先过 Cloudflare，再以 age-verified cookie 绕过年龄确认页。
+
+        注意: 不能用 "年齢確認" 作为 reject 标记——该站点是 Next.js 应用，年龄确认
+        文案作为 i18n 数据常驻于真实页面 HTML 中。改用番号 ``FC2-PPV-{id}`` 作为
+        真实页已加载的正向标记（年龄确认页 og:title 为"年齢確認"，不含番号）。
+        """
+        movie_id = url.rstrip("/").split("/")[-1]
         return HttpUtils.fetch_with_browser(
             url=url,
             proxy_config=self.config.proxy,
             logger=self.logger,
-            wait_for_content=["og:title", 'property="og:image"'],
-            reject_content=["Just a moment", "年齢確認", "請稍候"],
+            wait_for_content=[f"FC2-PPV-{movie_id}"],
+            reject_content=["Just a moment", "請稍候", "请稍候"],
             max_wait=40,
             cookies=[AGE_COOKIE],
             pre_visit_url=ROOT_URL,

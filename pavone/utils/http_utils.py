@@ -6,6 +6,10 @@ import requests
 
 from pavone.config.configs import DownloadConfig, ProxyConfig
 
+# Cloudflare 挑战页（"Just a moment..." / Turnstile）的特征标记。
+# 仅用于判断浏览器是否已通过 Cloudflare，与业务层的 reject_content 解耦。
+_CLOUDFLARE_MARKERS = ["Just a moment", "challenges.cloudflare.com", "请稍候", "請稍候"]
+
 
 def skip_retry_on_4xx(exc: requests.RequestException) -> bool:
     """should_retry 回调：遇到 4xx（客户端错误，例如 404 资源不存在）立即放弃，其他错误继续重试。"""
@@ -262,7 +266,7 @@ class HttpUtils:
                 if pre_visit_url:
                     tab.get(pre_visit_url)  # type: ignore[union-attr]
                     tab.wait.doc_loaded()  # type: ignore[union-attr]
-                    HttpUtils._wait_pass_cloudflare(tab, reject_content, max_wait)
+                    HttpUtils._wait_pass_cloudflare(tab, max_wait)
                 for cookie in cookies:
                     try:
                         tab.set.cookies(cookie)  # type: ignore[union-attr]
@@ -315,11 +319,16 @@ class HttpUtils:
                 pass
 
     @staticmethod
-    def _wait_pass_cloudflare(tab: object, reject_content: List[str], max_wait: int) -> None:
-        """等待浏览器标签页通过 Cloudflare 挑战（页面不再包含 reject_content 标记）。"""
+    def _wait_pass_cloudflare(tab: object, max_wait: int) -> None:
+        """等待浏览器标签页通过 Cloudflare 挑战（页面不再包含 Cloudflare 特征标记）。
+
+        仅检测 Cloudflare 挑战页本身，不涉及业务层的内容判断（如年龄确认），
+        因为某些站点的年龄确认文案会作为 i18n 数据常驻于真实页面 HTML 中，
+        若用作判断标记会导致永远无法"通过"。
+        """
         start_time = time.time()
         while time.time() - start_time < max_wait:
             html = cast(str, tab.html)  # type: ignore[union-attr]
-            if html and not any(r in html for r in reject_content):
+            if html and not any(m in html for m in _CLOUDFLARE_MARKERS):
                 return
             time.sleep(1)
