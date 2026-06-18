@@ -78,6 +78,9 @@ class TestFc2ppvDbMetadata:
         assert metadata.actors is not None and "ゆい" in metadata.actors
         assert metadata.cover is not None and metadata.cover.endswith("4778286.webp")
         assert metadata.backdrops is not None and len(metadata.backdrops) == 8
+        # 缩略图取背景图第一张，与封面区分
+        assert metadata.thumbnail == metadata.backdrops[0]
+        assert metadata.thumbnail != metadata.cover
         # 标签来自 RSC payload 的 productTags
         assert metadata.tags is not None
         assert "中出し" in metadata.tags

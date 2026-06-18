@@ -1,5 +1,5 @@
 {
-    "python.defaultInterpreterPath": "./.venv/Scripts/python.exe",
+    "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
     "python.analysis.useLibraryCodeForTypes": true,
     "python.analysis.exclude": [
         "**/tests/**"

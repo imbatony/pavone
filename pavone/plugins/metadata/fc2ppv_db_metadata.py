@@ -110,6 +110,8 @@ class Fc2ppvDbMetadata(FC2BaseMetadata):
         backdrops = [
             url for img in sorted(images, key=lambda i: i.get("sortOrder", 0)) if (url := self._cdn(img.get("imageLocal")))
         ]
+        # 缩略图优先用背景图第一张（与封面区分），无背景图时回退到封面
+        thumbnail = backdrops[0] if backdrops else cover
 
         metadata = (
             MetadataBuilder()
@@ -123,7 +125,7 @@ class Fc2ppvDbMetadata(FC2BaseMetadata):
             .set_runtime(self._runtime(video.get("duration")))
             .set_rating(self._rating(video))
             .set_cover(cover)
-            .set_thumbnail(cover)
+            .set_thumbnail(thumbnail)
             .set_poster(cover)
             .set_backdrops(backdrops)
             .build()
