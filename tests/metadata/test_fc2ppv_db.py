@@ -95,3 +95,24 @@ class TestFc2ppvDbMetadata:
 
     def test_extract_metadata_invalid(self):
         assert self.extractor.extract_metadata("https://example.com/") is None
+
+    def test_extract_metadata_resolves_rsc_reference(self):
+        """description 为 RSC 引用（``$<id>`` 指向 ``T<len>,`` 文本块）时应解引用为真实文本。"""
+        with open("tests/sites/fc2ppv_db_ref.html", "r", encoding="utf-8") as f:
+            html = f.read()
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.content = html.encode("utf-8")
+        resp.text = html
+        resp.raise_for_status = MagicMock()
+
+        url = "https://fc2ppv-db.com/ja/videos/4679178"
+        with patch.object(self.extractor, "_fetch_page", return_value=resp):
+            metadata = self.extractor.extract_metadata(url)
+
+        assert isinstance(metadata, MovieMetadata)
+        assert metadata.plot is not None
+        # 不再是未解析的引用标记
+        assert not metadata.plot.startswith("$")
+        # 解引用后是较长的真实简介
+        assert len(metadata.plot) > 500

@@ -47,6 +47,10 @@ CDN_BASE = "https://d39jz7pbpqkw9s.cloudfront.net"
 # 匹配 RSC flight chunk: self.__next_f.push([1,"<js-string>"])
 _FLIGHT_CHUNK = re.compile(r'self\.__next_f\.push\(\[1,"((?:[^"\\]|\\.)*)"\]\)')
 
+# 匹配 RSC 字段引用值（纯小写 hex id，如 ``$44``）；
+# ``$undefined`` / ``$D...`` / ``$L...`` 等因含非 hex 字符不会被匹配
+_REF_PATTERN = re.compile(r"\$[0-9a-f]+")
+
 
 class Fc2ppvDbMetadata(FC2BaseMetadata):
     """fc2ppv-db.com 元数据提取器。"""
@@ -141,7 +145,7 @@ class Fc2ppvDbMetadata(FC2BaseMetadata):
         """从 RSC flight payload 中抠出当前番号的影片主对象。
 
         步骤: 拼接所有 flight chunk 并按 JS 字符串解码 → 以 ``fc2Url`` 中的番号为锚点
-        → 向前定位对象起始 ``{`` → 括号配平截取 → ``json.loads``。
+        → 向前定位对象起始 ``{`` → 括号配平截取 → ``json.loads`` → 解析 RSC 字段引用。
         """
         chunks = _FLIGHT_CHUNK.findall(html)
         if not chunks:
@@ -158,7 +162,57 @@ class Fc2ppvDbMetadata(FC2BaseMetadata):
         if not obj_str:
             return None
         try:
-            return json.loads(obj_str)
+            video = json.loads(obj_str)
+        except json.JSONDecodeError:
+            return None
+        return cls._deref_fields(video, flight)
+
+    @classmethod
+    def _deref_fields(cls, video: Dict[str, Any], flight: str) -> Dict[str, Any]:
+        """解析影片对象中的 RSC 字段引用。
+
+        RSC 会对重复出现的长文本（如 ``description``）去重，提升为单独的 flight 行，
+        字段值变为 ``$<hexid>`` 引用（如 ``"description":"$44"``）。此处将这类引用
+        替换回真实文本。``$undefined`` / ``$D<date>`` / ``$L<id>`` 等其他 ``$`` 标记
+        因含大写或非 hex 字符不会被 ``_REF_PATTERN`` 匹配，保持原样。
+        """
+        for key, value in video.items():
+            if isinstance(value, str) and _REF_PATTERN.fullmatch(value):
+                resolved = cls._deref(value[1:], flight)
+                if isinstance(resolved, str):
+                    video[key] = resolved
+        return video
+
+    @staticmethod
+    def _deref(ref_id: str, flight: str) -> Any:
+        """取出 flight 中 ``<ref_id>:`` 行的内容并解码。
+
+        RSC 行有两种编码:
+        - ``T<hexlen>,<text>``: 文本块，``hexlen`` 为 UTF-8 **字节**长度（文本本身
+          可能含真实换行，故必须按声明长度截取，不能按行分割）。
+        - 其他: 直接 ``json.loads`` 的 JSON 值。
+        """
+        marker = f"\n{ref_id}:"
+        pos = flight.find(marker)
+        if pos < 0:
+            if flight.startswith(f"{ref_id}:"):
+                pos = -1  # 行首即文件首
+            else:
+                return None
+        payload_start = pos + len(marker) if pos >= 0 else len(ref_id) + 1
+
+        text_match = re.match(r"T([0-9a-f]+),", flight[payload_start:])
+        if text_match:
+            byte_len = int(text_match.group(1), 16)
+            text_start = payload_start + text_match.end()
+            raw = flight[text_start:].encode("utf-8")[:byte_len]
+            return raw.decode("utf-8", "ignore")
+
+        # 非文本块: 截取到下一个行首再 json.loads
+        end = flight.find("\n", payload_start)
+        chunk = flight[payload_start:] if end < 0 else flight[payload_start:end]
+        try:
+            return json.loads(chunk)
         except json.JSONDecodeError:
             return None
 
