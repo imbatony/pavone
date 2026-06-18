@@ -116,3 +116,23 @@ class TestFc2ppvDbMetadata:
         assert not metadata.plot.startswith("$")
         # 解引用后是较长的真实简介
         assert len(metadata.plot) > 500
+
+    def test_extract_metadata_null_fc2url(self):
+        """部分影片 FC2 原始页已下架（``fc2Url`` 为 null），仍应能用 id+title 锚点解析。"""
+        with open("tests/sites/fc2ppv_db_sparse.html", "r", encoding="utf-8") as f:
+            html = f.read()
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.content = html.encode("utf-8")
+        resp.text = html
+        resp.raise_for_status = MagicMock()
+
+        url = "https://fc2ppv-db.com/ja/videos/3061625"
+        with patch.object(self.extractor, "_fetch_page", return_value=resp):
+            metadata = self.extractor.extract_metadata(url)
+
+        assert isinstance(metadata, MovieMetadata)
+        assert "FC2-3061625" in metadata.code
+        assert metadata.original_title  # 标题非空
+        assert metadata.cover is not None and metadata.cover.endswith("3061625.webp")
+        assert metadata.actors is not None and len(metadata.actors) >= 1

@@ -144,8 +144,12 @@ class Fc2ppvDbMetadata(FC2BaseMetadata):
     def _extract_video_object(cls, html: str, movie_id: str) -> Optional[Dict[str, Any]]:
         """从 RSC flight payload 中抠出当前番号的影片主对象。
 
-        步骤: 拼接所有 flight chunk 并按 JS 字符串解码 → 以 ``fc2Url`` 中的番号为锚点
-        → 向前定位对象起始 ``{`` → 括号配平截取 → ``json.loads`` → 解析 RSC 字段引用。
+        步骤: 拼接所有 flight chunk 并按 JS 字符串解码 → 以主对象起始
+        ``{"id":"<movie_id>","title":`` 为锚点 → 括号配平截取 → ``json.loads``
+        → 解析 RSC 字段引用。
+
+        锚点用主对象自身的 ``id``+``title`` 而非 ``fc2Url``，因为部分影片的 FC2 原始页
+        已下架，``fc2Url`` 为 ``null``。
         """
         chunks = _FLIGHT_CHUNK.findall(html)
         if not chunks:
@@ -155,7 +159,7 @@ class Fc2ppvDbMetadata(FC2BaseMetadata):
         except json.JSONDecodeError:
             return None
 
-        anchor = flight.find(f"contents.fc2.com/article/{movie_id}")
+        anchor = flight.find(f'{{"id":"{movie_id}","title":')
         if anchor < 0:
             return None
         obj_str = cls._balanced_object(flight, anchor)
@@ -218,8 +222,12 @@ class Fc2ppvDbMetadata(FC2BaseMetadata):
 
     @staticmethod
     def _balanced_object(s: str, anchor: int) -> Optional[str]:
-        """以 anchor 为内部位置，向前找对象起始 ``{`` 并括号配平截取完整 JSON 对象。"""
-        start = s.rfind("{", 0, anchor)
+        """从 anchor 处（或其前最近的 ``{``）开始括号配平，截取完整 JSON 对象。
+
+        anchor 可以正好指向对象起始 ``{``，也可以是对象内部某处；后者会先向前
+        回溯到最近的 ``{``。
+        """
+        start = s.rfind("{", 0, anchor + 1)
         if start < 0:
             return None
         depth = 0
