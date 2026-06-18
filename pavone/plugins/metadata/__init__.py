@@ -7,11 +7,13 @@ from .aventertainments_metadata import AvEntertainmentsMetadata
 from .base import MetadataPlugin
 from .c0930_metadata import C0930Metadata
 from .caribbeancom_metadata import CaribbeancomMetadata
+from .composite import CompositeMetadata
 from .dahlia_metadata import DahliaMetadata
 from .duga_metadata import DugaMetadata
 from .faleno_metadata import FalenoMetadata
 from .fanza_metadata import FanzaMetadata
 from .fc2hub_metadata import Fc2HubMetadata
+from .fc2ppv_db_metadata import Fc2ppvDbMetadata
 from .fc2ppvdb_metadata import Fc2PpvdbMetadata
 from .gcolle_metadata import GcolleMetadata
 from .getchu_metadata import GetchuMetadata
@@ -41,6 +43,7 @@ from .tokyohot_metadata import TokyoHotMetadata
 
 __all__ = [
     "MetadataPlugin",
+    "CompositeMetadata",
     "CaribbeancomMetadata",
     "OnePondoMetadata",
     "PPVDataBankMetadata",
@@ -54,6 +57,7 @@ __all__ = [
     "TenMusumeMetadata",
     "FanzaMetadata",
     "Fc2HubMetadata",
+    "Fc2ppvDbMetadata",
     "Fc2PpvdbMetadata",
     "GcolleMetadata",
     "GetchuMetadata",

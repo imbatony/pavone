@@ -6,6 +6,10 @@ import requests
 
 from pavone.config.configs import DownloadConfig, ProxyConfig
 
+# Cloudflare 挑战页（"Just a moment..." / Turnstile）的特征标记。
+# 仅用于判断浏览器是否已通过 Cloudflare，与业务层的 reject_content 解耦。
+_CLOUDFLARE_MARKERS = ["Just a moment", "challenges.cloudflare.com", "请稍候", "請稍候"]
+
 
 def skip_retry_on_4xx(exc: requests.RequestException) -> bool:
     """should_retry 回调：遇到 4xx（客户端错误，例如 404 资源不存在）立即放弃，其他错误继续重试。"""
@@ -157,6 +161,8 @@ class HttpUtils:
         wait_for_content: Optional[List[str]] = None,
         reject_content: Optional[List[str]] = None,
         max_wait: int = 30,
+        cookies: Optional[List[Dict[str, str]]] = None,
+        pre_visit_url: Optional[str] = None,
     ) -> requests.Response:
         """使用真实浏览器（DrissionPage）获取网页内容，可绕过 Cloudflare Turnstile 等保护
 
@@ -173,6 +179,12 @@ class HttpUtils:
             reject_content: 拒绝的内容标记列表（如 ["请稍候", "Just a moment"]），
                             页面包含这些内容时认为尚未加载完成
             max_wait: 最大等待时间（秒），默认 30 秒
+            cookies: 加载目标页面前预设的 cookie 列表（如 [{"name": "age-verified",
+                     "value": "true", "domain": "fc2ppv-db.com", "path": "/"}]），
+                     用于绕过年龄确认等需要 cookie 的拦截页面
+            pre_visit_url: 在设置 cookie 前先访问的 URL（通常是站点根域名），
+                           某些站点需要先通过 Cloudflare 挑战才能在该域名下设置 cookie。
+                           仅当提供 cookies 时生效
 
         Returns:
             requests.Response: 包含页面 HTML 的响应对象。
@@ -192,6 +204,8 @@ class HttpUtils:
                 wait_for_content=wait_for_content,
                 reject_content=reject_content,
                 max_wait=max_wait,
+                cookies=cookies,
+                pre_visit_url=pre_visit_url,
             )
         except Exception as e:
             if logger:
@@ -218,6 +232,8 @@ class HttpUtils:
         wait_for_content: List[str],
         reject_content: List[str],
         max_wait: int,
+        cookies: Optional[List[Dict[str, str]]] = None,
+        pre_visit_url: Optional[str] = None,
     ) -> Optional[str]:
         """内部方法：使用 DrissionPage 浏览器获取页面 HTML
 
@@ -243,12 +259,31 @@ class HttpUtils:
                 if logger:
                     logger.error("无法获取浏览器标签页")
                 return None
+
+            # 预设 cookie（用于绕过年龄确认等拦截页）。某些站点需要先访问根域名
+            # 通过 Cloudflare 挑战后，才能在该域名下成功设置 cookie。
+            if cookies:
+                if pre_visit_url:
+                    tab.get(pre_visit_url)  # type: ignore[union-attr]
+                    tab.wait.doc_loaded()  # type: ignore[union-attr]
+                    HttpUtils._wait_pass_cloudflare(tab, max_wait)
+                for cookie in cookies:
+                    try:
+                        tab.set.cookies(cookie)  # type: ignore[union-attr]
+                    except Exception as e:
+                        if logger:
+                            logger.warning(f"设置 cookie 失败 ({cookie.get('name')}): {e}")
+
             tab.get(url)  # type: ignore[union-attr]
 
             # Cloudflare Turnstile 挑战需要时间解决
             tab.wait.doc_loaded()  # type: ignore[union-attr]
 
-            # 等待期望内容出现（表示真实页面已加载）
+            # 等待真实页面加载：出现正向标记且无拒绝标记即成功。
+            # 若页面已渲染但停滞在非 Cloudflare 的拦截页（多为 cookie 未生效的年龄
+            # 确认页），则补设 cookie 并 reload 一次自愈——比前置设 cookie 更可靠，
+            # 因为此时浏览器已确实进入目标域且通过了 Cloudflare。
+            cookies_reapplied = False
             start_time = time.time()
             while time.time() - start_time < max_wait:
                 html: str = cast(str, tab.html)  # type: ignore[union-attr]
@@ -256,29 +291,41 @@ class HttpUtils:
                     time.sleep(1)
                     continue
 
-                # 检查期望内容是否出现
+                # 检查期望内容是否出现（且不含拒绝内容）
                 for marker in wait_for_content:
-                    if marker in html:
-                        # 还需确认不包含拒绝内容
-                        has_reject = any(r in html for r in reject_content)
-                        if not has_reject:
+                    if marker in html and not any(r in html for r in reject_content):
+                        if logger:
+                            logger.info(f"页面加载完成（检测到 {marker}）")
+                        return html
+
+                # 自愈: 页面已渲染且非 Cloudflare 挑战，但仍未达标
+                # （多为 cookie 未生效、停在年龄确认等拦截页）→ 补设 cookie 并 reload
+                is_cloudflare = any(c in html for c in _CLOUDFLARE_MARKERS)
+                if cookies and not cookies_reapplied and not is_cloudflare:
+                    if logger:
+                        logger.info("页面停滞（疑似年龄确认/拦截页），补设 cookie 并重新加载")
+                    for cookie in cookies:
+                        try:
+                            tab.set.cookies(cookie)  # type: ignore[union-attr]
+                        except Exception as e:
                             if logger:
-                                logger.info(f"页面加载完成（检测到 {marker}）")
-                            return html
+                                logger.warning(f"设置 cookie 失败 ({cookie.get('name')}): {e}")
+                    cookies_reapplied = True
+                    tab.get(url)  # type: ignore[union-attr]
+                    tab.wait.doc_loaded()  # type: ignore[union-attr]
+                    continue
 
                 time.sleep(1)
 
-            # 超时后检查是否获取到有意义的内容
+            # 超时: 仅当确实出现正向标记才返回，避免误返回年龄/拦截页导致解析到垃圾内容
             html = cast(str, tab.html)  # type: ignore[union-attr]
-            if html:
-                has_reject = any(r in html[:500] for r in reject_content)
-                if not has_reject:
-                    if logger:
-                        logger.warning("等待内容标记超时，但页面似乎已加载")
-                    return html
+            if html and any(m in html for m in wait_for_content):
+                if logger:
+                    logger.warning("等待超时，但已检测到目标标记，返回当前内容")
+                return html
 
             if logger:
-                logger.error("无法绕过 Cloudflare 保护（超时）")
+                logger.error("无法获取目标页面内容（超时，可能未通过 Cloudflare 或拦截页）")
             return None
         finally:
             # 获取完成后自动关闭浏览器
@@ -286,3 +333,18 @@ class HttpUtils:
                 browser.quit()
             except Exception:
                 pass
+
+    @staticmethod
+    def _wait_pass_cloudflare(tab: object, max_wait: int) -> None:
+        """等待浏览器标签页通过 Cloudflare 挑战（页面不再包含 Cloudflare 特征标记）。
+
+        仅检测 Cloudflare 挑战页本身，不涉及业务层的内容判断（如年龄确认），
+        因为某些站点的年龄确认文案会作为 i18n 数据常驻于真实页面 HTML 中，
+        若用作判断标记会导致永远无法"通过"。
+        """
+        start_time = time.time()
+        while time.time() - start_time < max_wait:
+            html = cast(str, tab.html)  # type: ignore[union-attr]
+            if html and not any(m in html for m in _CLOUDFLARE_MARKERS):
+                return
+            time.sleep(1)
