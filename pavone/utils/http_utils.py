@@ -279,7 +279,11 @@ class HttpUtils:
             # Cloudflare Turnstile 挑战需要时间解决
             tab.wait.doc_loaded()  # type: ignore[union-attr]
 
-            # 等待期望内容出现（表示真实页面已加载）
+            # 等待真实页面加载：出现正向标记且无拒绝标记即成功。
+            # 若页面已渲染但停滞在非 Cloudflare 的拦截页（多为 cookie 未生效的年龄
+            # 确认页），则补设 cookie 并 reload 一次自愈——比前置设 cookie 更可靠，
+            # 因为此时浏览器已确实进入目标域且通过了 Cloudflare。
+            cookies_reapplied = False
             start_time = time.time()
             while time.time() - start_time < max_wait:
                 html: str = cast(str, tab.html)  # type: ignore[union-attr]
@@ -287,29 +291,41 @@ class HttpUtils:
                     time.sleep(1)
                     continue
 
-                # 检查期望内容是否出现
+                # 检查期望内容是否出现（且不含拒绝内容）
                 for marker in wait_for_content:
-                    if marker in html:
-                        # 还需确认不包含拒绝内容
-                        has_reject = any(r in html for r in reject_content)
-                        if not has_reject:
+                    if marker in html and not any(r in html for r in reject_content):
+                        if logger:
+                            logger.info(f"页面加载完成（检测到 {marker}）")
+                        return html
+
+                # 自愈: 页面已渲染且非 Cloudflare 挑战，但仍未达标
+                # （多为 cookie 未生效、停在年龄确认等拦截页）→ 补设 cookie 并 reload
+                is_cloudflare = any(c in html for c in _CLOUDFLARE_MARKERS)
+                if cookies and not cookies_reapplied and not is_cloudflare:
+                    if logger:
+                        logger.info("页面停滞（疑似年龄确认/拦截页），补设 cookie 并重新加载")
+                    for cookie in cookies:
+                        try:
+                            tab.set.cookies(cookie)  # type: ignore[union-attr]
+                        except Exception as e:
                             if logger:
-                                logger.info(f"页面加载完成（检测到 {marker}）")
-                            return html
+                                logger.warning(f"设置 cookie 失败 ({cookie.get('name')}): {e}")
+                    cookies_reapplied = True
+                    tab.get(url)  # type: ignore[union-attr]
+                    tab.wait.doc_loaded()  # type: ignore[union-attr]
+                    continue
 
                 time.sleep(1)
 
-            # 超时后检查是否获取到有意义的内容
+            # 超时: 仅当确实出现正向标记才返回，避免误返回年龄/拦截页导致解析到垃圾内容
             html = cast(str, tab.html)  # type: ignore[union-attr]
-            if html:
-                has_reject = any(r in html[:500] for r in reject_content)
-                if not has_reject:
-                    if logger:
-                        logger.warning("等待内容标记超时，但页面似乎已加载")
-                    return html
+            if html and any(m in html for m in wait_for_content):
+                if logger:
+                    logger.warning("等待超时，但已检测到目标标记，返回当前内容")
+                return html
 
             if logger:
-                logger.error("无法绕过 Cloudflare 保护（超时）")
+                logger.error("无法获取目标页面内容（超时，可能未通过 Cloudflare 或拦截页）")
             return None
         finally:
             # 获取完成后自动关闭浏览器
