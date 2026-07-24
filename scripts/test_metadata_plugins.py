@@ -30,7 +30,6 @@ TEST_CASES: List[Tuple[str, str, str]] = [
     ("MyWifeMetadata", "Html", "https://mywife.cc/teigaku/model/no/1894"),
     ("MgstageMetadata", "Html", "https://www.mgstage.com/product/product_detail/200GANA-3191/"),
     ("GetchuMetadata", "Html", "https://dl.getchu.com/i/item4043542"),
-    ("MadouquMetadata", "Html", "https://madouqu.com/video/mm-103/"),
     ("DugaMetadata", "Html", "https://duga.jp/ppv/mousouzoku2-1275/"),
     ("Jav321Metadata", "Html", "https://www.jav321.com/video/snos00115"),
     ("JavbusMetadata", "Html", "https://www.javbus.com/ja/SSIS-001"),
@@ -52,14 +51,8 @@ TEST_CASES: List[Tuple[str, str, str]] = [
     ("C0930Metadata", "JsonLd", "https://www.c0930.com/moviepages/ki220913/index.html"),
     ("H0930Metadata", "JsonLd", "https://www.h0930.com/moviepages/ori1234/index.html"),
     ("H4610Metadata", "JsonLd", "https://www.h4610.com/moviepages/gol123/index.html"),
-    (
-        "Fc2HubMetadata",
-        "JsonLd",
-        "https://javten.com/video/2045529/id4848768/%E3%80%90%E3%83%90%E3%83%AC%E3%83%B3%E3%82%BF%E3%82%A4%E3%83%B3%E3%82%BB%E3%83%BC%E3%83%AB%E2%91%A1%E3%80%91",
-    ),
     ("HeyzoMetadata", "JsonLd", "https://www.heyzo.com/moviepages/3456/index.html"),
     # === FC2 Family (Html via FC2BaseMetadata) ===
-    ("Fc2PpvdbMetadata", "Html/FC2", "https://fc2ppvdb.com/articles/1482027"),
     ("Fc2ppvDbMetadata", "Html/FC2", "https://fc2ppv-db.com/ja/videos/4778286"),
     ("SupFC2Metadata", "Html/FC2", "FC2-PPV-1482027"),
     ("PPVDataBankMetadata", "Html/FC2", "FC2-2941579"),

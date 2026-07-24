@@ -12,9 +12,7 @@ from .dahlia_metadata import DahliaMetadata
 from .duga_metadata import DugaMetadata
 from .faleno_metadata import FalenoMetadata
 from .fanza_metadata import FanzaMetadata
-from .fc2hub_metadata import Fc2HubMetadata
 from .fc2ppv_db_metadata import Fc2ppvDbMetadata
-from .fc2ppvdb_metadata import Fc2PpvdbMetadata
 from .gcolle_metadata import GcolleMetadata
 from .getchu_metadata import GetchuMetadata
 from .h0930_metadata import H0930Metadata
@@ -24,7 +22,6 @@ from .heyzo_metadata import HeyzoMetadata
 from .jav321_metadata import Jav321Metadata
 from .javbus_metadata import JavbusMetadata
 from .javfree_metadata import JavfreeMetadata
-from .madouqu_metadata import MadouquMetadata
 from .mgstage_metadata import MgstageMetadata
 from .muramura_metadata import MuramuraMetadata
 from .mywife_metadata import MyWifeMetadata
@@ -56,9 +53,7 @@ __all__ = [
     "FalenoMetadata",
     "TenMusumeMetadata",
     "FanzaMetadata",
-    "Fc2HubMetadata",
     "Fc2ppvDbMetadata",
-    "Fc2PpvdbMetadata",
     "GcolleMetadata",
     "GetchuMetadata",
     "H0930Metadata",
@@ -68,7 +63,6 @@ __all__ = [
     "Jav321Metadata",
     "JavbusMetadata",
     "JavfreeMetadata",
-    "MadouquMetadata",
     "MgstageMetadata",
     "MuramuraMetadata",
     "MyWifeMetadata",
