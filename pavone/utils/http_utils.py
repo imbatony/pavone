@@ -1,6 +1,8 @@
+import socket
 import time
 from logging import Logger
-from typing import Callable, Dict, List, Optional, cast
+from pathlib import Path
+from typing import Callable, Dict, List, Literal, Optional, cast
 
 import requests
 
@@ -9,6 +11,13 @@ from pavone.config.configs import DownloadConfig, ProxyConfig
 # Cloudflare 挑战页（"Just a moment..." / Turnstile）的特征标记。
 # 仅用于判断浏览器是否已通过 Cloudflare，与业务层的 reject_content 解耦。
 _CLOUDFLARE_MARKERS = ["Just a moment", "challenges.cloudflare.com", "请稍候", "請稍候"]
+
+
+def _find_available_local_port() -> int:
+    """获取可供 Chromium 调试协议使用的本机端口。"""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
 
 
 def skip_retry_on_4xx(exc: requests.RequestException) -> bool:
@@ -163,6 +172,8 @@ class HttpUtils:
         max_wait: int = 30,
         cookies: Optional[List[Dict[str, str]]] = None,
         pre_visit_url: Optional[str] = None,
+        browser_user_data_path: Optional[str] = None,
+        browser_load_mode: Optional[Literal["normal", "eager", "none"]] = None,
     ) -> requests.Response:
         """使用真实浏览器（DrissionPage）获取网页内容，可绕过 Cloudflare Turnstile 等保护
 
@@ -185,6 +196,9 @@ class HttpUtils:
             pre_visit_url: 在设置 cookie 前先访问的 URL（通常是站点根域名），
                            某些站点需要先通过 Cloudflare 挑战才能在该域名下设置 cookie。
                            仅当提供 cookies 时生效
+            browser_user_data_path: 浏览器用户数据目录。提供后可复用 Cloudflare / 年龄确认 Cookie，
+                                    避免每次都从全新浏览器环境开始。
+            browser_load_mode: DrissionPage 页面加载策略（normal/eager/none），用于减少等待资源加载时间。
 
         Returns:
             requests.Response: 包含页面 HTML 的响应对象。
@@ -206,6 +220,8 @@ class HttpUtils:
                 max_wait=max_wait,
                 cookies=cookies,
                 pre_visit_url=pre_visit_url,
+                browser_user_data_path=browser_user_data_path,
+                browser_load_mode=browser_load_mode,
             )
         except Exception as e:
             if logger:
@@ -234,6 +250,8 @@ class HttpUtils:
         max_wait: int,
         cookies: Optional[List[Dict[str, str]]] = None,
         pre_visit_url: Optional[str] = None,
+        browser_user_data_path: Optional[str] = None,
+        browser_load_mode: Optional[Literal["normal", "eager", "none"]] = None,
     ) -> Optional[str]:
         """内部方法：使用 DrissionPage 浏览器获取页面 HTML
 
@@ -245,7 +263,15 @@ class HttpUtils:
         from DrissionPage import Chromium, ChromiumOptions
 
         options = ChromiumOptions()
-        options.auto_port()
+        if browser_user_data_path:
+            Path(browser_user_data_path).mkdir(parents=True, exist_ok=True)
+            options.set_user_data_path(browser_user_data_path)
+            # DrissionPage 的 auto_port() 会改用临时用户目录，导致持久化 Cookie 丢失。
+            options.set_local_port(_find_available_local_port())
+        else:
+            options.auto_port()
+        if browser_load_mode:
+            options.set_load_mode(browser_load_mode)
         # 不使用 headless 模式 - Cloudflare Turnstile 会检测无头浏览器
 
         # 应用代理配置
