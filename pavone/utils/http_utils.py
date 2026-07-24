@@ -138,7 +138,9 @@ class HttpUtils:
         if no_exceptions:
             # 如果设置了不抛出异常，返回一个空响应对象
             return last_response or requests.Response()
-        raise requests.RequestException(f"获取网页失败 {url}: {last_exception}")
+        if last_exception is not None:
+            raise last_exception
+        raise requests.RequestException(f"获取网页失败 {url}")
 
     @staticmethod
     def get_proxies(proxy_config: ProxyConfig) -> Optional[Dict[str, str]]:

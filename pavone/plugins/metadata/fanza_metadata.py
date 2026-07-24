@@ -135,34 +135,49 @@ class FanzaMetadata(HtmlMetadataPlugin):
 
     def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
         """多通道解析: GraphQL API → __NEXT_DATA__ → HTML + JSON-LD"""
+        self._reset_diagnostic()
         try:
             movie_id, page_url, floor = self._resolve_with_floor(identifier)
             if not movie_id or not page_url:
+                self._record_failure(f"无法解析 identifier: {identifier}")
                 self.logger.error(f"无法解析 identifier: {identifier}")
                 return None
 
             # 1. GraphQL API (video.dmm.co.jp 所有内容类型)
+            self._set_diagnostic_stage("fetch")
             result = self._try_graphql(movie_id, floor, page_url)
             if result:
+                self._set_diagnostic_stage("complete")
                 return result
 
             # 2. HTML 回退 (传统 www.dmm.co.jp 页面)
+            self._set_diagnostic_stage("fetch")
             resp = self._fetch_page(page_url)
+            self._record_response(resp)
             soup = BeautifulSoup(resp.text, "lxml")
+            self._set_diagnostic_stage("parse")
 
             # 2a. __NEXT_DATA__ (旧版 video.dmm.co.jp 页面)
             next_data = soup.find("script", id="__NEXT_DATA__")
             if next_data and next_data.string:
                 result = self._parse_next_data(next_data.string, movie_id, page_url)
                 if result:
+                    self._set_diagnostic_stage("complete")
                     return result
 
             # 2b. 传统 HTML 页面
-            return self._parse_html(soup, movie_id, page_url)
+            result = self._parse_html(soup, movie_id, page_url)
+            if result is None:
+                self._record_failure("解析器返回空结果")
+            else:
+                self._set_diagnostic_stage("complete")
+            return result
         except requests.RequestException as e:
+            self._record_failure(str(e), e)
             self.logger.error(f"HTTP 请求失败: {e}")
             return None
         except Exception as e:
+            self._record_failure(str(e), e)
             self.logger.error(f"提取元数据失败: {e}", exc_info=True)
             return None
 
@@ -246,7 +261,9 @@ class FanzaMetadata(HtmlMetadataPlugin):
             proxies=proxies,
             timeout=30,
         )
+        self._record_response(resp)
         resp.raise_for_status()
+        self._set_diagnostic_stage("parse")
         body = resp.json()
         ppv = (body.get("data") or {}).get("ppvContent")
         if not ppv or not ppv.get("title"):

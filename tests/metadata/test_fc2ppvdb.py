@@ -24,6 +24,7 @@ class TestFc2PpvdbMetadata:
 
     def test_cannot_extract_invalid(self):
         assert not self.extractor.can_extract("https://example.com/articles/123")
+        assert not self.extractor.can_extract("https://fc2ppv-db.com/ja/videos/4669533")
         assert not self.extractor.can_extract("abc")
         assert not self.extractor.can_extract("")
 

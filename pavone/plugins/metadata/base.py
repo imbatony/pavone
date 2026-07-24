@@ -5,7 +5,8 @@
 import json
 import re
 from abc import abstractmethod
-from typing import Any, Dict, List, Optional, Tuple
+from dataclasses import asdict, dataclass
+from typing import Any, Dict, List, Optional, Tuple, cast
 from urllib.parse import urlparse
 
 import requests
@@ -13,6 +14,17 @@ from bs4 import BeautifulSoup
 
 from ...models import BaseMetadata
 from ..base import BasePlugin
+
+
+@dataclass
+class MetadataDiagnostic:
+    """最近一次元数据提取的诊断上下文。"""
+
+    stage: str = "idle"
+    error: Optional[str] = None
+    exception_type: Optional[str] = None
+    http_status: Optional[int] = None
+    final_url: Optional[str] = None
 
 
 class MetadataPlugin(BasePlugin):
@@ -37,6 +49,29 @@ class MetadataPlugin(BasePlugin):
             author=author,
             priority=priority,
         )
+        self._last_diagnostic = MetadataDiagnostic()
+
+    def _reset_diagnostic(self) -> None:
+        self._last_diagnostic = MetadataDiagnostic(stage="resolve")
+
+    def _set_diagnostic_stage(self, stage: str) -> None:
+        self._last_diagnostic.stage = stage
+
+    def _record_response(self, response: requests.Response) -> None:
+        self._last_diagnostic.http_status = response.status_code
+        self._last_diagnostic.final_url = response.url
+
+    def _record_failure(self, error: str, exception: Optional[Exception] = None) -> None:
+        self._last_diagnostic.error = error
+        if exception is not None:
+            self._last_diagnostic.exception_type = type(exception).__name__
+            response = getattr(exception, "response", None)
+            if isinstance(response, requests.Response):
+                self._record_response(response)
+
+    def get_last_diagnostic(self) -> Dict[str, Any]:
+        """返回最近一次提取的诊断快照。"""
+        return asdict(self._last_diagnostic)
 
     def initialize(self) -> bool:
         """初始化插件"""
@@ -111,18 +146,30 @@ class HtmlMetadataPlugin(MetadataPlugin):
 
     def extract_metadata(self, identifier: str) -> Optional[BaseMetadata]:
         """模板方法: resolve → fetch → parse，统一错误处理。"""
+        self._reset_diagnostic()
         try:
             movie_id, page_url = self._resolve(identifier)
             if not movie_id or not page_url:
+                self._record_failure(f"无法解析 identifier: {identifier}")
                 self.logger.error(f"无法解析 identifier: {identifier}")
                 return None
+            self._set_diagnostic_stage("fetch")
             resp = self._fetch_page(page_url)
+            self._record_response(resp)
             soup = BeautifulSoup(resp.text, "lxml")
-            return self._parse(soup, movie_id, page_url)
+            self._set_diagnostic_stage("parse")
+            metadata = self._parse(soup, movie_id, page_url)
+            if metadata is None:
+                self._record_failure("解析器返回空结果")
+            else:
+                self._set_diagnostic_stage("complete")
+            return metadata
         except requests.RequestException as e:
+            self._record_failure(str(e), e)
             self.logger.error(f"HTTP 请求失败: {e}")
             return None
         except Exception as e:
+            self._record_failure(str(e), e)
             self.logger.error(f"提取元数据失败: {e}", exc_info=True)
             return None
 
@@ -226,19 +273,31 @@ class ApiMetadataPlugin(MetadataPlugin):
 
     def extract_metadata(self, identifier: str) -> Optional[BaseMetadata]:
         """模板方法: resolve → build_api_url → fetch_api → json → parse。"""
+        self._reset_diagnostic()
         try:
             movie_id, page_url = self._resolve(identifier)
             if not movie_id or not page_url:
+                self._record_failure(f"无法解析 identifier: {identifier}")
                 self.logger.error(f"无法解析 identifier: {identifier}")
                 return None
             api_url = self._build_api_url(movie_id)
+            self._set_diagnostic_stage("fetch")
             resp = self._fetch_api(api_url)
+            self._record_response(resp)
+            self._set_diagnostic_stage("parse")
             data = resp.json()
-            return self._parse(data, movie_id, page_url)
+            metadata = self._parse(data, movie_id, page_url)
+            if metadata is None:
+                self._record_failure("解析器返回空结果")
+            else:
+                self._set_diagnostic_stage("complete")
+            return metadata
         except requests.RequestException as e:
+            self._record_failure(str(e), e)
             self.logger.error(f"HTTP 请求失败: {e}")
             return None
         except Exception as e:
+            self._record_failure(str(e), e)
             self.logger.error(f"提取元数据失败: {e}", exc_info=True)
             return None
 
@@ -271,19 +330,31 @@ class JsonLdMetadataPlugin(HtmlMetadataPlugin):
 
     def extract_metadata(self, identifier: str) -> Optional[BaseMetadata]:
         """模板方法: resolve → fetch → BS4 → extract_jsonld → parse_with_jsonld。"""
+        self._reset_diagnostic()
         try:
             movie_id, page_url = self._resolve(identifier)
             if not movie_id or not page_url:
+                self._record_failure(f"无法解析 identifier: {identifier}")
                 self.logger.error(f"无法解析 identifier: {identifier}")
                 return None
+            self._set_diagnostic_stage("fetch")
             resp = self._fetch_page(page_url)
+            self._record_response(resp)
             soup = BeautifulSoup(resp.text, "lxml")
             jsonld_data = self._extract_jsonld(soup)
-            return self._parse_with_jsonld(soup, jsonld_data, movie_id, page_url)
+            self._set_diagnostic_stage("parse")
+            metadata = self._parse_with_jsonld(soup, jsonld_data, movie_id, page_url)
+            if metadata is None:
+                self._record_failure("JSON-LD 解析器返回空结果")
+            else:
+                self._set_diagnostic_stage("complete")
+            return metadata
         except requests.RequestException as e:
+            self._record_failure(str(e), e)
             self.logger.error(f"HTTP 请求失败: {e}")
             return None
         except Exception as e:
+            self._record_failure(str(e), e)
             self.logger.error(f"提取元数据失败: {e}", exc_info=True)
             return None
 
@@ -292,10 +363,12 @@ class JsonLdMetadataPlugin(HtmlMetadataPlugin):
         for script in soup.find_all("script", type="application/ld+json"):
             try:
                 text = (script.string or "").replace("\n", "")
-                data = json.loads(text)
+                data: object = json.loads(text)
                 if isinstance(data, list):
-                    data = data[0]
-                return data
+                    items = cast(List[object], data)
+                    data = items[0] if items else None
+                if isinstance(data, dict):
+                    return cast(Dict[str, Any], data)
             except Exception:
                 continue
         return None

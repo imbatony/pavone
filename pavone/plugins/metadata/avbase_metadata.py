@@ -71,12 +71,15 @@ class AvBaseMetadata(HtmlMetadataPlugin):
 
     def extract_metadata(self, identifier: str) -> Optional[MovieMetadata]:
         """API 优先, 回退到 HTML __NEXT_DATA__ 解析"""
+        self._reset_diagnostic()
         try:
             movie_id, page_url = self._resolve(identifier)
             if not movie_id or not page_url:
+                self._record_failure(f"无法解析 identifier: {identifier}")
                 self.logger.error(f"无法解析 identifier: {identifier}")
                 return None
 
+            self._set_diagnostic_stage("fetch")
             build_id = self._get_build_id()
             if not build_id:
                 # Fallback: HTML 直接解析
@@ -85,16 +88,25 @@ class AvBaseMetadata(HtmlMetadataPlugin):
             api_url = MOVIE_API_TEMPLATE.format(build_id=build_id, movie_id=movie_id, movie_id_enc=movie_id)
             try:
                 resp = self.fetch(api_url, timeout=30, max_retry=1)
+                self._record_response(resp)
+                self._set_diagnostic_stage("parse")
                 data = resp.json()
-                return self._parse_api(data, movie_id, page_url)
+                metadata = self._parse_api(data, movie_id, page_url)
+                if metadata is None:
+                    self._record_failure("API 解析器返回空结果")
+                else:
+                    self._set_diagnostic_stage("complete")
+                return metadata
             except Exception:
                 # API 失败时回退到 HTML 解析
                 return self._extract_from_html(movie_id, page_url)
 
         except requests.RequestException as e:
+            self._record_failure(str(e), e)
             self.logger.error(f"HTTP 请求失败: {e}")
             return None
         except Exception as e:
+            self._record_failure(str(e), e)
             self.logger.error(f"提取元数据失败: {e}", exc_info=True)
             return None
 
@@ -217,14 +229,23 @@ class AvBaseMetadata(HtmlMetadataPlugin):
         try:
             import json
 
+            self._set_diagnostic_stage("fetch")
             resp = self.fetch(page_url, timeout=30, max_retry=1)
+            self._record_response(resp)
             soup = BeautifulSoup(resp.text, "lxml")
             script = soup.find("script", id="__NEXT_DATA__")
             if script and script.string:
+                self._set_diagnostic_stage("parse")
                 data = json.loads(script.string)
                 # __NEXT_DATA__ 中 pageProps 在 props 下: {"props": {"pageProps": {...}}}
                 props = data.get("props") or {}
-                return self._parse_api(props, movie_id, page_url)
+                metadata = self._parse_api(props, movie_id, page_url)
+                if metadata is not None:
+                    self._set_diagnostic_stage("complete")
+                    return metadata
+            self._set_diagnostic_stage("parse")
+            self._record_failure("HTML 回退解析器返回空结果")
         except Exception as e:
+            self._record_failure(str(e), e)
             self.logger.error(f"HTML 解析回退失败: {e}")
         return None
