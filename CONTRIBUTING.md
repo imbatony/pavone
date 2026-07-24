@@ -106,8 +106,16 @@ chore: 更新依赖版本
 1. Fork 仓库并创建分支
 2. 编写代码和测试
 3. 确保所有检查通过：`make -f scripts/Makefile check` 或 `.\scripts\dev.ps1 check`
-4. 提交 PR 并在描述中说明变更内容和测试方式
-5. 等待 CI 通过和代码审查
+4. 使用 Conventional Commits 格式填写 PR 标题
+5. 在 PR 模板的 Release Notes 标记内，用中文填写用户可感知的变更
+6. 如需覆盖自动版本推断，添加且仅添加一个 `release:major`、`release:minor`、`release:patch` 或
+   `release:skip` 标签
+7. 不要手动修改版本号和 CHANGELOG 版本条目，发布工作流会在合并后统一处理
+8. 提交 PR 并在描述中说明变更内容和测试方式
+9. 等待 PR Conventions、CI 和代码审查通过
+
+版本默认按标题推断：`feat` 为 minor，带 `!` 或包含 `BREAKING` 为 major，其余为 patch。没有用户可感知变化时，
+使用 `release:skip`；major 变更必须在 Release Notes 中提供 `### 重大变更` 小节和迁移说明。
 
 ## 开发工具
 
