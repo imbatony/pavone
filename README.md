@@ -30,7 +30,7 @@ PAVOne(WIP)是一个集下载、整理等多功能的插件化的AV管理工具�
 | M3U8 Direct | 任意 `.m3u8` 链接 | ✅ | | | 通用 M3U8 |
 | MP4 Direct | 任意 `.mp4` 链接 | ✅ | | | 通用 MP4 |
 
-### 元数据插件（30+ 站点，移植自 metatube-sdk-go）
+### 元数据插件（移植自 metatube-sdk-go）
 
 | 网站 | 域名 | 类型 | 说明 |
 |------|------|------|------|
@@ -60,14 +60,15 @@ PAVOne(WIP)是一个集下载、整理等多功能的插件化的AV管理工具�
 | MyWife | `mywife.cc` | HTML 解析 | 舞ワイフ |
 | PPVDataBank | `ppvdatabank.com` | HTML 解析 | FC2 视频聚合 |
 | SupFC2 | `supfc2.com` | HTML 解析 | FC2 视频 |
-| FC2HUB | `fc2hub.com` `javten.com` | HTML 解析 | FC2 内容聚合 |
-| FC2PPVDB | `fc2ppvdb.com` | HTML 解析 | FC2 PPV 数据库 |
+| FC2PPV-DB | `fc2ppv-db.com` | HTML 解析 | FC2 PPV 数据库 |
 | JAVFREE | `javfree.me` `javfree.sh` | HTML 解析 | FC2 镜像站 |
 | Gcolle | `gcolle.net` | HTML 解析 | 视频电商 |
 | Pcolle | `pcolle.com` | HTML 解析 | UGC 内容平台 |
 | ModelMediaAsia | `modelmediaasia.com` | API/JSON | 麻豆傳媒 |
-| MadouQu | `madouqu.com` | HTML 解析 | 麻豆区 |
 | ThePornDB | `theporndb.net` | API | 西方数据库（需 API Key） |
+
+> `madouqu.com`、`fc2hub.com` / `javten.com` 和旧 `fc2ppvdb.com` 数据源因长期不可用已停止支持。
+> FC2 PPV 数据请使用仍受支持的 `fc2ppv-db.com` 数据源。
 
 ### 其他
 
@@ -156,5 +157,4 @@ MIT License - 详见 [LICENSE](LICENSE)
 ## 致谢
 
 感谢所有贡献者和开源社区的支持！
-
 
