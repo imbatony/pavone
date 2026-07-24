@@ -34,16 +34,5 @@
         "PYTHONIOENCODING": "utf-8",
         "PYTHONUTF8": "1"
     },
-    "terminal.integrated.defaultProfile.windows": "PowerShell",
-    "chat.promptFilesRecommendations": {
-        "speckit.constitution": true,
-        "speckit.specify": true,
-        "speckit.plan": true,
-        "speckit.tasks": true,
-        "speckit.implement": true
-    },
-    "chat.tools.terminal.autoApprove": {
-        ".specify/scripts/bash/": true,
-        ".specify/scripts/powershell/": true
-    }
+    "terminal.integrated.defaultProfile.windows": "PowerShell"
 }
