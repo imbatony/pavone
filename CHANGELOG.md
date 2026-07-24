@@ -5,6 +5,11 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.4.2] - 2026-07-24
+
+### 变更
+- 停止支持长期不可用的 MadouQu、FC2HUB/Javten 和旧 fc2ppvdb.com 元数据源；FC2 PPV 用户可继续使用 fc2ppv-db.com 数据源。
+
 ## [0.4.1] - 2026-07-24
 
 ### 修复
