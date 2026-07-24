@@ -23,6 +23,7 @@ class TestFc2ppvDbMetadata:
     def test_can_extract_url(self):
         assert self.extractor.can_extract("https://fc2ppv-db.com/ja/videos/4778286")
         assert self.extractor.can_extract("https://www.fc2ppv-db.com/ja/videos/4778286")
+        assert self.extractor.can_extract("https://fc2ppv-db.com/ja/videos/4778286?utm_source=test")
 
     def test_can_extract_movie_id(self):
         assert self.extractor.can_extract("4778286")
@@ -33,6 +34,8 @@ class TestFc2ppvDbMetadata:
         # 同为 FC2 数据库但不同域名，不应由本插件按 URL 处理
         assert not self.extractor.can_extract("https://fc2ppvdb.com/articles/4778286")
         assert not self.extractor.can_extract("https://example.com/ja/videos/4778286")
+        assert not self.extractor.can_extract("https://fc2ppv-db.com/ja")
+        assert not self.extractor.can_extract("https://fc2ppv-db.com/ja/videos/not-a-number")
         assert not self.extractor.can_extract("abc")
         assert not self.extractor.can_extract("")
 
@@ -40,6 +43,11 @@ class TestFc2ppvDbMetadata:
 
     def test_resolve_url(self):
         movie_id, url = self.extractor._resolve("https://fc2ppv-db.com/ja/videos/4778286")  # type: ignore[reportPrivateUsage]
+        assert movie_id == "4778286"
+        assert url == "https://fc2ppv-db.com/ja/videos/4778286"
+
+    def test_resolve_url_with_query(self):
+        movie_id, url = self.extractor._resolve("https://fc2ppv-db.com/ja/videos/4778286?utm_source=test")  # type: ignore[reportPrivateUsage]
         assert movie_id == "4778286"
         assert url == "https://fc2ppv-db.com/ja/videos/4778286"
 

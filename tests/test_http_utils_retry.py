@@ -1,5 +1,6 @@
 """HttpUtils.fetch 重试与 should_retry 短路行为单测。"""
 
+import sys
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -135,3 +136,58 @@ def test_custom_should_retry_callback(mock_get: MagicMock) -> None:
         )
 
     assert mock_get.call_count == 1
+
+
+def test_browser_persistent_profile_uses_explicit_port(tmp_path) -> None:
+    """持久化浏览器目录不能被 DrissionPage 的 auto_port 替换。"""
+    options = MagicMock()
+    browser = MagicMock()
+    browser.latest_tab.html = "<html>ready</html>"
+    drission_page = MagicMock()
+    drission_page.ChromiumOptions.return_value = options
+    drission_page.Chromium.return_value = browser
+
+    with (
+        patch.dict(sys.modules, {"DrissionPage": drission_page}),
+        patch("pavone.utils.http_utils._find_available_local_port", return_value=23456),
+    ):
+        html = HttpUtils._fetch_html_with_browser(  # type: ignore[reportPrivateUsage]
+            "https://example.com",
+            ProxyConfig(),
+            None,
+            ["ready"],
+            [],
+            1,
+            browser_user_data_path=str(tmp_path),
+        )
+
+    assert html == "<html>ready</html>"
+    options.set_user_data_path.assert_called_once_with(str(tmp_path))
+    options.set_local_port.assert_called_once_with(23456)
+    options.auto_port.assert_not_called()
+    browser.quit.assert_called_once()
+
+
+def test_browser_ephemeral_profile_keeps_auto_port() -> None:
+    """未指定持久化目录时继续使用 DrissionPage 的隔离临时目录。"""
+    options = MagicMock()
+    browser = MagicMock()
+    browser.latest_tab.html = "<html>ready</html>"
+    drission_page = MagicMock()
+    drission_page.ChromiumOptions.return_value = options
+    drission_page.Chromium.return_value = browser
+
+    with patch.dict(sys.modules, {"DrissionPage": drission_page}):
+        html = HttpUtils._fetch_html_with_browser(  # type: ignore[reportPrivateUsage]
+            "https://example.com",
+            ProxyConfig(),
+            None,
+            ["ready"],
+            [],
+            1,
+        )
+
+    assert html == "<html>ready</html>"
+    options.auto_port.assert_called_once_with()
+    options.set_local_port.assert_not_called()
+    browser.quit.assert_called_once()

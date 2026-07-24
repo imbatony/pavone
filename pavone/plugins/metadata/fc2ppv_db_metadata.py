@@ -16,6 +16,7 @@ ID 格式: 纯数字 FC2 PPV 编号
 
 import json
 import re
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, cast
 from urllib.parse import urlparse
 
@@ -66,15 +67,15 @@ class Fc2ppvDbMetadata(FC2BaseMetadata):
 
     def can_extract(self, identifier: str) -> bool:
         if identifier.startswith("http://") or identifier.startswith("https://"):
-            return self.can_handle_domain(identifier, SUPPORTED_DOMAINS)
+            movie_id, _ = self._resolve(identifier)
+            return movie_id is not None and self.can_handle_domain(identifier, SUPPORTED_DOMAINS)
         return self._validate_fc2_identifier(identifier)
 
     def _fetch_page(self, url: str) -> requests.Response:
-        """使用浏览器获取页面：先过 Cloudflare，再以 age-verified cookie 绕过年龄确认页。
+        """使用持久化浏览器获取页面。
 
-        注意: 不能用 "年齢確認" 作为 reject 标记——该站点是 Next.js 应用，年龄确认
-        文案作为 i18n 数据常驻于真实页面 HTML 中。改用番号 ``FC2-PPV-{id}`` 作为
-        真实页已加载的正向标记（年龄确认页不含番号）。
+        持久化用户数据目录可复用 Cloudflare / 年龄确认 Cookie；``eager`` 加载模式可在 DOM 可用后
+        尽早返回，避免等待图片等资源完全加载。
         """
         movie_id = url.rstrip("/").split("/")[-1]
         return HttpUtils.fetch_with_browser(
@@ -82,11 +83,21 @@ class Fc2ppvDbMetadata(FC2BaseMetadata):
             proxy_config=self.config.proxy,
             logger=self.logger,
             wait_for_content=[f"FC2-PPV-{movie_id}"],
-            reject_content=["Just a moment", "請稍候", "请稍候"],
+            reject_content=[],
             max_wait=40,
             cookies=[AGE_COOKIE],
-            pre_visit_url=ROOT_URL,
+            browser_user_data_path=str(self._browser_user_data_path()),
+            browser_load_mode="eager",
         )
+
+    def _cache_base_dir(self) -> Path:
+        configured = self.config.download.cache_dir
+        if configured:
+            return Path(configured).expanduser() / "browser"
+        return Path.home() / ".cache" / "pavone" / "browser"
+
+    def _browser_user_data_path(self) -> Path:
+        return self._cache_base_dir() / "fc2ppv-db-profile"
 
     def _resolve(self, identifier: str) -> Tuple[Optional[str], Optional[str]]:
         if identifier.startswith("http://") or identifier.startswith("https://"):
@@ -94,8 +105,9 @@ class Fc2ppvDbMetadata(FC2BaseMetadata):
             parts = [p for p in parsed.path.split("/") if p]
             if "videos" in parts:
                 idx = parts.index("videos")
-                if idx + 1 < len(parts):
-                    return parts[idx + 1], identifier
+                if idx + 1 < len(parts) and parts[idx + 1].isdigit():
+                    movie_id = parts[idx + 1]
+                    return movie_id, MOVIE_URL_TEMPLATE.format(movie_id=movie_id)
             return None, None
         fc2_id = self._extract_fc2_id(identifier)
         if not fc2_id:
