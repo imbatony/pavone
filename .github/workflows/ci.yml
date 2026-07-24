@@ -37,19 +37,19 @@ jobs:
       run: uv sync
 
     - name: Run Black (Code formatting check)
-      run: uv run black --check --diff pavone/ tests/
+      run: uv run black --check --diff pavone/ tests/ scripts/prepare_release.py scripts/validate_pull_request.py
 
     - name: Run isort (Import sorting check)
-      run: uv run isort --check-only --diff pavone/ tests/
+      run: uv run isort --check-only --diff pavone/ tests/ scripts/prepare_release.py scripts/validate_pull_request.py
 
     - name: Run flake8 (Critical errors)
-      run: uv run flake8 pavone/ tests/ --select=E9,F63,F7,F82
+      run: uv run flake8 pavone/ tests/ scripts/prepare_release.py scripts/validate_pull_request.py --select=E9,F63,F7,F82
 
     - name: Run flake8 (Code quality)
-      run: uv run flake8 pavone/ tests/ --exit-zero
+      run: uv run flake8 pavone/ tests/ scripts/prepare_release.py scripts/validate_pull_request.py --exit-zero
 
     - name: Run Pyright (Type checking)
-      run: uv run pyright pavone/
+      run: uv run pyright pavone/ scripts/prepare_release.py scripts/validate_pull_request.py
 
   test:
     name: Unit Tests

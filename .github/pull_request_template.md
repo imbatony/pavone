@@ -1,94 +1,43 @@
----
-name: Pull Request Template
-about: Template for creating pull requests
-title: ''
-labels: ''
-assignees: ''
+## 变更概述
 
----
+<!-- 说明为什么修改、解决了什么问题，以及主要实现方式。 -->
 
-## 📋 Pull Request Description
+## Release Notes
 
-### 🎯 What does this PR do?
-<!-- Briefly describe what changes this PR introduces -->
+<!--
+仅填写用户可感知的变化，删除不需要的小节。
+允许的小节：新增、修复、改进、重大变更、变更；每项必须以 "- " 开头。
+没有用户可感知变化时保持区块为空，并添加 release:skip 标签。
+不要删除下面两个 release-notes 标记。
+-->
 
-### 🔗 Related Issues
-<!-- Link any related issues using: Fixes #123, Closes #456, Related to #789 -->
+<!-- release-notes:start -->
 
-### 🚀 Type of Change
-<!-- Mark the relevant option with an "x" -->
-- [ ] 🐛 Bug fix (non-breaking change which fixes an issue)
-- [ ] ✨ New feature (non-breaking change which adds functionality)
-- [ ] 💥 Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] 📚 Documentation update
-- [ ] 🔧 Refactoring (no functional changes, no api changes)
-- [ ] ⚡ Performance improvement
-- [ ] 🧪 Test improvements
-- [ ] 🎨 Code style/formatting changes
+<!-- release-notes:end -->
 
-## 🧪 Testing
+## 验证
 
-### ✅ Test Coverage
-<!-- Describe the tests you ran to verify your changes -->
-- [ ] Unit tests pass locally
-- [ ] Integration tests pass locally
-- [ ] New tests added for new functionality
-- [ ] Manual testing completed
+<!-- 列出实际执行的测试、静态检查或人工验证。 -->
 
-### 🔍 Test Instructions
-<!-- Provide step-by-step instructions for testing this PR -->
-1. 
-2. 
-3. 
+- [ ] 已完成与改动对应的验证
+- [ ] 已添加或更新必要测试
 
-## 📸 Screenshots/Logs
-<!-- If applicable, add screenshots or logs to help explain your changes -->
+## 关联事项
 
-## 🏁 Checklist
+<!-- 使用 Fixes #123、Closes #456 或 Related to #789。没有则填写“无”。 -->
 
-### Code Quality
-- [ ] My code follows the project's style guidelines
-- [ ] I have performed a self-review of my own code
-- [ ] I have commented my code, particularly in hard-to-understand areas
-- [ ] My changes generate no new warnings
-- [ ] I have added type hints where appropriate
+## 发布级别
 
-### Testing
-- [ ] I have added tests that prove my fix is effective or that my feature works
-- [ ] New and existing unit tests pass locally with my changes
-- [ ] Any dependent changes have been merged and published
+版本默认由 PR 标题推断：`feat` → minor，`!`/`BREAKING` → major，其余 → patch。
 
-### Documentation
-- [ ] I have made corresponding changes to the documentation
-- [ ] I have updated the CHANGELOG.md file (if applicable)
-- [ ] I have updated docstrings for any modified functions/classes
+<!--
+仅在需要覆盖自动推断时添加一个标签：
+release:major / release:minor / release:patch / release:skip
+-->
 
-### Dependencies
-- [ ] I have updated requirements.txt if new dependencies were added
-- [ ] I have verified that all dependencies are compatible
+## 提交前检查
 
-## 🤖 Automated Checks Status
-
-The following automated checks will run when this PR is created:
-
-- **🔍 Pylance/Pyright**: Static type checking and code analysis
-- **🧪 Unit Tests**: Comprehensive test suite across Python 3.9-3.12
-- **🎨 Code Formatting**: Black, isort, and flake8 checks
-- **🔒 Security Scan**: Safety and bandit security analysis
-- **📦 Build Validation**: Package build and distribution checks
-
-## 📝 Additional Notes
-<!-- Add any additional notes, concerns, or considerations here -->
-
-## 🔄 Merge Strategy
-<!-- Indicate preferred merge strategy -->
-- [ ] Merge commit
-- [ ] Squash and merge (recommended for feature PRs)
-- [ ] Rebase and merge (recommended for small fixes)
-
----
-
-**By submitting this pull request, I confirm that:**
-- [ ] I have read and followed the project's contributing guidelines
-- [ ] My code is properly tested and documented
-- [ ] I understand that this code will be reviewed before merging
+- [ ] PR 标题符合 `type(scope)!: description`
+- [ ] Release Notes 使用中文描述用户可感知变化，或已添加 `release:skip`
+- [ ] major 变更包含 `### 重大变更` 和迁移说明
+- [ ] 未手动修改版本号或新增 CHANGELOG 版本条目
