@@ -5,6 +5,15 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.4.0] - 2026-07-24
+
+### 新增
+- 新增基于 PR 标题和 release 标签的确定性 SemVer 版本递增与自动发布流程
+- 新增 AGENTS.md、结构化 PR 模板及可信 PR 规范校验工作流
+### 改进
+- Release Notes 直接写入 CHANGELOG 和 GitHub Release，并支持并发队列及失败重跑恢复
+- CI 现在校验发布脚本的格式、类型和关键行为
+
 ## [0.3.5] - 2026-04-21
 
 ### 新增
