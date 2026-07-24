@@ -7,6 +7,8 @@ on:
   workflow_dispatch:
 
 permissions:
+  actions: read
+  contents: read
   discussions: write
 
 jobs:
@@ -29,29 +31,61 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
+      - name: Download previous successful results
+        id: previous
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PREVIOUS_RUN_ID=$(gh api \
+            --method GET \
+            "repos/${{ github.repository }}/actions/workflows/daily-metadata-test.yml/runs" \
+            -f status=success \
+            -f branch="${{ github.ref_name }}" \
+            -f per_page=1 \
+            --jq '.workflow_runs[0].id // empty')
+          if [ -z "$PREVIOUS_RUN_ID" ]; then
+            echo "No previous successful run found."
+            exit 0
+          fi
+
+          DOWNLOAD_DIR="$RUNNER_TEMP/metadata-previous"
+          gh run download "$PREVIOUS_RUN_ID" --repo "${{ github.repository }}" --pattern 'metadata-test-*' --dir "$DOWNLOAD_DIR"
+          PREVIOUS_RESULTS=$(find "$DOWNLOAD_DIR" -name metadata_test_results.json -print -quit)
+          if [ -n "$PREVIOUS_RESULTS" ]; then
+            echo "path=$PREVIOUS_RESULTS" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Run metadata plugin tests
         id: test
+        env:
+          PREVIOUS_RESULTS: ${{ steps.previous.outputs.path }}
         run: |
-          uv run python scripts/test_metadata_plugins.py \
-            --output-dir /tmp/metadata-test \
-            --format both
+          ARGS=(--output-dir "$RUNNER_TEMP/metadata-test" --format both)
+          if [ -n "$PREVIOUS_RESULTS" ] && [ -f "$PREVIOUS_RESULTS" ]; then
+            ARGS+=(--previous-results "$PREVIOUS_RESULTS")
+          fi
+          xvfb-run --auto-servernum uv run python scripts/test_metadata_plugins.py "${ARGS[@]}"
         continue-on-error: true
 
       - name: Read test results
         id: results
         run: |
-          if [ -f /tmp/metadata-test/metadata_test_results.json ]; then
-            TOTAL=$(jq '.results | length' /tmp/metadata-test/metadata_test_results.json)
-            OK=$(jq '[.results[] | select(.status == "OK")] | length' /tmp/metadata-test/metadata_test_results.json)
-            FAIL=$(jq '[.results[] | select(.status == "FAIL")] | length' /tmp/metadata-test/metadata_test_results.json)
-            ERROR=$(jq '[.results[] | select(.status == "ERROR")] | length' /tmp/metadata-test/metadata_test_results.json)
-            AVG_SCORE=$(jq '[.results[] | select(.status == "OK") | .score] | if length > 0 then (add / length * 10 | round / 10) else 0 end' /tmp/metadata-test/metadata_test_results.json)
-            ELAPSED=$(jq '.total_time_s' /tmp/metadata-test/metadata_test_results.json)
-            VERSION=$(jq -r '.version' /tmp/metadata-test/metadata_test_results.json)
+          RESULTS="$RUNNER_TEMP/metadata-test/metadata_test_results.json"
+          if [ -f "$RESULTS" ]; then
+            TOTAL=$(jq '.results | length' "$RESULTS")
+            OK=$(jq '[.results[] | select(.status == "OK")] | length' "$RESULTS")
+            DEGRADED=$(jq '[.results[] | select(.status == "DEGRADED")] | length' "$RESULTS")
+            FAIL=$(jq '[.results[] | select(.status == "FAIL")] | length' "$RESULTS")
+            ERROR=$(jq '[.results[] | select(.status == "ERROR")] | length' "$RESULTS")
+            AVG_SCORE=$(jq '[.results[] | select(.status == "OK") | .score] | if length > 0 then (add / length * 10 | round / 10) else 0 end' "$RESULTS")
+            ELAPSED=$(jq '.total_time_s' "$RESULTS")
+            VERSION=$(jq -r '.version' "$RESULTS")
             DATE=$(date -u +%Y-%m-%d)
 
             echo "total=$TOTAL" >> $GITHUB_OUTPUT
             echo "ok=$OK" >> $GITHUB_OUTPUT
+            echo "degraded=$DEGRADED" >> $GITHUB_OUTPUT
             echo "fail=$FAIL" >> $GITHUB_OUTPUT
             echo "error=$ERROR" >> $GITHUB_OUTPUT
             echo "avg_score=$AVG_SCORE" >> $GITHUB_OUTPUT
@@ -72,7 +106,7 @@ jobs:
           CATEGORY_ID=$(gh api graphql -f query='{ repository(owner: "${{ github.repository_owner }}", name: "${{ github.event.repository.name }}") { discussionCategories(first: 10) { nodes { id slug } } } }' --jq '.data.repository.discussionCategories.nodes[] | select(.slug == "general") | .id')
 
           # Create discussion with test report
-          BODY=$(cat /tmp/metadata-test/metadata_test_report.md)
+          BODY=$(cat "$RUNNER_TEMP/metadata-test/metadata_test_report.md")
           gh api graphql \
             -F repositoryId="$REPO_NODE_ID" \
             -F categoryId="$CATEGORY_ID" \
@@ -89,7 +123,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: metadata-test-${{ steps.results.outputs.date || 'unknown' }}
-          path: /tmp/metadata-test/
+          path: ${{ runner.temp }}/metadata-test/
           retention-days: 30
 
       - name: Summary
@@ -102,6 +136,7 @@ jobs:
           echo "| 版本 | v${{ steps.results.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 总插件数 | ${{ steps.results.outputs.total }} |" >> $GITHUB_STEP_SUMMARY
           echo "| ✅ 成功 | ${{ steps.results.outputs.ok }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| ⚠️ 质量降级 | ${{ steps.results.outputs.degraded }} |" >> $GITHUB_STEP_SUMMARY
           echo "| ❌ 失败 | ${{ steps.results.outputs.fail }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 💥 异常 | ${{ steps.results.outputs.error }} |" >> $GITHUB_STEP_SUMMARY
           echo "| 平均评分 | ${{ steps.results.outputs.avg_score }}/100 |" >> $GITHUB_STEP_SUMMARY

@@ -8,7 +8,7 @@ ID 格式: 纯数字
 """
 
 import re
-from typing import List, Optional
+from typing import Dict, List, Optional
 from urllib.parse import urlparse
 
 import requests
@@ -65,17 +65,28 @@ class GcolleMetadata(HtmlMetadataPlugin):
     def _fetch_page(self, url: str) -> requests.Response:
         """覆写以处理年龄认证页面"""
         resp = self.fetch(url, timeout=30)
-        # 检查是否命中年龄认证页面（内容过短且包含 age_check 链接）
-        if len(resp.text) < 2000 and "age_check" in resp.text:
-            soup = BeautifulSoup(resp.text, "lxml")
-            for a in soup.find_all("a"):
-                if a.get_text(strip=True) == "はい" and "age_check" in (a.get("href") or ""):
-                    session = requests.Session()
-                    session.cookies.update(dict(resp.cookies))
-                    session.headers.update({"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"})
-                    resp = session.get(str(a["href"]), timeout=30)
-                    resp.raise_for_status()
-                    break
+        soup = BeautifulSoup(resp.text, "lxml")
+        confirm = next(
+            (
+                a
+                for a in soup.select("a[href*='age_check']")
+                if a.get_text(strip=True) == "はい" and isinstance(a.get("href"), str)
+            ),
+            None,
+        )
+        if confirm:
+            cookies: Dict[str, str] = {}
+            for response in [*resp.history, resp]:
+                cookies.update(response.cookies.get_dict())
+            resp = self.fetch(
+                str(confirm["href"]),
+                timeout=30,
+                cookies=cookies,
+                headers={
+                    "Referer": resp.url,
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                },
+            )
         return resp
 
     def _parse(self, soup: BeautifulSoup, movie_id: str, page_url: str) -> Optional[MovieMetadata]:
@@ -92,11 +103,13 @@ class GcolleMetadata(HtmlMetadataPlugin):
         t_el = soup.select_one("#cart_quantity h1")
         if t_el:
             title = t_el.get_text(strip=True)
+        if not title:
+            self.logger.error(f"页面不包含商品标题，可能仍停留在年龄认证页: {page_url}")
+            return None
 
         # Summary/plot
-        p_el = soup.select_one("#cart_quantity p")
-        if p_el:
-            plot = p_el.get_text(strip=True)
+        paragraphs = [p.get_text(" ", strip=True) for p in soup.select("#cart_quantity p")]
+        plot = max((text for text in paragraphs if text), key=len, default=None)
 
         # Genres
         for a in soup.select("#cart_quantity a"):

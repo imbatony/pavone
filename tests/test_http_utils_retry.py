@@ -57,6 +57,23 @@ def test_fetch_4xx_with_skip_callback_does_not_retry(mock_get: MagicMock) -> Non
 
 
 @patch("pavone.utils.http_utils.requests.get")
+def test_fetch_preserves_original_http_error_response(mock_get: MagicMock) -> None:
+    resp = _make_resp(403)
+    err = requests.HTTPError("403 Client Error", response=resp)
+    mock_get.return_value = MagicMock(raise_for_status=MagicMock(side_effect=err))
+
+    with pytest.raises(requests.HTTPError) as exc_info:
+        HttpUtils.fetch(
+            _download_cfg(),
+            ProxyConfig(),
+            "https://example.com/x",
+            max_retry=1,
+        )
+
+    assert exc_info.value.response is resp
+
+
+@patch("pavone.utils.http_utils.requests.get")
 def test_fetch_5xx_with_skip_callback_still_retries(mock_get: MagicMock) -> None:
     """skip_retry_on_4xx 只对 4xx 生效，5xx 仍重试。"""
     resp = _make_resp(503)

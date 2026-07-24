@@ -89,16 +89,27 @@ class SupFC2Metadata(FC2BaseMetadata):
         lxml 解析器会重组 <head>/<body> 等文档结构标签，导致 str(soup) 与原始 HTML
         不一致，正则在 str(soup) 上匹配 og:image 等 meta 标签会失败。
         """
+        self._reset_diagnostic()
         try:
             movie_id, page_url = self._resolve(identifier)
             if not movie_id or not page_url:
+                self._record_failure(f"无法解析 identifier: {identifier}")
                 self.logger.error(f"无法解析 identifier: {identifier}")
                 return None
+            self._set_diagnostic_stage("fetch")
             resp = self._fetch_page(page_url)
+            self._record_response(resp)
             self._raw_html = resp.text
             soup = BeautifulSoup(resp.text, "lxml")
-            return self._parse(soup, movie_id, page_url)
+            self._set_diagnostic_stage("parse")
+            metadata = self._parse(soup, movie_id, page_url)
+            if metadata is None:
+                self._record_failure("解析器返回空结果")
+            else:
+                self._set_diagnostic_stage("complete")
+            return metadata
         except Exception as e:
+            self._record_failure(str(e), e)
             self.logger.error(f"提取元数据失败: {e}", exc_info=True)
             return None
 
