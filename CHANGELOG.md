@@ -5,6 +5,11 @@
 格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)，
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.4.3] - 2026-07-28
+
+### 修复
+- 修复 AV01 网站改版后无法提取元数据和视频播放地址的问题。
+
 ## [0.4.2] - 2026-07-24
 
 ### 变更
