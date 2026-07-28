@@ -6,17 +6,19 @@ AV01统一插件
 该插件完全基于API，不需要解析HTML：
 1. 从 geo API 获取 token
 2. 从 /api/v1/videos/{id} 获取视频元数据
-3. 从 /api/v1/videos/{id}/playlist 获取播放列表
+3. 从 /cdn-access 获取 CDN access token
+4. 从 /manifest/master.m3u8 获取播放列表
 """
 
 import base64
+import hashlib
 import json
 import re
 import time
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, List, Optional, cast
-from urllib.parse import urlparse
+from urllib.parse import quote, urljoin, urlparse
 
 from ..models import MovieMetadata, OperationItem, Quality
 from ..utils import CodeExtractUtils
@@ -56,6 +58,8 @@ class GeoData:
     ttl: int
     url: str
     comp: bool = False
+    token_v2: str = ""
+    dynamic_playlist: bool = False
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "GeoData":
@@ -87,6 +91,8 @@ class GeoData:
             ttl=int(data["ttl"]),
             url=data["url"],
             comp=bool(data.get("comp", False)),
+            token_v2=str(data.get("token_v2", data["token"])),
+            dynamic_playlist=bool(data.get("dynamic_playlist", False)),
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -102,6 +108,8 @@ class GeoData:
             "ttl": self.ttl,
             "url": self.url,
             "comp": self.comp,
+            "token_v2": self.token_v2,
+            "dynamic_playlist": self.dynamic_playlist,
         }
 
     def is_expired(self, current_time: Optional[float] = None) -> bool:
@@ -163,6 +171,7 @@ class AV01VideoMetadata:
     actresses: Optional[List[Dict[str, str]]] = None
     tags: Optional[List[Dict[str, str]]] = None
     poster: Optional[str] = None
+    storage_base: Optional[str] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "AV01VideoMetadata":
@@ -222,6 +231,7 @@ class AV01VideoMetadata:
             actresses=data.get("actresses"),
             tags=data.get("tags"),
             poster=data.get("poster"),
+            storage_base=data.get("storage_base"),
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -243,6 +253,7 @@ class AV01VideoMetadata:
             "actresses": self.actresses,
             "tags": self.tags,
             "poster": self.poster,
+            "storage_base": self.storage_base,
         }
 
     def get_actor_names(self) -> List[str]:
@@ -312,8 +323,9 @@ SUPPORTED_DOMAINS = ["av01.media", "www.av01.media", "av01.tv", "www.av01.tv"]
 SITE_NAME = "AV01"
 
 # API端点
-GEO_API_URL = "https://www.av01.tv/edge/geo.js?json"
+GEO_API_URL = "https://www.av01.media/edge/geo.js?json"
 VIDEO_API_BASE = "https://www.av01.media/api/v1/videos"
+CDN_API_BASE = "https://customers.iw01.xyz/api/v1/videos"
 
 
 class AV01Plugin(ExtractorPlugin, MetadataPlugin):
@@ -448,11 +460,7 @@ class AV01Plugin(ExtractorPlugin, MetadataPlugin):
                 self.logger.error("无法获取geo token")
                 return []
 
-            token = geo_data.token
-            expires = geo_data.expires
-            ip = geo_data.ip
-
-            self.logger.info(f"获取到token: {token[:10]}... IP: {ip}")
+            self.logger.info(f"获取到新版geo token，IP: {geo_data.ip}")
 
             # 3. 获取视频元数据
             metadata_api_url = f"{VIDEO_API_BASE}/{video_id}"
@@ -464,9 +472,13 @@ class AV01Plugin(ExtractorPlugin, MetadataPlugin):
 
             self.logger.info(f"获取到视频元数据: {video_metadata.title}")
 
-            # 4. 获取播放列表
-            playlist_api_url = f"{VIDEO_API_BASE}/{video_id}/playlist?token={token}&expires={expires}&ip={ip}"
-            video_urls = self._get_video_playlist(playlist_api_url)
+            # 4. 获取 CDN access token 和新版 master manifest
+            access_token = self._get_cdn_access_token(video_id, geo_data)
+            if not access_token:
+                self.logger.error(f"无法获取CDN access token: {video_id}")
+                return []
+
+            video_urls = self._get_video_manifest(video_id, video_metadata, access_token)
 
             if not video_urls:
                 self.logger.error(f"无法获取视频播放列表: {video_id}")
@@ -771,6 +783,58 @@ class AV01Plugin(ExtractorPlugin, MetadataPlugin):
             self.logger.error(f"获取播放列表异常: {e}")
             return {}
 
+    def _get_cdn_access_token(self, video_id: str, geo_data: GeoData) -> Optional[str]:
+        """获取新版播放接口所需的 CDN access token。"""
+        try:
+            token_v2 = quote(geo_data.token_v2, safe="")
+            expires = quote(geo_data.expires, safe="")
+            ip = quote(geo_data.ip, safe="")
+            access_url = f"{CDN_API_BASE}/{video_id}/cdn-access?token_v2={token_v2}&expires={expires}&ip={ip}"
+            response = self.fetch(access_url, timeout=30, verify_ssl=True)
+            if response.status_code != 200:
+                self.logger.error(f"获取CDN access token失败，状态码: {response.status_code}")
+                return None
+
+            raw_data: Any = response.json()
+            data = cast(Dict[str, Any], raw_data) if isinstance(raw_data, dict) else {}
+            access_token = data.get("access_token")
+            if not isinstance(access_token, str) or not access_token:
+                self.logger.error("CDN access token响应缺少access_token")
+                return None
+            return access_token
+        except Exception as e:
+            self.logger.error(f"获取CDN access token异常: {e}")
+            return None
+
+    def _get_video_manifest(
+        self,
+        video_id: str,
+        video_metadata: AV01VideoMetadata,
+        access_token: str,
+    ) -> Dict[str, str]:
+        """获取新版 master manifest，并为各清晰度播放列表附加认证信息。"""
+        try:
+            manifest_url = f"{VIDEO_API_BASE}/{video_id}/manifest/master.m3u8"
+            if video_metadata.storage_base:
+                hb = hashlib.sha256(video_metadata.storage_base.encode("utf-8")).hexdigest()[:16]
+                manifest_url = f"{manifest_url}?hb={hb}"
+
+            response = self.fetch(manifest_url, timeout=30, verify_ssl=True)
+            if response.status_code != 200:
+                self.logger.error(f"获取master manifest失败，状态码: {response.status_code}")
+                return {}
+
+            cdn_manifest_url = f"{CDN_API_BASE}/{video_id}/manifest/master.m3u8"
+            video_urls = self._parse_m3u8_playlist(response.text, cdn_manifest_url)
+            encoded_token = quote(access_token, safe="")
+            return {
+                quality: f"{url}{'&' if '?' in url else '?'}access_token={encoded_token}"
+                for quality, url in video_urls.items()
+            }
+        except Exception as e:
+            self.logger.error(f"获取master manifest异常: {e}")
+            return {}
+
     def _parse_playlist_json(self, data: Dict[str, Any]) -> Dict[str, str]:
         """解析JSON格式的播放列表响应"""
         result: Dict[str, str] = {}
@@ -865,9 +929,7 @@ class AV01Plugin(ExtractorPlugin, MetadataPlugin):
                     if line.startswith("http"):
                         url = line
                     elif base_url:
-                        # 简单拼接
-                        base_path = base_url.rsplit("/", 1)[0] + "/"
-                        url = base_path + line if not line.startswith("/") else "https://www.av01.tv" + line
+                        url = urljoin(base_url, line)
                     else:
                         # base_url为空，说明是从base64解码的，URL应该已经完整
                         url = line

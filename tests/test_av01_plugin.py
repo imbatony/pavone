@@ -3,6 +3,8 @@ AV01统一插件测试
 整合了元数据提取和视频提取两个功能的测试
 """
 
+from unittest.mock import Mock
+
 import pytest
 
 from pavone.plugins.av01_plugin import (
@@ -121,10 +123,13 @@ class TestAV01Plugin:
             "ttl": 3600,
             "url": "https://test.com",
             "comp": True,
+            "token_v2": "test_token_v2",
+            "dynamic_playlist": False,
         }
 
         geo_data = GeoData.from_dict(data)
         assert geo_data.token == "test_token"
+        assert geo_data.token_v2 == "test_token_v2"
         assert geo_data.ip == "127.0.0.1"
         assert geo_data.comp is True
 
@@ -164,6 +169,7 @@ class TestAV01Plugin:
             "actresses": [{"name": "Actress 1"}, {"name": "Actress 2"}],
             "tags": [{"name": "Tag 1"}, {"name": "Tag 2"}],
             "poster": "https://test.com/poster.jpg",
+            "storage_base": "/20251128a/mida00387-lada",
         }
 
         metadata = AV01VideoMetadata.from_dict(data)
@@ -171,6 +177,54 @@ class TestAV01Plugin:
         assert metadata.dvd_id == "FC2-PPV-4799119"
         assert metadata.maker == "Test Maker"
         assert metadata.director == "Test Director"
+        assert metadata.storage_base == "/20251128a/mida00387-lada"
+
+    def test_get_cdn_access_token(self, plugin):
+        """测试新版CDN认证接口。"""
+        response = Mock(status_code=200)
+        response.json.return_value = {"access_token": "cdn.token"}
+        plugin.fetch = Mock(return_value=response)
+        geo_data = GeoData(
+            token="legacy_token",
+            token_v2="token/v2",
+            expires="1234567890",
+            ip="2001:db8::1",
+            asn=12345,
+            isp="Test ISP",
+            continent="AS",
+            country="CN",
+            ttl=3600,
+            url="https://test.com",
+        )
+
+        assert plugin._get_cdn_access_token("185873", geo_data) == "cdn.token"
+        request_url = plugin.fetch.call_args.args[0]
+        assert "customers.iw01.xyz/api/v1/videos/185873/cdn-access" in request_url
+        assert "token_v2=token%2Fv2" in request_url
+        assert "ip=2001%3Adb8%3A%3A1" in request_url
+
+    def test_get_video_manifest(self, plugin):
+        """测试新版master manifest解析和认证参数注入。"""
+        response = Mock(status_code=200)
+        response.text = """#EXTM3U
+#EXT-X-STREAM-INF:BANDWIDTH=404085,RESOLUTION=640x360
+index-v1.m3u8?hb=test
+#EXT-X-STREAM-INF:BANDWIDTH=1390321,RESOLUTION=1280x720
+index-v2.m3u8?hb=test
+#EXT-X-STREAM-INF:BANDWIDTH=3121844,RESOLUTION=1920x1080
+index-v3.m3u8?hb=test
+"""
+        plugin.fetch = Mock(return_value=response)
+        metadata = Mock(spec=AV01VideoMetadata)
+        metadata.storage_base = "/20251128a/mida00387-lada"
+
+        streams = plugin._get_video_manifest("185873", metadata, "cdn/token")
+
+        assert len(streams) == 3
+        assert all(url.startswith("https://customers.iw01.xyz/api/v1/videos/185873/manifest/") for url in streams.values())
+        assert all(url.endswith("&access_token=cdn%2Ftoken") for url in streams.values())
+        manifest_url = plugin.fetch.call_args.args[0]
+        assert manifest_url.endswith("manifest/master.m3u8?hb=ba3e3e89489b19aa")
 
     def test_av01_video_metadata_get_actor_names(self):
         """测试提取演员名称"""
