@@ -84,10 +84,10 @@ class Fc2ppvDbMetadata(FC2BaseMetadata):
             logger=self.logger,
             wait_for_content=[f"FC2-PPV-{movie_id}"],
             reject_content=[],
-            max_wait=40,
+            max_wait=120,
             cookies=[AGE_COOKIE],
             browser_user_data_path=str(self._browser_user_data_path()),
-            browser_load_mode="eager",
+            browser_load_mode="normal",
         )
 
     def _cache_base_dir(self) -> Path:
