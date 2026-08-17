@@ -312,6 +312,7 @@ class HttpUtils:
             # 确认页），则补设 cookie 并 reload 一次自愈——比前置设 cookie 更可靠，
             # 因为此时浏览器已确实进入目标域且通过了 Cloudflare。
             cookies_reapplied = False
+            cloudflare_notice_logged = False
             start_time = time.time()
             while time.time() - start_time < max_wait:
                 html: str = cast(str, tab.html)  # type: ignore[union-attr]
@@ -329,6 +330,9 @@ class HttpUtils:
                 # 自愈: 页面已渲染且非 Cloudflare 挑战，但仍未达标
                 # （多为 cookie 未生效、停在年龄确认等拦截页）→ 补设 cookie 并 reload
                 is_cloudflare = any(c in html for c in _CLOUDFLARE_MARKERS)
+                if is_cloudflare and logger and not cloudflare_notice_logged:
+                    logger.warning("检测到 Cloudflare 验证页，请在浏览器窗口中手动完成验证")
+                    cloudflare_notice_logged = True
                 if cookies and not cookies_reapplied and not is_cloudflare:
                     if logger:
                         logger.info("页面停滞（疑似年龄确认/拦截页），补设 cookie 并重新加载")

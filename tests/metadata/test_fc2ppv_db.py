@@ -56,6 +56,18 @@ class TestFc2ppvDbMetadata:
         assert movie_id == "4778286"
         assert url == "https://fc2ppv-db.com/ja/videos/4778286"
 
+    def test_fetch_page_allows_manual_cloudflare_verification(self):
+        url = "https://fc2ppv-db.com/ja/videos/4778286"
+        response = MagicMock()
+        with patch(
+            "pavone.plugins.metadata.fc2ppv_db_metadata.HttpUtils.fetch_with_browser",
+            return_value=response,
+        ) as fetch:
+            assert self.extractor._fetch_page(url) is response  # type: ignore[reportPrivateUsage]
+
+        assert fetch.call_args.kwargs["max_wait"] == 120
+        assert fetch.call_args.kwargs["browser_load_mode"] == "normal"
+
     # ===================== extract_metadata =====================
 
     def _mock_html_response(self):

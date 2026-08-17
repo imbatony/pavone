@@ -1,7 +1,7 @@
 """HttpUtils.fetch 重试与 should_retry 短路行为单测。"""
 
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 import requests
@@ -207,4 +207,39 @@ def test_browser_ephemeral_profile_keeps_auto_port() -> None:
     assert html == "<html>ready</html>"
     options.auto_port.assert_called_once_with()
     options.set_local_port.assert_not_called()
+    browser.quit.assert_called_once()
+
+
+def test_browser_logs_manual_cloudflare_verification() -> None:
+    """检测到 Cloudflare 挑战时应提示用户在可见浏览器中完成验证。"""
+    options = MagicMock()
+    browser = MagicMock()
+    tab = MagicMock()
+    type(tab).html = PropertyMock(
+        side_effect=[
+            "<html>challenges.cloudflare.com</html>",
+            "<html>ready</html>",
+        ]
+    )
+    browser.latest_tab = tab
+    logger = MagicMock()
+    drission_page = MagicMock()
+    drission_page.ChromiumOptions.return_value = options
+    drission_page.Chromium.return_value = browser
+
+    with (
+        patch.dict(sys.modules, {"DrissionPage": drission_page}),
+        patch("pavone.utils.http_utils.time.sleep"),
+    ):
+        html = HttpUtils._fetch_html_with_browser(  # type: ignore[reportPrivateUsage]
+            "https://example.com",
+            ProxyConfig(),
+            logger,
+            ["ready"],
+            [],
+            1,
+        )
+
+    assert html == "<html>ready</html>"
+    logger.warning.assert_called_once_with("检测到 Cloudflare 验证页，请在浏览器窗口中手动完成验证")
     browser.quit.assert_called_once()
