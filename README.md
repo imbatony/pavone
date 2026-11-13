@@ -61,6 +61,7 @@ PAVOne(WIP)是一个集下载、整理等多功能的插件化的AV管理工具�
 | PPVDataBank | `ppvdatabank.com` | HTML 解析 | FC2 视频聚合 |
 | SupFC2 | `supfc2.com` | HTML 解析 | FC2 视频 |
 | FC2PPV-DB | `fc2ppv-db.com` | HTML 解析 | FC2 PPV 数据库 |
+| FC2DB | `fc2db.net` | HTML 解析（浏览器） | FC2 作品、演员及销售者信息 |
 | JAVFREE | `javfree.me` `javfree.sh` | HTML 解析 | FC2 镜像站 |
 | Gcolle | `gcolle.net` | HTML 解析 | 视频电商 |
 | Pcolle | `pcolle.com` | HTML 解析 | UGC 内容平台 |
@@ -69,6 +70,10 @@ PAVOne(WIP)是一个集下载、整理等多功能的插件化的AV管理工具�
 
 > `madouqu.com`、`fc2hub.com` / `javten.com` 和旧 `fc2ppvdb.com` 数据源因长期不可用已停止支持。
 > FC2 PPV 数据请使用仍受支持的 `fc2ppv-db.com` 数据源。
+
+FC2DB 支持作品链接（如 `https://fc2db.net/work/5002880/`）、`FC2-5002880`、
+`FC2-PPV-5002880` 和纯数字编号。首次抓取需在自动打开的浏览器窗口中完成 Cloudflare 验证并确认年龄，
+最多等待 5 分钟；浏览器配置保存在缓存目录的 `browser/fc2db-profile`，后续访问会复用验证状态。
 
 ### 其他
 
@@ -157,4 +162,3 @@ MIT License - 详见 [LICENSE](LICENSE)
 ## 致谢
 
 感谢所有贡献者和开源社区的支持！
-

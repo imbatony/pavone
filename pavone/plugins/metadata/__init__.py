@@ -12,6 +12,7 @@ from .dahlia_metadata import DahliaMetadata
 from .duga_metadata import DugaMetadata
 from .faleno_metadata import FalenoMetadata
 from .fanza_metadata import FanzaMetadata
+from .fc2db_metadata import FC2DBMetadata
 from .fc2ppv_db_metadata import Fc2ppvDbMetadata
 from .gcolle_metadata import GcolleMetadata
 from .getchu_metadata import GetchuMetadata
@@ -53,6 +54,7 @@ __all__ = [
     "FalenoMetadata",
     "TenMusumeMetadata",
     "FanzaMetadata",
+    "FC2DBMetadata",
     "Fc2ppvDbMetadata",
     "GcolleMetadata",
     "GetchuMetadata",

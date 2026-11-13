@@ -10,7 +10,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import requests
 
@@ -38,6 +38,8 @@ class M3U8Downloader(BaseDownloader):
         self._session = requests.Session()
         self._lock = threading.Lock()
         self._encryption: Optional[M3U8EncryptionInfo] = None
+        self._init_segment_url: Optional[str] = None
+        self._request_headers: Dict[str, str] = {}
 
     def _generate_m3u8_hash(self, content: str) -> str:
         """
@@ -80,17 +82,45 @@ class M3U8Downloader(BaseDownloader):
         except Exception as e:
             raise requests.RequestException(f"Failed to download M3U8 playlist: {e}")
 
-    def _parse_m3u8_playlist(self, content: str, base_url: str) -> List[str]:
+    def _append_playlist_access_token(self, media_url: str, playlist_url: str) -> str:
+        """把播放列表 URL 上的 access_token 附加到同源媒体地址。
+
+        AV01 改版后媒体分片是绝对地址，且不会继承播放列表的查询参数。
+        缺少 access_token 时 CDN 会返回 403。
         """
-        解析M3U8播放列表，提取视频段URL列表，并解析加密信息
+        playlist = urlparse(playlist_url)
+        token_match = re.search(r"(?:^|&)access_token=([^&]*)", playlist.query)
+        if not token_match or not token_match.group(1):
+            return media_url
+
+        media = urlparse(media_url)
+        if media.netloc and playlist.netloc and media.netloc.lower() != playlist.netloc.lower():
+            return media_url
+        if re.search(r"(?:^|&)access_token=", media.query):
+            return media_url
+
+        separator = "&" if media.query else "?"
+        return f"{media_url}{separator}access_token={token_match.group(1)}"
+
+    def _resolve_media_url(self, reference: str, base_url: str, playlist_url: str) -> str:
+        """解析媒体地址，并在需要时附加播放列表认证参数。"""
+        absolute_url = reference if reference.startswith("http") else urljoin(base_url, reference)
+        return self._append_playlist_access_token(absolute_url, playlist_url)
+
+    def _parse_m3u8_playlist(self, content: str, base_url: str, playlist_url: str = "") -> List[str]:
+        """
+        解析M3U8播放列表，提取视频段URL列表，并解析加密信息和初始化分段
 
         Args:
             content: M3U8文件内容
             base_url: 基础URL，用于处理相对路径
+            playlist_url: 播放列表原始URL，用于继承 access_token
 
         Returns:
             List[str]: 视频段URL列表
         """
+        self._encryption = None
+        self._init_segment_url = None
         segment_urls: list[str] = []
         lines = content.strip().split("\n")
 
@@ -99,24 +129,26 @@ class M3U8Downloader(BaseDownloader):
             if not line:
                 continue
 
+            if line.startswith("#EXT-X-MAP:"):
+                uri_match = re.search(r'URI="([^"]+)"', line)
+                if uri_match and not self._init_segment_url:
+                    self._init_segment_url = self._resolve_media_url(uri_match.group(1), base_url, playlist_url)
+                continue
+
             # 解析加密信息
             if line.startswith("#EXT-X-KEY:"):
-                self._parse_encryption_key(line, base_url)
+                self._parse_encryption_key(line, base_url, playlist_url)
                 continue
 
             # 跳过其他注释行
             if line.startswith("#"):
                 continue
 
-            # 如果是相对URL，转换为绝对URL
-            if line.startswith("http"):
-                segment_urls.append(line)
-            else:
-                segment_urls.append(urljoin(base_url, line))
+            segment_urls.append(self._resolve_media_url(line, base_url, playlist_url))
 
         return segment_urls
 
-    def _parse_encryption_key(self, line: str, base_url: str) -> None:
+    def _parse_encryption_key(self, line: str, base_url: str, playlist_url: str = "") -> None:
         """解析 #EXT-X-KEY 指令并下载密钥"""
         attrs = line[len("#EXT-X-KEY:") :]
         method_match = re.search(r"METHOD=([^,]+)", attrs)
@@ -136,14 +168,12 @@ class M3U8Downloader(BaseDownloader):
             return
 
         # 下载密钥
-        key_uri = uri_match.group(1)
-        if not key_uri.startswith("http"):
-            key_uri = urljoin(base_url, key_uri)
+        key_uri = self._resolve_media_url(uri_match.group(1), base_url, playlist_url)
 
         try:
             resp = self._session.get(
                 key_uri,
-                headers={"User-Agent": "Mozilla/5.0"},
+                headers=self._request_headers or {"User-Agent": "Mozilla/5.0"},
                 proxies=self.proxies,
                 timeout=self.download_config.timeout,
             )
@@ -227,6 +257,90 @@ class M3U8Downloader(BaseDownloader):
             return segment_index, data
         except Exception as e:
             raise Exception(f"Failed to download segment {segment_index}: {e}")
+
+    def _download_init_segment(self, temp_dir: str, headers: Dict[str, str]) -> Optional[str]:
+        """下载 fMP4 初始化分段。不存在时返回 None。"""
+        if not self._init_segment_url:
+            return None
+
+        init_path = os.path.join(temp_dir, "init.mp4")
+        if self._check_segment_exists(init_path):
+            self.logger.info("发现已缓存的 fMP4 初始化分段")
+            return init_path
+
+        self.logger.info("正在下载 fMP4 初始化分段")
+        last_error: Optional[Exception] = None
+        for attempt in range(self.download_config.retry_times + 1):
+            try:
+                response = self._session.get(
+                    self._init_segment_url,
+                    headers=headers,
+                    proxies=self.proxies,
+                    timeout=self.download_config.timeout,
+                )
+                response.raise_for_status()
+                with open(init_path, "wb") as init_file:
+                    init_file.write(response.content)
+                return init_path
+            except Exception as exc:
+                last_error = exc
+                if attempt < self.download_config.retry_times:
+                    time.sleep(self.download_config.retry_interval / 1000.0)
+
+        raise requests.RequestException(f"Failed to download init segment: {last_error}")
+
+    def _collect_output_files(
+        self,
+        downloaded_segments: dict[int, str],
+        total_segments: int,
+        init_segment_path: Optional[str] = None,
+    ) -> list[str]:
+        """按播放顺序收集输出文件，fMP4 初始化分段放在最前。"""
+        files: list[str] = []
+        if init_segment_path and os.path.exists(init_segment_path):
+            files.append(init_segment_path)
+        for index in range(total_segments):
+            segment_file = downloaded_segments.get(index)
+            if segment_file and os.path.exists(segment_file):
+                files.append(segment_file)
+            else:
+                self.logger.warning(f"Missing segment {index}")
+        return files
+
+    def _merge_fmp4(self, segment_files: list[str], output_file: str) -> bool:
+        """拼接 fMP4 初始化分段和媒体分片，并在可用时用 ffmpeg 重新封装。"""
+        import shutil
+        import subprocess
+
+        if not segment_files:
+            return False
+
+        with open(output_file, "wb") as output:
+            for segment_file in segment_files:
+                with open(segment_file, "rb") as source:
+                    output.write(source.read())
+
+        if not shutil.which("ffmpeg"):
+            return True
+
+        remuxed_file = output_file + ".remux.mp4"
+        cmd = ["ffmpeg", "-i", output_file, "-c", "copy", "-movflags", "+faststart", "-y", remuxed_file]
+        try:
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            _, stderr = process.communicate()
+            if process.returncode != 0:
+                self.logger.warning(f"fMP4 remux failed: {stderr.decode('utf-8', errors='replace')}")
+                return True
+            os.replace(remuxed_file, output_file)
+        except Exception as exc:
+            self.logger.warning(f"fMP4 remux error: {exc}")
+        finally:
+            if os.path.exists(remuxed_file):
+                try:
+                    os.remove(remuxed_file)
+                except OSError:
+                    pass
+        return True
 
     def get_last_segment_results(self) -> Optional[list[SegmentResult]]:
         """获取最近一次下载的分片结果列表 (仅在 execute() 返回 False 时有效)."""
@@ -315,6 +429,7 @@ class M3U8Downloader(BaseDownloader):
         total_segments: int = ctx["total_segments"]
         total_downloaded_bytes: int = ctx["total_downloaded_bytes"]
         progress_callback: ProgressCallback = ctx["progress_callback"]
+        init_segment_path: Optional[str] = ctx.get("init_segment_path")
 
         # 收集已有分片 (按顺序)
         segment_files: list[str] = []
@@ -329,6 +444,8 @@ class M3U8Downloader(BaseDownloader):
         if not segment_files:
             self.logger.error("没有可合并的分片")
             return False
+        if init_segment_path and os.path.exists(init_segment_path):
+            segment_files.insert(0, init_segment_path)
 
         if skipped:
             self.logger.info(f"跳过 {len(skipped)} 个缺失分片: {skipped[:10]}{'...' if len(skipped) > 10 else ''}")
@@ -349,7 +466,9 @@ class M3U8Downloader(BaseDownloader):
         import tempfile
 
         ffmpeg_success = False
-        if shutil.which("ffmpeg"):
+        if init_segment_path:
+            ffmpeg_success = self._merge_fmp4(segment_files, output_file)
+        elif shutil.which("ffmpeg"):
             try:
                 with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
                     for seg in segment_files:
@@ -375,7 +494,10 @@ class M3U8Downloader(BaseDownloader):
         # 清理缓存
         temp_dir = ctx["temp_dir"]
         try:
-            for sf in downloaded_segments.values():
+            cleanup_files = list(downloaded_segments.values())
+            if init_segment_path:
+                cleanup_files.append(init_segment_path)
+            for sf in cleanup_files:
                 if os.path.exists(sf):
                     os.remove(sf)
             os.rmdir(temp_dir)
@@ -421,11 +543,12 @@ class M3U8Downloader(BaseDownloader):
         try:
             # 获取有效的HTTP头部
             headers = item.get_effective_headers(self.download_config.headers)
+            self._request_headers = headers
             # 下载M3U8播放列表
             m3u8_content = self._download_m3u8_playlist(url, headers)
             # 解析播放列表，获取视频段URL列表
             base_url = "/".join(url.split("/")[:-1]) + "/"
-            segment_urls = self._parse_m3u8_playlist(m3u8_content, base_url)
+            segment_urls = self._parse_m3u8_playlist(m3u8_content, base_url, url)
 
             if not segment_urls:
                 self.logger.warning("No video segments found in M3U8 playlist")
@@ -447,6 +570,7 @@ class M3U8Downloader(BaseDownloader):
                 temp_dir = output_file + f"_segments_{m3u8_hash}"
             os.makedirs(temp_dir, exist_ok=True)
             self.logger.info(f"Using cache directory: {temp_dir}")
+            init_segment_path = self._download_init_segment(temp_dir, headers)
 
             # 下载所有视频段
             downloaded_segments: dict[int, str] = {}
@@ -620,6 +744,7 @@ class M3U8Downloader(BaseDownloader):
                     "downloaded_segments": downloaded_segments,
                     "total_downloaded_bytes": total_downloaded_bytes,
                     "progress_callback": progress_callback,
+                    "init_segment_path": init_segment_path,
                 }
                 return False
             self.logger.info("Merging video segments...")
@@ -680,34 +805,30 @@ class M3U8Downloader(BaseDownloader):
                     except OSError:
                         pass
 
-            # 准备排序后的段文件列表
-            segment_files: list[str] = []
-            for i in range(total_segments):
-                segment_file = downloaded_segments.get(i)
-                if segment_file and os.path.exists(segment_file):
-                    segment_files.append(segment_file)
-                else:
-                    self.logger.warning(f"Missing segment {i}")
+            # 准备排序后的段文件列表。fMP4 必须把初始化分段放在最前面。
+            segment_files = self._collect_output_files(downloaded_segments, total_segments, init_segment_path)
 
-            # 尝试使用ffmpeg合并
+            # fMP4 分片不是独立媒体文件，concat demuxer 无法直接合并，改为二进制拼接后再封装。
             ffmpeg_success = False
-            try:
-                # 检查是否可以使用ffmpeg
-                import shutil
+            if init_segment_path:
+                ffmpeg_success = self._merge_fmp4(segment_files, output_file)
+            else:
+                try:
+                    import shutil
 
-                if shutil.which("ffmpeg"):
-                    # 显示正在使用ffmpeg合并的状态
-                    progress_callback(
-                        ProgressInfo(
-                            total_size=0,
-                            downloaded=total_downloaded_bytes,
-                            speed=0.0,
-                            status_message="正在使用 ffmpeg 合并视频分段...",
+                    if shutil.which("ffmpeg"):
+                        # 显示正在使用ffmpeg合并的状态
+                        progress_callback(
+                            ProgressInfo(
+                                total_size=0,
+                                downloaded=total_downloaded_bytes,
+                                speed=0.0,
+                                status_message="正在使用 ffmpeg 合并视频分段...",
+                            )
                         )
-                    )
-                    ffmpeg_success = _merge_using_ffmpeg(segment_files, output_file)
-            except Exception as e:
-                self.logger.warning(f"Error checking for ffmpeg: {e}")
+                        ffmpeg_success = _merge_using_ffmpeg(segment_files, output_file)
+                except Exception as e:
+                    self.logger.warning(f"Error checking for ffmpeg: {e}")
 
             # 如果ffmpeg失败或不可用，则使用传统方法合并
             if not ffmpeg_success:
@@ -726,8 +847,8 @@ class M3U8Downloader(BaseDownloader):
                 ProgressInfo(total_size=0, downloaded=total_downloaded_bytes, speed=0.0, status_message="正在清理临时文件...")
             )
             try:
-                for segment_file in downloaded_segments.values():
-                    if os.path.exists(segment_file):
+                for segment_file in list(downloaded_segments.values()) + ([init_segment_path] if init_segment_path else []):
+                    if segment_file and os.path.exists(segment_file):
                         os.remove(segment_file)
                 os.rmdir(temp_dir)
             except Exception as e:

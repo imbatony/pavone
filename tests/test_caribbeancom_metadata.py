@@ -59,6 +59,21 @@ class TestCaribbeancomMetadata:
         )
         assert self.extractor._extract_movie_id_from_url("https://www.caribbeancom.com/ranking/") is None
 
+    def test_extract_short_underscore_movie_id_from_url(self):
+        """跨站影片使用 6位日期_2位序号，例如 10musume 的 031220_01"""
+        url = "https://www.caribbeancom.com/moviepages/031220_01/index.html"
+        assert self.extractor.can_extract(url)
+        assert not self.extractor._is_premium(url)
+        assert self.extractor._extract_movie_id_from_url(url) == "031220_01"
+        assert self.extractor._extract_movie_id(url) == "031220_01"
+        assert self.extractor._resolve(url) == ("031220_01", url)
+        assert (
+            self.extractor._extract_movie_id_from_url("https://en.caribbeancom.com/eng/moviepages/031220_01/index.html")
+            == "031220_01"
+        )
+        # 裸番号与 10musume 冲突，不在本提取器认领
+        assert not self.extractor.can_extract("031220_01")
+
     def test_extract_movie_id_from_code(self):
         """测试从番号字符串提取"""
         assert self.extractor._extract_movie_id("033026-001") == "033026-001"
@@ -163,6 +178,8 @@ class TestCaribbeancomMetadata:
         assert metadata.code == "033026-001"
         assert metadata.actors == ["後藤あや"]
         assert metadata.studio == "カリビアンコム"
+        assert metadata.premiered == "2026-03-30"
+        assert metadata.runtime == 52
 
     def test_extract_metadata_from_url_with_mock(self):
         """测试从URL提取元数据（使用mock）"""
@@ -182,3 +199,52 @@ class TestCaribbeancomMetadata:
         """测试无效identifier返回None"""
         metadata = self.extractor.extract_metadata("invalid_id")
         assert metadata is None
+
+    def test_extract_metadata_short_underscore_url(self):
+        """测试跨站短番号页面（BeautifulSoup 会重排属性并丢弃重复 itemprop）"""
+        with open("tests/sites/caribbeancom_031220.html", "r", encoding="utf-8") as f:
+            html_content = f.read()
+
+        mock_response = MagicMock()
+        mock_response.text = html_content
+        mock_response.status_code = 200
+        mock_response.url = "https://www.caribbeancom.com/moviepages/031220_01/index.html"
+
+        url = "https://www.caribbeancom.com/moviepages/031220_01/index.html"
+        with patch.object(self.extractor, "fetch", return_value=mock_response):
+            metadata = self.extractor.extract_metadata(url)
+
+        assert metadata is not None
+        assert metadata.code == "031220_01"
+        assert "ムチムチ公衆便所" in metadata.title
+        assert metadata.url == url
+        assert metadata.site == "Caribbeancom"
+        assert metadata.actors == ["早川夏美"]
+        assert metadata.runtime == 49
+        assert metadata.premiered == "2020-03-12"
+        assert metadata.year == 2020
+        assert metadata.plot is not None
+        assert "夏美" in metadata.plot
+        cover = "https://www.10musume.com/assets/sample/031220_01/str.jpg"
+        assert metadata.poster == cover
+        assert metadata.cover == cover
+        assert metadata.backdrops == [cover]
+        assert metadata.studio == "カリビアンコム"
+        assert metadata.official_rating == "JP-18+"
+
+    def test_extract_premium_actors_and_duration(self):
+        """caribbeancompr 的演员链接和纯文本时长在放宽正则后仍可解析"""
+        html = """
+        <li class="movie-spec">
+            <span class="spec-title">出演</span>
+            <span class="spec-content">
+                <a class="spec-item" href="/search/x/1.html">前田さおり</a>
+            </span>
+        </li>
+        <li class="movie-spec">
+            <span class="spec-title">再生時間</span>
+            <span class="spec-content">02:01:27</span>
+        </li>
+        """
+        assert self.extractor._extract_actors(html) == ["前田さおり"]
+        assert self.extractor._extract_duration(html) == 121
