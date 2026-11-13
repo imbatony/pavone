@@ -41,7 +41,7 @@ SUPPORTED_DOMAINS = [
 SITE_NAME = "MissAV"
 
 # Missav 网站的基础 URL
-MISSAV_BASE_URL = "https://missav.ai"
+MISSAV_BASE_URL = "https://missav.live"
 
 
 class MissAVPlugin(ExtractorPlugin, MetadataPlugin, SearchPlugin):

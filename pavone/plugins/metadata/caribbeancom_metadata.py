@@ -43,6 +43,9 @@ SITE_NAME_PREMIUM = "CaribbeancomPR"
 # 番号格式: caribbeancom 用 dash, caribbeancompr 用 underscore
 MOVIE_ID_PATTERN = r"\d{6}-\d{3}"
 MOVIE_ID_PATTERN_PR = r"\d{6}_\d{3}"
+# 跨站分发（如 10musume）在 caribbeancom URL 中使用 6位日期_2位序号，例如 031220_01。
+# 裸番号不在 can_extract 中认领，避免覆盖 TenMusumeMetadata 对同一格式的处理。
+MOVIE_ID_PATTERN_CROSS = r"\d{6}_\d{2}"
 
 # 影片页面 URL 模板
 MOVIE_URL_TEMPLATE = "https://www.caribbeancom.com/moviepages/{movie_id}/index.html"
@@ -72,6 +75,7 @@ class CaribbeancomMetadata(HtmlMetadataPlugin):
 
         支持两种格式：
         1. URL: https://www.caribbeancom.com/moviepages/033026-001/index.html
+              https://www.caribbeancom.com/moviepages/031220_01/index.html
               https://www.caribbeancompr.com/moviepages/050815_203/index.html
         2. 番号: 033026-001 或 050815_203
         """
@@ -135,12 +139,15 @@ class CaribbeancomMetadata(HtmlMetadataPlugin):
         caribbeancom.com 的 URL 中既可能出现 dash 也可能出现 underscore 格式的番号，
         因此需要同时尝试两种模式。
         """
-        # 优先尝试该域名对应的模式，再回退到另一种模式
+        # 优先尝试该域名对应的模式，再回退到另一种模式。
+        # caribbeancom 还会分发 10musume 等 2 位序号的跨站影片。
         primary = MOVIE_ID_PATTERN_PR if is_premium else MOVIE_ID_PATTERN
         fallback = MOVIE_ID_PATTERN if is_premium else MOVIE_ID_PATTERN_PR
         match = re.search(rf"/moviepages/({primary})/", url)
         if not match:
             match = re.search(rf"/moviepages/({fallback})/", url)
+        if not match and not is_premium:
+            match = re.search(rf"/moviepages/({MOVIE_ID_PATTERN_CROSS})/", url)
         return match.group(1) if match else None
 
     def _build_metadata_from_html(self, html: str, movie_id: str, is_premium: bool = False) -> Optional[MovieMetadata]:
@@ -313,26 +320,39 @@ class CaribbeancomMetadata(HtmlMetadataPlugin):
     def _extract_actors(self, html: str) -> List[str]:
         """从出演区域提取演员列表
 
-        caribbeancom 使用 itemprop="name"，caribbeancompr 使用 spec-item 链接文本
+        caribbeancom 使用 itemprop="name"，跨站页在 BeautifulSoup 丢弃重复 itemprop 后
+        只剩 spec__tag 文本；caribbeancompr 使用 spec-item 链接文本。
         """
         section = re.search(
-            r'<span class="spec-title">出演</span>\s*<span[^>]*>(.*?)</span>\s*</li>',
+            r'<span class="spec-title">出演</span>(.*?)</li>',
             html,
             re.S,
         )
-        if section:
-            content = section.group(1)
-            # 优先尝试 itemprop="name" (caribbeancom)
-            actors = re.findall(r'itemprop="name">([^<]+)</', content)
-            if not actors:
-                # caribbeancompr: 从 spec-item 链接提取
-                actors = re.findall(r'class="spec-item"[^>]*>([^<]+)</a>', content)
-            return actors
-        return []
+        if not section:
+            return []
+        content = section.group(1)
+        # itemprop 后可能还有其他属性，不能要求 name 属性紧贴 >
+        actors = re.findall(r'itemprop="name"[^>]*>([^<]+)', content)
+        if not actors:
+            # caribbeancompr: 从 spec-item 链接提取
+            actors = re.findall(r'class="spec-item"[^>]*>([^<]+)</a>', content)
+        if not actors:
+            # 跨站页: <span class="spec__tag" itemprop="actor" itemprop="name">姓名</span>
+            actors = re.findall(r'class="spec__tag"[^>]*>([^<]+)</span>', content)
+        return [actor.strip() for actor in actors if actor.strip()]
 
     def _extract_release_date(self, html: str) -> Optional[str]:
-        """提取配信日，转换为YYYY-MM-DD格式"""
-        match = re.search(r'itemprop="uploadDate"[^>]*class="spec-content">(\d{4}/\d{2}/\d{2})', html)
+        """提取配信日，转换为YYYY-MM-DD格式
+
+        不依赖 itemprop 与 class 的属性顺序，以兼容 BeautifulSoup 重排后的 HTML。
+        """
+        match = re.search(
+            r'<span class="spec-title">配信日</span>\s*<span[^>]*>\s*(\d{4}/\d{2}/\d{2})',
+            html,
+            re.S,
+        )
+        if not match:
+            match = re.search(r'itemprop="uploadDate"[^>]*>\s*(\d{4}/\d{2}/\d{2})', html)
         if match:
             return match.group(1).replace("/", "-")
         return None
@@ -340,28 +360,27 @@ class CaribbeancomMetadata(HtmlMetadataPlugin):
     def _extract_duration(self, html: str) -> Optional[int]:
         """提取再生時間，返回分钟数
 
-        caribbeancom: itemprop="duration" content="T00H51M31S"
+        caribbeancom: content="T00H51M31S"（属性顺序不固定）
         caribbeancompr: 纯文本 "02:01:27"
         """
-        # itemprop 格式
-        match = re.search(r'itemprop="duration"\s+content="T(\d+)H(\d+)M(\d+)S"', html)
-        if match:
-            hours = int(match.group(1))
-            minutes = int(match.group(2))
-            seconds = int(match.group(3))
-            return hours * 60 + minutes + (1 if seconds >= 30 else 0)
-        # 纯文本 HH:MM:SS 格式
         section = re.search(
-            r'<span class="spec-title">再生時間</span>\s*<span[^>]*>\s*(\d{1,2}):(\d{2}):(\d{2})',
+            r'<span class="spec-title">再生時間</span>(.*?)</li>',
             html,
             re.S,
         )
-        if section:
-            hours = int(section.group(1))
-            minutes = int(section.group(2))
-            seconds = int(section.group(3))
-            return hours * 60 + minutes + (1 if seconds >= 30 else 0)
-        return None
+        block = section.group(1) if section else ""
+        match = re.search(r'content="T(\d+)H(\d+)M(\d+)S"', block) if block else None
+        if not match:
+            # 旧页面或未经 BeautifulSoup 重排时，ISO duration 可能不在同一 li 结构中
+            match = re.search(r'content="T(\d+)H(\d+)M(\d+)S"', html)
+        if not match and block:
+            match = re.search(r"(\d{1,2}):(\d{2}):(\d{2})", block)
+        if not match:
+            return None
+        hours = int(match.group(1))
+        minutes = int(match.group(2))
+        seconds = int(match.group(3))
+        return hours * 60 + minutes + (1 if seconds >= 30 else 0)
 
     def _extract_tags(self, html: str) -> List[str]:
         """提取标签列表"""
